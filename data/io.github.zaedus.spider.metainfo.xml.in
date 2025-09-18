@@ -19,6 +19,9 @@
     <control>keyboard</control>
     <control>touch</control>
   </supports>
+  <requires>
+    <display_length compare="ge">360</display_length>
+  </requires>
   <branding>
     <color type="primary" scheme_preference="light">#c084fc</color>
     <color type="primary" scheme_preference="dark">#6b21a8</color>
