@@ -28,6 +28,8 @@ enum DiffSignificance {
 
 mod imp {
 
+    use anyhow::anyhow;
+
     use super::*;
 
     #[derive(Default, Debug, gtk::CompositeTemplate)]
@@ -186,7 +188,9 @@ mod imp {
             );
         }
         async fn save_details(&self) -> anyhow::Result<()> {
-            let wid = WindowIdentifier::from_native(&self.obj().root().unwrap()).await;
+            let wid = WindowIdentifier::from_native(&self.obj().root().unwrap())
+                .await
+                .ok_or(anyhow!("failed to get window"))?;
             let unsaved_details = self.unsaved_details.borrow().clone();
             if let Some(unsaved_details) = unsaved_details {
                 match self.diff_significance() {

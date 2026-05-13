@@ -37,6 +37,8 @@ pub fn gen_unique_id() -> String {
 
 mod imp {
 
+    use anyhow::anyhow;
+
     use super::*;
 
     #[derive(Default, Debug, gtk::CompositeTemplate, glib::Properties)]
@@ -139,6 +141,10 @@ mod imp {
                 self.button_stack
                     .set_visible_child(&self.button_spinner.get());
 
+                let wid = WindowIdentifier::from_native(&self.obj().root().unwrap())
+                    .await
+                    .ok_or(anyhow!("failed to get window"))
+                    .unwrap();
                 if let Err(err) = install_app(
                     &AppDetails::new(
                         gen_unique_id(),
@@ -146,7 +152,7 @@ mod imp {
                         self.url_entry.text().to_string(),
                     ),
                     self.unsaved_icon.take().unwrap(),
-                    &WindowIdentifier::from_native(&self.obj().root().unwrap()).await,
+                    &wid,
                 )
                 .await
                 {

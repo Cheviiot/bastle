@@ -183,7 +183,9 @@ pub fn get_app_details(id: &str) -> Option<AppDetails> {
 pub async fn uninstall_app(id: &str) -> anyhow::Result<()> {
     let proxy = DynamicLauncherProxy::new().await?;
 
-    proxy.uninstall(&id_to_desktop(id)).await?;
+    proxy
+        .uninstall(&id_to_desktop(id), Default::default())
+        .await?;
     let app_data_dir = data_dir.join(id);
     let app_cache_dir = cache_dir.join(id);
     if app_data_dir.exists() {
@@ -206,13 +208,13 @@ pub async fn install_app(
     let icon = Icon::Bytes(icon);
 
     let options = PrepareInstallOptions::default()
-        .modal(true)
-        .editable_icon(false)
-        .editable_name(false)
-        .launcher_type(LauncherType::Application);
+        .set_modal(true)
+        .set_editable_icon(false)
+        .set_editable_name(false)
+        .set_launcher_type(LauncherType::Application);
 
     let response = match proxy
-        .prepare_install(wid, details.title.as_str(), icon, options)
+        .prepare_install(Some(wid), details.title.as_str(), icon, options)
         .await
     {
         Err(ashpd::Error::Zbus(ashpd::zbus::Error::MethodError(_, msg, _))) => {
@@ -241,6 +243,7 @@ Exec=env spider {}"#,
             response.token(),
             id_to_desktop(details.id.as_str()).as_str(),
             desktop_content.as_str(),
+            Default::default(),
         )
         .await?;
 

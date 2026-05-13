@@ -4,33 +4,38 @@ version = "0.0.8"
 edition = "2021"
 
 [dependencies]
-anyhow = "1.0.86"
-ashpd = { version = "0.9.0", features = ["async-std", "gtk4"] }
+anyhow = "1.0"
 async-channel = "2.3.1"
 async-iterator = "2.3.0"
 dircpy = "0.3.19"
 futures = "0.3.30"
-gdk-pixbuf = "0.20.0"
+gdk-pixbuf = "0.22.0"
 gettext-rs = { version = "0.7", features = ["gettext-system"] }
-image = "0.25.1"
-isahc = "1.7.2"
+image = "0.25.10"
+isahc = "1.8.2"
 lazy_static = "1.5.0"
-open = "5.3.0"
+open = "5.3.5"
 rand = "0.8.5"
-scraper = { version = "0.19.1", features = ["atomic"] }
-url = "2.5.2"
+scraper = { version = "0.27.0", features = ["atomic"] }
+url = "2.5.8"
+
+[dependencies.ashpd]
+package = "ashpd"
+version = "0.13.11"
+features = ["async-io", "gtk4", "dynamic_launcher"]
+default-features = false
 
 [dependencies.gtk]
 package = "gtk4"
-version = "0.9"
-features = ["v4_16"]
+version = "0.11"
+features = ["v4_22"]
 
 [dependencies.adw]
 package = "libadwaita"
-version = "0.7"
-features = ["v1_6"]
+version = "0.9"
+features = ["v1_9"]
 
 [dependencies.webkit]
 package = "webkit6"
-version = "0.4.0"
-features = ["v2_46"]
+version = "0.6"
+features = ["v2_52"]

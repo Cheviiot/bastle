@@ -4,7 +4,6 @@ use glib::clone;
 use gtk::{gdk, gio, glib};
 use std::cell::RefCell;
 use webkit::prelude::*;
-use webkit::soup;
 use webkit::{HardwareAccelerationPolicy, PolicyDecisionType, WebContext, WebView};
 
 use crate::apps::{get_app_details, AppDetails};
@@ -165,7 +164,6 @@ mod imp {
                 .enable_2d_canvas_acceleration(true)
                 .enable_html5_local_storage(true)
                 .enable_html5_database(true)
-                .enable_hyperlink_auditing(true)
                 .enable_site_specific_quirks(true)
                 .enable_developer_extras(true);
             if let Some(user_agent) = &details.user_agent {
@@ -259,7 +257,7 @@ mod imp {
 
             webview.connect_decide_policy(|webview, decision, decision_type| {
                 if decision_type == PolicyDecisionType::NewWindowAction {
-                    if let Some(mut action) = decision
+                    if let Some(action) = decision
                         .clone()
                         .downcast::<webkit::NavigationPolicyDecision>()
                         .ok()
@@ -370,7 +368,7 @@ mod imp {
 glib::wrapper! {
     pub struct AppWindow(ObjectSubclass<imp::AppWindow>)
         @extends adw::ApplicationWindow, gtk::ApplicationWindow, gtk::Window, gtk::Widget,
-        @implements gtk::Accessible, gtk::Actionable, gtk::Buildable, gtk::ConstraintTarget, gio::ActionMap, gio::ActionGroup, gtk::Native, gtk::ShortcutManager;
+        @implements gtk::Accessible, gtk::Actionable, gtk::Buildable, gtk::ConstraintTarget, gio::ActionMap, gio::ActionGroup, gtk::Native, gtk::ShortcutManager, gtk::Root;
 }
 
 impl AppWindow {

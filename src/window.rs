@@ -187,12 +187,11 @@ impl SpiderWindow {
 
         details.id = id;
 
-        install_app(
-            &details,
-            icon,
-            &WindowIdentifier::from_native(&self.root().unwrap()).await,
-        )
-        .await?;
+        let wid = WindowIdentifier::from_native(&self.root().unwrap())
+            .await
+            .ok_or(anyhow!("failed to get window"))?;
+
+        install_app(&details, icon, &wid).await?;
 
         self.refresh();
 

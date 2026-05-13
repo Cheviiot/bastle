@@ -1,11 +1,9 @@
 {
   "id": "io.github.zaedus.spider",
   "runtime": "org.gnome.Platform",
-  "runtime-version": "48",
+  "runtime-version": "50",
   "sdk": "org.gnome.Sdk",
-  "sdk-extensions": [
-    "org.freedesktop.Sdk.Extension.rust-stable"
-  ],
+  "sdk-extensions": ["org.freedesktop.Sdk.Extension.rust-stable"],
   "command": "spider",
   "finish-args": [
     "--share=network",
@@ -17,9 +15,7 @@
   ],
   "build-options": {
     "append-path": "/usr/lib/sdk/rust-stable/bin",
-    "build-args": [
-      "--share=network"
-    ],
+    "build-args": ["--share=network"],
     "env": {
       "RUST_BACKTRACE": "1",
       "RUST_LOG": "spider=debug"
@@ -40,9 +36,7 @@
     {
       "name": "blueprint-compiler",
       "buildsystem": "meson",
-      "cleanup": [
-        "*"
-      ],
+      "cleanup": ["*"],
       "sources": [
         {
           "type": "git",
