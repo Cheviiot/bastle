@@ -1,12 +1,11 @@
 use anyhow::bail;
+use anyhow::{anyhow, Result};
 use futures::future::join_all;
-use gdk_pixbuf::Pixbuf;
-use gtk::{gdk, gio, glib, prelude::*};
-use image::{codecs::png::PngEncoder, ImageEncoder, ImageFormat};
+use gtk::{gdk, gio, prelude::*};
 use isahc::{config, prelude::*};
 use lazy_static::lazy_static;
 use scraper::{Html, Selector};
-use std::{collections::HashSet, path::Path};
+use std::collections::HashSet;
 use url::Url;
 
 #[derive(Debug)]
@@ -125,38 +124,35 @@ impl Ord for Image {
 }
 
 impl Image {
-    pub fn from_buffer(buffer: Vec<u8>, is_svg: bool) -> anyhow::Result<Self> {
+    pub async fn from_buffer(buffer: Vec<u8>, is_svg: bool) -> Result<Self> {
         if is_svg {
-            Ok(Image {
+            return Ok(Image {
                 buffer,
                 size: ImageSize::Variable,
-            })
-        } else {
-            let format = image::guess_format(buffer.as_slice())?;
-            let image = image::load_from_memory_with_format(buffer.as_slice(), format)?;
-            if image.width() != image.height() {
-                bail!("Image is not square")
-            }
-            let buffer = if format != ImageFormat::Png {
-                let mut encbuf = Vec::new();
-                PngEncoder::new(&mut encbuf).write_image(
-                    image.as_bytes(),
-                    image.width(),
-                    image.height(),
-                    image::ExtendedColorType::Rgba8,
-                )?;
-                encbuf
-            } else {
-                buffer
-            };
-            Ok(Image {
-                buffer,
-                size: ImageSize::Sized((image.width(), image.height())),
-            })
+            });
         }
+        let mut loader = glycin::Loader::new_vec(buffer);
+        loader.sandbox_selector(glycin::SandboxSelector::NotSandboxed);
+        let glycin_image = loader.load().await.map_err(|e| anyhow!("{e}"))?;
+        let details = glycin_image.details();
+        let (w, h) = (details.width(), details.height());
+        if w != h {
+            bail!("Image is not square")
+        }
+
+        let texture = glycin_image
+            .next_frame()
+            .await
+            .map_err(|e| anyhow!("{e}"))?
+            .texture();
+        let png = texture.save_to_png_bytes().to_vec();
+        Ok(Image {
+            buffer: png,
+            size: ImageSize::Sized((w, h)),
+        })
     }
-    pub fn to_gdk_texture(&self, size: i32) -> gdk::Texture {
-        to_gdk_texture(&self.buffer, size)
+    pub async fn load_texture(&self) -> Result<gdk::Texture> {
+        load_texture(self.buffer.clone()).await
     }
 }
 
@@ -172,27 +168,59 @@ lazy_static! {
         .unwrap();
 }
 
-pub fn to_gdk_texture(buffer: &[u8], size: i32) -> gdk::Texture {
-    let bytes = glib::Bytes::from(buffer);
-    let stream = gio::MemoryInputStream::from_bytes(&bytes);
-    let pixbuf =
-        Pixbuf::from_stream_at_scale(&stream, size, size, true, gio::Cancellable::NONE).unwrap();
-    gdk::Texture::for_pixbuf(&pixbuf)
+// Sane size to render SVGs to that's better than the default
+const SVG_RENDER_SIZE: u32 = 256;
+
+pub async fn load_texture(buffer: Vec<u8>) -> Result<gdk::Texture> {
+    let mut loader = glycin::Loader::new_vec(buffer);
+    loader.sandbox_selector(glycin::SandboxSelector::NotSandboxed);
+    let image = loader.load().await.map_err(|e| anyhow!("{e}"))?;
+    let mime = image.mime_type();
+    let frame = if matches!(mime.as_str(), "image/svg+xml" | "image/svg+xml-compressed") {
+        image
+            .specific_frame(glycin::FrameRequest::new().scale(SVG_RENDER_SIZE, SVG_RENDER_SIZE))
+            .await
+    } else {
+        image.next_frame().await
+    }
+    .map_err(|e| anyhow!("{e}"))?;
+    Ok(frame.texture())
 }
 
-async fn get_image_metadata(url: Url) -> anyhow::Result<Image> {
+async fn get_image_metadata(url: Url) -> Result<Image> {
     let mut response = http.get_async(url.to_string()).await?;
+    if !response.status().is_success() {
+        bail!("{url}: HTTP {}", response.status());
+    }
+    let content_type = response
+        .headers()
+        .get("content-type")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| {
+            s.split(';')
+                .next()
+                .unwrap_or("")
+                .trim()
+                .to_ascii_lowercase()
+        });
+    let is_svg = content_type.as_deref() == Some("image/svg+xml")
+        || url
+            .path_segments()
+            .and_then(|x| x.last())
+            .is_some_and(|name| name.to_ascii_lowercase().ends_with(".svg"));
+    if let Some(ct) = content_type.as_deref() {
+        if !is_svg && !ct.starts_with("image/") {
+            bail!("{url}: not an image (Content-Type: {ct})");
+        }
+    }
     let buffer = response.bytes().await?;
-    let extension = url
-        .path_segments()
-        .and_then(|x| x.last())
-        .and_then(|x| Path::new(x).extension())
-        .and_then(|x| x.to_str());
 
-    Image::from_buffer(buffer, extension.is_some_and(|x| x == "svg"))
+    Image::from_buffer(buffer, is_svg)
+        .await
+        .map_err(|e| anyhow!("{url}: {e}"))
 }
 
-pub async fn get_website_meta(url: Url) -> anyhow::Result<WebsiteMeta> {
+pub async fn get_website_meta(url: Url) -> Result<WebsiteMeta> {
     let mut req = http.get_async(url.to_string()).await?;
     let html = req.text().await?;
     let url: Url = Url::parse(req.effective_uri().unwrap().to_string().as_str()).unwrap();
@@ -239,9 +267,24 @@ pub async fn get_website_meta(url: Url) -> anyhow::Result<WebsiteMeta> {
 
 pub async fn icon_from_dialog(
     window: Option<&(impl IsA<gtk::Window> + Clone + 'static)>,
-) -> anyhow::Result<gio::File> {
+) -> Result<gio::File> {
     let filter = gtk::FileFilter::new();
-    filter.add_pixbuf_formats();
+    filter.set_name(Some("Images"));
+    for mime in [
+        "image/png",
+        "image/jpeg",
+        "image/webp",
+        "image/svg+xml",
+        "image/gif",
+        "image/bmp",
+        "image/x-icon",
+        "image/vnd.microsoft.icon",
+        "image/avif",
+        "image/heif",
+        "image/tiff",
+    ] {
+        filter.add_mime_type(mime);
+    }
 
     let filters = gio::ListStore::new::<gtk::FileFilter>();
     filters.append(&filter);

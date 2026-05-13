@@ -65,7 +65,9 @@ mod imp {
 
                     _self.title.set_label(&details.title);
                     _self.subtitle.set_label(&details.url);
-                    _self.icon.set_paintable(Some(&details.to_gdk_texture(64)));
+                    if let Ok(texture) = details.load_texture().await {
+                        _self.icon.set_paintable(Some(&texture));
+                    }
                 }
             ));
         }

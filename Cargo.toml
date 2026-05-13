@@ -9,9 +9,8 @@ async-channel = "2.3.1"
 async-iterator = "2.3.0"
 dircpy = "0.3.19"
 futures = "0.3.30"
-gdk-pixbuf = "0.22.0"
 gettext-rs = { version = "0.7", features = ["gettext-system"] }
-image = "0.25.10"
+glycin = { version = "3", features = ["gdk4"] }
 isahc = "1.8.2"
 lazy_static = "1.5.0"
 open = "5.3.5"

@@ -2,7 +2,7 @@ use adw::prelude::*;
 use adw::subclass::prelude::*;
 use glib::clone;
 use glib::Object;
-use gtk::{gio, glib};
+use gtk::{gdk, gio, glib};
 use std::cell::RefCell;
 
 use ashpd::WindowIdentifier;
@@ -221,8 +221,17 @@ mod imp {
         }
         pub fn set_details(&self, details: &AppDetails) {
             self.details.replace(details.clone());
-            self.icon_image
-                .set_paintable(Some(&details.to_gdk_texture(256)));
+            if details.icon.is_some() {
+                let details = details.clone();
+                let icon_image = self.icon_image.clone();
+                glib::spawn_future_local(async move {
+                    if let Ok(texture) = details.load_texture().await {
+                        icon_image.set_paintable(Some(&texture));
+                    }
+                });
+            } else {
+                self.icon_image.set_paintable(gdk::Paintable::NONE);
+            }
             self.title_entry.set_text(details.title.as_str());
             self.url_entry.set_text(details.url.as_str());
             self.titlebar_color.set_active(details.has_titlebar_color);
@@ -242,10 +251,11 @@ mod imp {
                 .and_then(|x| x.extension())
                 .and_then(|x| x.to_str());
             let image =
-                util::Image::from_buffer(buffer.to_vec(), extension.is_some_and(|x| x == "svg"))?;
+                util::Image::from_buffer(buffer.to_vec(), extension.is_some_and(|x| x == "svg"))
+                    .await?;
             self.unsaved_icon.replace(Some(image.buffer.to_vec()));
-            self.icon_image
-                .set_paintable(Some(&image.to_gdk_texture(32)));
+            let texture = image.load_texture().await?;
+            self.icon_image.set_paintable(Some(&texture));
             self.update_unsaved_details();
             Ok(())
         }

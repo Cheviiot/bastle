@@ -106,8 +106,11 @@ mod imp {
                             .set_text(meta.title.unwrap_or_default().as_str());
                         self.unsaved_icon
                             .replace(meta.icon.as_ref().map(|x| x.buffer.clone()));
-                        self.icon_image
-                            .set_paintable(meta.icon.map(|x| x.to_gdk_texture(32)).as_ref());
+                        let texture = match meta.icon.as_ref() {
+                            Some(icon) => icon.load_texture().await.ok(),
+                            None => None,
+                        };
+                        self.icon_image.set_paintable(texture.as_ref());
                     }
                     Err(err) => self.toast(err.to_string()),
                 }
@@ -203,10 +206,11 @@ mod imp {
                 .and_then(|x| x.extension())
                 .and_then(|x| x.to_str());
             let image =
-                util::Image::from_buffer(buffer.to_vec(), extension.is_some_and(|x| x == "svg"))?;
+                util::Image::from_buffer(buffer.to_vec(), extension.is_some_and(|x| x == "svg"))
+                    .await?;
             self.unsaved_icon.replace(Some(image.buffer.to_vec()));
-            self.icon_image
-                .set_paintable(Some(&image.to_gdk_texture(32)));
+            let texture = image.load_texture().await?;
+            self.icon_image.set_paintable(Some(&texture));
             Ok(())
         }
     }

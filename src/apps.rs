@@ -16,7 +16,7 @@ use gtk::prelude::SettingsExtManual;
 use gtk::{gdk, glib};
 use lazy_static::lazy_static;
 
-use crate::{application::settings, config, util::to_gdk_texture};
+use crate::{application::settings, config, util::load_texture};
 
 pub type AppsSettings = HashMap<String, HashMap<String, String>>;
 
@@ -101,8 +101,8 @@ impl AppDetails {
             ..self
         }
     }
-    pub fn to_gdk_texture(&self, size: i32) -> gdk::Texture {
-        to_gdk_texture(self.icon.clone().unwrap().as_slice(), size)
+    pub async fn load_texture(&self) -> anyhow::Result<gdk::Texture> {
+        load_texture(self.icon.clone().unwrap()).await
     }
     pub fn save(&self) -> anyhow::Result<()> {
         let settings = settings();
