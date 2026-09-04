@@ -374,8 +374,22 @@ impl AppRepository {
             for (origin, kind, decision) in changes {
                 current.set_decision(origin, kind, decision);
             }
-            if original.navigation != edited.navigation {
-                current.navigation = edited.navigation.clone();
+            if original.navigation.enabled != edited.navigation.enabled {
+                current.navigation.enabled = edited.navigation.enabled;
+            }
+            for origin in edited
+                .navigation
+                .allowed_origins
+                .difference(&original.navigation.allowed_origins)
+            {
+                current.navigation.allowed_origins.insert(origin.clone());
+            }
+            for origin in original
+                .navigation
+                .allowed_origins
+                .difference(&edited.navigation.allowed_origins)
+            {
+                current.navigation.allowed_origins.remove(origin);
             }
             if original.proxy != edited.proxy {
                 current.proxy = edited.proxy.clone();
@@ -876,6 +890,10 @@ mod tests {
         let app = AppConfigV2::new("Example", "example.org", 0).unwrap();
         repository.create(&app, b"icon").unwrap();
         let origin = Origin::from_str("https://example.org").unwrap();
+        let removed_origin = Origin::from_str("https://removed.example").unwrap();
+        repository
+            .allow_navigation_origin(&app.id, removed_origin.clone())
+            .unwrap();
         let editor_snapshot = repository.load_policy(&app.id).unwrap();
         let mut editor_changes = editor_snapshot.clone();
         editor_changes.set_decision(
@@ -888,6 +906,12 @@ mod tests {
             .navigation
             .allowed_origins
             .insert(origin.clone());
+        editor_changes
+            .navigation
+            .allowed_origins
+            .remove(&removed_origin);
+
+        let concurrent_origin = Origin::from_str("https://concurrent.example").unwrap();
 
         repository
             .apply_policy_decisions(
@@ -898,6 +922,9 @@ mod tests {
                     PermissionDecision::Block,
                 )],
             )
+            .unwrap();
+        repository
+            .allow_navigation_origin(&app.id, concurrent_origin.clone())
             .unwrap();
         let merged = repository
             .merge_policy(&app.id, &editor_snapshot, &editor_changes)
@@ -913,6 +940,11 @@ mod tests {
         );
         assert!(merged.navigation.enabled);
         assert!(merged.navigation.allowed_origins.contains(&origin));
+        assert!(merged
+            .navigation
+            .allowed_origins
+            .contains(&concurrent_origin));
+        assert!(!merged.navigation.allowed_origins.contains(&removed_origin));
         assert!(repository.app_dir(&app.id).join(POLICY_LOCK_FILE).is_file());
     }
 
