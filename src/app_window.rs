@@ -110,7 +110,7 @@ fn create_popup(
     popup.set_destroy_with_parent(true);
 
     let settings = webkit::prelude::WebViewExt::settings(parent_view)?;
-    let content_manager = parent_view.user_content_manager()?;
+    let content_manager = webkit::UserContentManager::new();
     let toolbar = adw::ToolbarView::new();
     toolbar.add_top_bar(&adw::HeaderBar::new());
     let popup_view = WebView::builder()

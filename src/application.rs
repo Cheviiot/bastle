@@ -45,7 +45,6 @@ mod imp {
             app.set_accels_for_action("win.forward", &["<alt>Right", "Forward"]);
             app.set_accels_for_action("win.reload", &["<primary>r", "F5"]);
             app.set_accels_for_action("win.reload-bypass-cache", &["<primary><shift>r"]);
-            app.set_accels_for_action("win.stop", &["Escape"]);
             app.set_accels_for_action("win.home", &["<alt>Home"]);
             app.set_accels_for_action("win.zoom-in", &["<primary>plus", "<primary>equal"]);
             app.set_accels_for_action("win.zoom-out", &["<primary>minus"]);
