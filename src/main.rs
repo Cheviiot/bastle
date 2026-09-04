@@ -31,6 +31,10 @@ fn main() -> glib::ExitCode {
         return glib::ExitCode::FAILURE;
     }
 
+    #[cfg(feature = "ui-tests")]
+    let resource_path = std::env::var("BASTLE_TEST_RESOURCE")
+        .unwrap_or_else(|_| format!("{PKGDATADIR}/bastle.gresource"));
+    #[cfg(not(feature = "ui-tests"))]
     let resource_path = format!("{PKGDATADIR}/bastle.gresource");
     let resources = match gio::Resource::load(&resource_path) {
         Ok(resources) => resources,

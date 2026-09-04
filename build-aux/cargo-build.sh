@@ -7,7 +7,8 @@ source_dir=$2
 target_dir=$3
 profile=$4
 offline=$5
-output=$6
+features=$6
+output=$7
 
 set -- build --manifest-path "$source_dir/Cargo.toml" --target-dir "$target_dir"
 if [ "$profile" = release ]; then
@@ -15,6 +16,9 @@ if [ "$profile" = release ]; then
 fi
 if [ "$offline" = true ]; then
   set -- "$@" --offline
+fi
+if [ -n "$features" ]; then
+  set -- "$@" --features "$features"
 fi
 "$cargo_bin" "$@"
 cp "$target_dir/$profile/bastle" "$output"

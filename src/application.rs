@@ -40,6 +40,15 @@ mod imp {
                 "List known applications",
                 None,
             );
+            #[cfg(feature = "ui-tests")]
+            app.add_main_option(
+                "ui-test-app-page",
+                glib::Char::from(0),
+                OptionFlags::HIDDEN,
+                OptionArg::None,
+                "Run the app-page UI regression test",
+                None,
+            );
             app.set_accels_for_action("app.quit", &["<primary>q"]);
             app.set_accels_for_action("win.back", &["<alt>Left", "Back"]);
             app.set_accels_for_action("win.forward", &["<alt>Right", "Forward"]);
@@ -48,6 +57,23 @@ mod imp {
 
     impl ApplicationImpl for BastleApplication {
         fn command_line(&self, command_line: &gio::ApplicationCommandLine) -> glib::ExitCode {
+            #[cfg(feature = "ui-tests")]
+            if command_line
+                .options_dict()
+                .lookup::<bool>("ui-test-app-page")
+                .ok()
+                .flatten()
+                .unwrap_or(false)
+            {
+                return match crate::app_page::run_ui_smoke_test() {
+                    Ok(()) => glib::ExitCode::SUCCESS,
+                    Err(error) => {
+                        eprintln!("UI smoke test failed: {error:#}");
+                        glib::ExitCode::FAILURE
+                    }
+                };
+            }
+
             let service = AppService::portal();
             if command_line
                 .options_dict()

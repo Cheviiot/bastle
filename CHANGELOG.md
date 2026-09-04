@@ -3,6 +3,14 @@
 All notable Bastle changes are recorded here. The format follows Keep a
 Changelog and versions follow Semantic Versioning.
 
+## [Unreleased]
+
+### Fixed
+
+- Prevent the application manager from aborting when an application card is
+  opened for editing, and cover the editor with an Xvfb-only UI regression
+  test.
+
 ## [0.1.0] - 2026-09-04
 
 ### Added
@@ -21,4 +29,5 @@ Changelog and versions follow Semantic Versioning.
   sanitization, validated theme colors, sandboxed glycin decoding, and safe file
   URI downloads.
 
+[Unreleased]: https://github.com/Cheviiot/bastle/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/Cheviiot/bastle/releases/tag/v0.1.0
