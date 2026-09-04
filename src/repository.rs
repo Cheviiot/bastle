@@ -202,11 +202,24 @@ impl AppRepository {
         if !app_dir.is_dir() {
             bail!("app {} is not stored locally", app.id);
         }
-        atomic_write_json(&app_dir.join(CONFIG_FILE), app)?;
-        if let Some(icon) = icon {
-            atomic_write_bytes(&app_dir.join(ICON_FILE), icon)?;
+
+        let config_path = app_dir.join(CONFIG_FILE);
+        let staged_config = stage_bytes(&config_path, &serialize_json(app)?)?;
+        let staged_icon = icon
+            .map(|bytes| {
+                let path = app_dir.join(ICON_FILE);
+                stage_bytes(&path, bytes).map(|temporary| (temporary, path))
+            })
+            .transpose()?;
+
+        // Commit the icon first so a rejected icon target cannot leave newer
+        // metadata pointing at an older icon. AppService restores both files
+        // if the second atomic replacement ever fails.
+        if let Some((temporary, path)) = staged_icon {
+            persist_staged(temporary, &path)?;
         }
-        Ok(())
+        persist_staged(staged_config, &config_path)?;
+        sync_parent(&config_path)
     }
 
     pub fn delete(&self, id: &AppId) -> Result<()> {
@@ -240,11 +253,7 @@ fn write_bytes(path: &Path, bytes: &[u8]) -> Result<()> {
         .with_context(|| format!("failed to sync {}", path.display()))
 }
 
-fn atomic_write_json(path: &Path, app: &AppConfigV1) -> Result<()> {
-    atomic_write_bytes(path, &serialize_json(app)?)
-}
-
-fn atomic_write_bytes(path: &Path, bytes: &[u8]) -> Result<()> {
+fn stage_bytes(path: &Path, bytes: &[u8]) -> Result<NamedTempFile> {
     let parent = path
         .parent()
         .ok_or_else(|| anyhow!("{} has no parent directory", path.display()))?;
@@ -252,11 +261,15 @@ fn atomic_write_bytes(path: &Path, bytes: &[u8]) -> Result<()> {
         .with_context(|| format!("failed to create a temporary file in {}", parent.display()))?;
     temporary.write_all(bytes)?;
     temporary.as_file().sync_all()?;
+    Ok(temporary)
+}
+
+fn persist_staged(temporary: NamedTempFile, path: &Path) -> Result<()> {
     temporary
         .persist(path)
         .map_err(|error| error.error)
         .with_context(|| format!("failed to atomically replace {}", path.display()))?;
-    sync_parent(path)
+    Ok(())
 }
 
 fn sync_parent(path: &Path) -> Result<()> {
@@ -343,5 +356,19 @@ mod tests {
         fs::remove_file(repository.app_dir(&app.id).join(ICON_FILE)).unwrap();
         assert!(repository.read_icon(&app.id).is_err());
         assert!(repository.contains(&app.id));
+    }
+
+    #[test]
+    fn rejected_icon_update_does_not_commit_new_config() {
+        let (_temp, repository) = repository();
+        let mut app = AppConfigV1::new("Before", "example.org", 0).unwrap();
+        repository.create(&app, b"old-icon").unwrap();
+        let icon_path = repository.app_dir(&app.id).join(ICON_FILE);
+        fs::remove_file(&icon_path).unwrap();
+        fs::create_dir(&icon_path).unwrap();
+
+        app.title = "After".to_owned();
+        assert!(repository.update(&app, Some(b"new-icon")).is_err());
+        assert_eq!(repository.load(&app.id).unwrap().title, "Before");
     }
 }

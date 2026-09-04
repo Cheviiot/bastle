@@ -16,6 +16,7 @@ const IMAGE_LIMIT: usize = 10 * 1024 * 1024;
 const ICON_SIZE: u32 = 256;
 const ICON_CONTENT_SIZE: u32 = 224;
 const MAX_ICON_REQUESTS: usize = 4;
+const MAX_ICON_CANDIDATES: usize = 16;
 
 #[derive(Debug, Default)]
 pub struct WebsiteMeta {
@@ -190,6 +191,7 @@ pub async fn get_website_meta(url: Url) -> Result<WebsiteMeta> {
         }
     }
     let icon = stream::iter(urls)
+        .take(MAX_ICON_CANDIDATES)
         .map(fetch_icon)
         .buffer_unordered(MAX_ICON_REQUESTS)
         .filter_map(|result| async move { result.ok() })

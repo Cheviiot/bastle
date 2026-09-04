@@ -11,7 +11,7 @@ use ashpd::WindowIdentifier;
 use crate::{
     launcher::{LauncherBackend, PortalLauncher, UninstallOutcome},
     legacy::{self, ImportSummary, LegacyPreview},
-    model::{AppConfigV1, AppId},
+    model::{AppConfigV1, AppId, WindowState},
     repository::{AppRepository, LoadReport},
 };
 
@@ -58,8 +58,10 @@ impl<L: LauncherBackend> AppService<L> {
         self.repository.cache_dir(id)
     }
 
-    pub fn save_runtime_state(&self, app: &AppConfigV1) -> Result<()> {
-        self.repository.update(app, None)
+    pub fn save_runtime_state(&self, id: &AppId, window: WindowState) -> Result<()> {
+        let mut current = self.repository.load(id)?;
+        current.window = window;
+        self.repository.update(&current, None)
     }
 
     pub fn preview_legacy(&self, selected: &Path) -> Result<LegacyPreview> {
@@ -102,11 +104,23 @@ impl<L: LauncherBackend> AppService<L> {
         let current_icon = icon.unwrap_or(&previous_icon);
         self.launcher.install(&app, current_icon, parent).await?;
         if let Err(error) = self.repository.update(&app, icon) {
-            let _ = self
+            let mut rollback_failures = Vec::new();
+            if let Err(rollback_error) = self.repository.update(&previous, Some(&previous_icon)) {
+                rollback_failures.push(format!("local rollback failed: {rollback_error}"));
+            }
+            if let Err(rollback_error) = self
                 .launcher
                 .install(&previous, &previous_icon, parent)
-                .await;
-            return Err(error).context("launcher was restored after a failed local update");
+                .await
+            {
+                rollback_failures.push(format!("launcher rollback failed: {rollback_error}"));
+            }
+            let context = if rollback_failures.is_empty() {
+                "the previous local data and launcher were restored".to_owned()
+            } else {
+                rollback_failures.join("; ")
+            };
+            return Err(error).context(context);
         }
         Ok(app)
     }
@@ -281,6 +295,27 @@ mod tests {
         *launcher.deny_uninstall.borrow_mut() = true;
         assert!(block_on(service.delete(&app.id)).is_err());
         assert!(service.repository().contains(&app.id));
+    }
+
+    #[test]
+    fn runtime_state_is_merged_into_the_latest_config() {
+        let (_temp, service, _launcher) = service();
+        let app = AppConfigV1::new("Before", "example.org", 0).unwrap();
+        block_on(service.create(app.clone(), b"icon", None)).unwrap();
+
+        let mut edited = app.clone();
+        edited.title = "After".to_owned();
+        service.repository().update(&edited, None).unwrap();
+        let window = WindowState {
+            width: 1440,
+            height: 900,
+            maximized: true,
+        };
+        service.save_runtime_state(&app.id, window.clone()).unwrap();
+
+        let stored = service.repository().load(&app.id).unwrap();
+        assert_eq!(stored.title, "After");
+        assert_eq!(stored.window, window);
     }
 
     #[test]

@@ -9,7 +9,11 @@ use glib::clone;
 use gtk::{gdk, gio, glib};
 use webkit::{prelude::*, HardwareAccelerationPolicy, PolicyDecisionType, WebContext, WebView};
 
-use crate::{model::AppConfigV1, service::AppService, util};
+use crate::{
+    model::{AppConfigV1, WindowState},
+    service::AppService,
+    util,
+};
 
 fn relative_luminance(color: &gdk::RGBA) -> f32 {
     0.2126 * color.red() + 0.7152 * color.green() + 0.0722 * color.blue()
@@ -62,12 +66,14 @@ mod imp {
     impl WidgetImpl for AppWindow {}
     impl WindowImpl for AppWindow {
         fn close_request(&self) -> glib::Propagation {
-            if let Some(mut config) = self.config.borrow().clone() {
+            if let Some(config) = self.config.borrow().as_ref() {
                 let (width, height) = self.obj().default_size();
-                config.window.width = width;
-                config.window.height = height;
-                config.window.maximized = self.obj().is_maximized();
-                if let Err(error) = AppService::portal().save_runtime_state(&config) {
+                let window = WindowState {
+                    width,
+                    height,
+                    maximized: self.obj().is_maximized(),
+                };
+                if let Err(error) = AppService::portal().save_runtime_state(&config.id, window) {
                     eprintln!("Failed to save Bastle window state: {error:#}");
                 }
             }
