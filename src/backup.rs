@@ -17,7 +17,7 @@ use tempfile::{Builder as TempBuilder, NamedTempFile, TempDir};
 use crate::{
     launcher::{LauncherBackend, PortalLauncher},
     model::{AppConfigV2, AppId},
-    policy::{decode_policy, AppPolicyV2},
+    policy::{decode_policy, AppPolicyV2, MAX_POLICY_SERIALIZED_SIZE},
     repository::{ProfileLock, RUNTIME_LOCK_FILE},
     service::AppService,
 };
@@ -29,7 +29,7 @@ const MAX_ARCHIVE_FILES: usize = 100_000;
 const MAX_UNCOMPRESSED_SIZE: u64 = 16 * 1024 * 1024 * 1024;
 const MAX_MANIFEST_SIZE: u64 = 16 * 1024 * 1024;
 const MAX_APP_CONFIG_SIZE: u64 = 1024 * 1024;
-const MAX_POLICY_SIZE: u64 = 16 * 1024 * 1024;
+const MAX_POLICY_SIZE: u64 = MAX_POLICY_SERIALIZED_SIZE as u64;
 const MAX_ICON_SIZE: u64 = 10 * 1024 * 1024;
 
 #[derive(Debug, Default)]

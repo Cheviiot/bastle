@@ -261,7 +261,7 @@ impl BastleApplication {
         let arguments = std::env::args_os().collect::<Vec<_>>();
         command_app_id(&arguments)
             .filter(|id| AppService::portal().contains(id))
-            .map(|id| format!("{}.app{}", config::APP_ID, id))
+            .map(|id| config::managed_app_id(&id))
             .unwrap_or_else(|| config::APP_ID.to_owned())
     }
 

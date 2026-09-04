@@ -18,6 +18,7 @@ const LEGACY_POLICY_SCHEMA_VERSION: u32 = 1;
 pub const MAX_CONTENT_FILTER_SOURCE_SIZE: usize = 8 * 1024 * 1024;
 pub const MAX_CONTENT_FILTERS: usize = 32;
 const MAX_TOTAL_CONTENT_FILTER_SOURCE_SIZE: usize = 12 * 1024 * 1024;
+pub const MAX_POLICY_SERIALIZED_SIZE: usize = 32 * 1024 * 1024;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
@@ -309,6 +310,14 @@ impl AppPolicyV2 {
         ensure!(
             total_source_size <= MAX_TOTAL_CONTENT_FILTER_SOURCE_SIZE,
             "combined content filters exceed the 12 MiB limit"
+        );
+        let serialized_size = serde_json::to_vec_pretty(self)?
+            .len()
+            .checked_add(1)
+            .ok_or_else(|| anyhow!("policy size overflow"))?;
+        ensure!(
+            serialized_size <= MAX_POLICY_SERIALIZED_SIZE,
+            "serialized policy exceeds the 32 MiB limit"
         );
         Ok(())
     }

@@ -663,8 +663,9 @@ impl AppWindow {
                                     filter_error_message,
                                     failures.join("; ")
                                 ));
+                            } else {
+                                view.load_uri(&start_url);
                             }
-                            view.load_uri(&start_url);
                         }
                     ));
                 } else {

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: bastle\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-05 05:20+1000\n"
+"POT-Creation-Date: 2026-09-05 05:30+1000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,7 +18,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 
 #: data/io.github.cheviiot.bastle.desktop.in:3
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:5 src/app_window.rs:1060
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:5 src/app_window.rs:1061
 #: src/home_page.blp:7
 msgid "Bastle"
 msgstr ""
@@ -311,99 +311,99 @@ msgstr ""
 msgid "Some content filters could not be enabled"
 msgstr ""
 
-#: src/app_window.rs:824
+#: src/app_window.rs:825
 msgid "This origin is outside the application's navigation allowlist."
 msgstr ""
 
-#: src/app_window.rs:825
+#: src/app_window.rs:826
 msgid "Destination"
 msgstr ""
 
-#: src/app_window.rs:828
+#: src/app_window.rs:829
 msgid "Open Another Origin?"
 msgstr ""
 
-#: src/app_window.rs:830 src/permissions_dialog.rs:53
+#: src/app_window.rs:831 src/permissions_dialog.rs:53
 msgid "Block"
 msgstr ""
 
-#: src/app_window.rs:831
+#: src/app_window.rs:832
 msgid "Open Externally"
 msgstr ""
 
-#: src/app_window.rs:832
+#: src/app_window.rs:833
 msgid "Open Once"
 msgstr ""
 
-#: src/app_window.rs:833
+#: src/app_window.rs:834
 msgid "Always Allow Origin"
 msgstr ""
 
-#: src/app_window.rs:847
+#: src/app_window.rs:848
 msgid "The origin could not be saved"
 msgstr ""
 
-#: src/app_window.rs:857
+#: src/app_window.rs:858
 msgid "Navigation blocked"
 msgstr ""
 
-#: src/app_window.rs:871
+#: src/app_window.rs:872
 msgid "Unsupported website permission request"
 msgstr ""
 
-#: src/app_window.rs:882
+#: src/app_window.rs:883
 msgid "Website permission origin is unavailable"
 msgstr ""
 
-#: src/app_window.rs:910
+#: src/app_window.rs:911
 msgid "Website"
 msgstr ""
 
-#: src/app_window.rs:911
+#: src/app_window.rs:912
 msgid "Website Permission"
 msgstr ""
 
-#: src/app_window.rs:913
+#: src/app_window.rs:914
 msgid "Not Now"
 msgstr ""
 
-#: src/app_window.rs:914
+#: src/app_window.rs:915
 msgid "Always Block"
 msgstr ""
 
-#: src/app_window.rs:915
+#: src/app_window.rs:916
 msgid "Allow for This Session"
 msgstr ""
 
-#: src/app_window.rs:916
+#: src/app_window.rs:917
 msgid "Always Allow"
 msgstr ""
 
-#: src/app_window.rs:943
+#: src/app_window.rs:944
 msgid "Permission was allowed only for this session"
 msgstr ""
 
-#: src/app_window.rs:956
+#: src/app_window.rs:957
 msgid "Permission block could not be saved"
 msgstr ""
 
-#: src/app_window.rs:980
+#: src/app_window.rs:981
 msgid "System notifications are unavailable"
 msgstr ""
 
-#: src/app_window.rs:1061
+#: src/app_window.rs:1062
 msgid "Web App Running in Background"
 msgstr ""
 
-#: src/app_window.rs:1065
+#: src/app_window.rs:1066
 msgid "is still active. Use Stop to end its process."
 msgstr ""
 
-#: src/app_window.rs:1072
+#: src/app_window.rs:1073
 msgid "Stop"
 msgstr ""
 
-#: src/app_window.rs:1079
+#: src/app_window.rs:1080
 msgid "Bastle web apps are running"
 msgstr ""
 
