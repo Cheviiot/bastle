@@ -8,6 +8,7 @@ use std::{
 
 use adw::{prelude::*, subclass::prelude::*};
 use anyhow::{bail, Context, Result};
+use ashpd::WindowIdentifier;
 use gettextrs::gettext;
 use glib::clone;
 use gtk::{gdk, gio, glib};
@@ -18,9 +19,11 @@ use webkit::{
 
 use crate::{
     application::BastleApplication,
-    background, content_filters,
+    background,
+    compatibility::{reason_description, CompatibilityCatalogV1},
+    content_filters,
     download_manager::DownloadManager,
-    model::{AppConfigV2, WindowState},
+    model::{AppConfigV3, Engine, WindowState},
     policy::{AppPolicyV2, Origin, PermissionDecision, PermissionKind, ProxyMode},
     repository::ProfileLock,
     service::AppService,
@@ -325,7 +328,7 @@ mod imp {
         pub forward_button: TemplateChild<gtk::Button>,
         #[template_child]
         pub toast_overlay: TemplateChild<adw::ToastOverlay>,
-        pub config: RefCell<Option<AppConfigV2>>,
+        pub config: RefCell<Option<AppConfigV3>>,
         pub policy: RefCell<AppPolicyV2>,
         pub session_permissions: RefCell<BTreeSet<(Origin, PermissionKind)>>,
         pub download_manager: RefCell<Option<std::rc::Rc<DownloadManager>>>,
@@ -336,6 +339,7 @@ mod imp {
         pub background_start_pending: Cell<bool>,
         pub startup_error: RefCell<Option<String>>,
         pub stop_requested: Cell<bool>,
+        pub compatibility_prompt_shown: Cell<bool>,
     }
 
     #[glib::object_subclass]
@@ -388,7 +392,7 @@ mod imp {
 
     #[gtk::template_callbacks]
     impl AppWindow {
-        pub(super) fn create_webview(&self, config: &AppConfigV2) -> Result<WebView> {
+        pub(super) fn create_webview(&self, config: &AppConfigV3) -> Result<WebView> {
             let service = AppService::portal();
             let runtime_lock = service.acquire_runtime_lock(&config.id)?;
             let profile = service.profile_dir(&config.id);
@@ -548,6 +552,16 @@ mod imp {
                     window.imp().progress_bar.set_visible(progress < 1.0);
                 }
             ));
+            view.connect_load_failed(clone!(
+                #[weak(rename_to = window)]
+                self.obj(),
+                #[upgrade_or]
+                false,
+                move |_, _, failing_uri, error| {
+                    window.offer_chromium_after_load_failure(failing_uri, error);
+                    false
+                }
+            ));
             view.connect_notify_local(
                 Some("can-go-back"),
                 clone!(
@@ -601,7 +615,7 @@ glib::wrapper! {
 }
 
 impl AppWindow {
-    pub fn new<P: IsA<gtk::Application>>(application: &P, config: &AppConfigV2) -> Self {
+    pub fn new<P: IsA<gtk::Application>>(application: &P, config: &AppConfigV3) -> Self {
         let window: Self = glib::Object::builder()
             .property("application", application)
             .build();
@@ -609,7 +623,7 @@ impl AppWindow {
         window
     }
 
-    fn set_config(&self, config: &AppConfigV2) {
+    fn set_config(&self, config: &AppConfigV3) {
         self.imp().config.replace(Some(config.clone()));
         self.set_widget_name(&format!("b{}", config.id));
         self.set_title(Some(&config.title));
@@ -1132,6 +1146,72 @@ impl AppWindow {
         self.toast(message);
     }
 
+    fn offer_chromium_after_load_failure(&self, failing_uri: &str, error: &glib::Error) {
+        if self.imp().compatibility_prompt_shown.get() {
+            return;
+        }
+        let recommendation = CompatibilityCatalogV1::bundled()
+            .ok()
+            .and_then(|catalog| catalog.recommendation(failing_uri).ok().flatten().cloned())
+            .filter(|entry| entry.recommended_engine() == Engine::Chromium);
+        let Some(recommendation) = recommendation else {
+            return;
+        };
+        self.imp().compatibility_prompt_shown.set(true);
+
+        let window = self.clone();
+        let failing_uri = failing_uri.to_owned();
+        let failure = error.to_string();
+        let reason = reason_description(recommendation.reason_code());
+        glib::spawn_future_local(async move {
+            let body = format!(
+                "{}\n\n{}: {}\n{}: {}",
+                reason,
+                gettext("Address"),
+                failing_uri,
+                gettext("WebKitGTK error"),
+                failure
+            );
+            let dialog = adw::AlertDialog::new(
+                Some(&gettext("Try This Application with Chromium?")),
+                Some(&body),
+            );
+            dialog.add_responses(&[
+                ("cancel", &gettext("Keep WebKitGTK")),
+                ("chromium", &gettext("Use Chromium")),
+            ]);
+            dialog.set_response_appearance("chromium", adw::ResponseAppearance::Suggested);
+            dialog.set_default_response(Some("cancel"));
+            dialog.set_close_response("cancel");
+            if dialog.choose_future(Some(&window)).await != "chromium" {
+                return;
+            }
+
+            let Some(id) = window.app_id() else {
+                return;
+            };
+            let service = AppService::portal();
+            let result = async {
+                let mut config = service.load(&id)?;
+                config.engine = Engine::Chromium;
+                let parent = WindowIdentifier::from_native(&window).await;
+                let saved = service.update(config, None, parent.as_ref()).await?;
+                service.open_chromium(&saved, false)
+            }
+            .await;
+            match result {
+                Ok(()) => window.stop_background(),
+                Err(error) => {
+                    window.imp().compatibility_prompt_shown.set(false);
+                    window.toast(&format!(
+                        "{}: {error:#}",
+                        gettext("Chromium could not be started")
+                    ));
+                }
+            }
+        });
+    }
+
     fn go_home(&self) {
         let start_url = self
             .imp()
@@ -1198,7 +1278,7 @@ pub(crate) fn run_background_ui_smoke_test<P: IsA<gtk::Application>>(
     application: &P,
 ) -> anyhow::Result<()> {
     let repository = crate::repository::AppRepository::for_current_user();
-    let config = AppConfigV2::new("Background UI smoke test", "http://127.0.0.1:9/", 0)?;
+    let config = AppConfigV3::new("Background UI smoke test", "http://127.0.0.1:9/", 0)?;
     repository
         .stage_create(&config, b"ui-test-icon")?
         .commit()?;

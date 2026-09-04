@@ -44,7 +44,7 @@ fn present_editor(
     parent: &BastleWindow,
     id: AppId,
     original: AppPolicyV2,
-    config: crate::model::AppConfigV2,
+    config: crate::model::AppConfigV3,
 ) -> adw::Dialog {
     let dialog = adw::Dialog::builder()
         .title(gettext("Privacy & Power"))
@@ -96,7 +96,7 @@ fn present_editor(
     let proxy_group = adw::PreferencesGroup::builder()
         .title(gettext("Proxy"))
         .description(gettext(
-            "Applies only to this application's WebKit traffic. Credentials are never stored.",
+            "Applies only to this application's selected engine. Credentials are never stored.",
         ))
         .build();
     let proxy_labels = [
@@ -165,10 +165,13 @@ fn present_editor(
 
     let filter_group = adw::PreferencesGroup::builder()
         .title(gettext("Content Filters"))
-        .description(gettext(
-            "Import WebKit content-extension JSON. Filters affect only this application.",
-        ))
+        .description(if config.engine == crate::model::Engine::WebKit {
+            gettext("Import WebKit content-extension JSON. Filters affect only this application.")
+        } else {
+            gettext("Content filters are available only with the WebKitGTK engine.")
+        })
         .build();
+    filter_group.set_sensitive(config.engine == crate::model::Engine::WebKit);
     let edited = Rc::new(RefCell::new(original.clone()));
     for (filter_id, filter) in &original.content_filters {
         add_filter_row(&filter_group, &edited, filter_id.clone(), filter);
@@ -464,7 +467,7 @@ fn is_cancelled(error: &anyhow::Error) -> bool {
 pub(crate) fn run_ui_smoke_test<P: IsA<gtk::Application>>(application: &P) -> anyhow::Result<()> {
     let parent = BastleWindow::new(application);
     let config =
-        crate::model::AppConfigV2::new("Privacy UI smoke test", "https://example.org/", 0)?;
+        crate::model::AppConfigV3::new("Privacy UI smoke test", "https://example.org/", 0)?;
     let dialog = present_editor(&parent, config.id.clone(), AppPolicyV2::default(), config);
     ensure!(
         dialog.title().as_str() == gettext("Privacy & Power"),

@@ -5,7 +5,7 @@ using Adw 1;
 
 template $BastleCreateAppDialog: Adw.Dialog {
   content-width: 400;
-  content-height: 300;
+  content-height: 430;
   title: _("Add a New Application");
 
   Adw.ToastOverlay toast_overlay {
@@ -64,6 +64,17 @@ template $BastleCreateAppDialog: Adw.Dialog {
 
               Image icon_image {}
             }
+          }
+
+          Adw.ComboRow engine_row {
+            title: _("Browser Engine");
+            subtitle: _("WebKitGTK is built in; Chromium requires the optional companion");
+          }
+
+          Adw.ActionRow recommendation_row {
+            visible: false;
+            title: _("Chromium Recommended");
+            icon-name: "dialog-information-symbolic";
           }
         }
 

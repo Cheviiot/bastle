@@ -8,23 +8,49 @@ use std::{
 
 use anyhow::{anyhow, bail, Context, Result};
 use gtk::glib;
-use serde::Serialize;
-use serde_json::Value;
+use rand::RngCore;
+use serde::{Deserialize, Serialize};
 use tempfile::{Builder, NamedTempFile, TempDir};
 
 use crate::{
     config::DATA_DIR_NAME,
-    model::{AppConfigV2, AppId, SCHEMA_VERSION},
+    model::{decode_app_config, AppConfigV3, AppId},
     policy::{decode_policy, AppPolicyV2, Origin, PermissionDecision, PermissionKind},
 };
 
 const CONFIG_FILE: &str = "app.json";
 const ICON_FILE: &str = "icon.png";
 const POLICY_FILE: &str = "policy.json";
+const COMPANION_TOKEN_FILE: &str = "chromium.token";
 const METADATA_LOCK_FILE: &str = ".metadata.lock";
 const POLICY_LOCK_FILE: &str = ".policy.lock";
 const BACKGROUND_LOCK_FILE: &str = ".background.lock";
+const COMPANION_QUEUE_FILE: &str = "pending-chromium-deletions.json";
+const COMPANION_QUEUE_LOCK_FILE: &str = ".companion-deletions.lock";
+const APP_ID_LOCKS_DIR: &str = ".app-id-locks";
 pub const RUNTIME_LOCK_FILE: &str = ".runtime.lock";
+const COMPANION_QUEUE_SCHEMA_VERSION: u32 = 1;
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PendingCompanionDeletion {
+    pub id: AppId,
+    pub token: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+struct PendingCompanionDeletionQueue {
+    schema_version: u32,
+    entries: Vec<PendingCompanionDeletion>,
+}
+
+impl Default for PendingCompanionDeletionQueue {
+    fn default() -> Self {
+        Self {
+            schema_version: COMPANION_QUEUE_SCHEMA_VERSION,
+            entries: Vec::new(),
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct ProfileLock {
@@ -36,6 +62,12 @@ pub struct BackgroundLock {
     _file: fs::File,
 }
 
+#[derive(Debug)]
+pub struct AppIdLock {
+    id: AppId,
+    _file: fs::File,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RepositoryWarning {
     pub path: PathBuf,
@@ -44,13 +76,13 @@ pub struct RepositoryWarning {
 
 #[derive(Debug, Default)]
 pub struct LoadReport {
-    pub apps: Vec<AppConfigV2>,
+    pub apps: Vec<AppConfigV3>,
     pub warnings: Vec<RepositoryWarning>,
 }
 
 #[derive(Debug)]
 pub struct AppSnapshot {
-    pub config: AppConfigV2,
+    pub config: AppConfigV3,
     pub icon: Vec<u8>,
     pub policy: AppPolicyV2,
 }
@@ -149,6 +181,34 @@ impl AppRepository {
         self.app_dir(id).exists() || self.profile_dir(id).exists() || self.cache_dir(id).exists()
     }
 
+    pub fn lock_app_id(&self, id: &AppId) -> Result<AppIdLock> {
+        let lock_directory = self.data_root.join(APP_ID_LOCKS_DIR);
+        fs::create_dir_all(&lock_directory)
+            .with_context(|| format!("failed to create {}", lock_directory.display()))?;
+        let path = lock_directory.join(id.as_str());
+        let file = OpenOptions::new()
+            .create(true)
+            .read(true)
+            .write(true)
+            .truncate(false)
+            .open(&path)
+            .with_context(|| format!("failed to open {}", path.display()))?;
+        rustix::fs::flock(&file, rustix::fs::FlockOperation::NonBlockingLockExclusive)
+            .with_context(|| format!("another lifecycle operation is in progress for app {id}"))?;
+        Ok(AppIdLock {
+            id: id.clone(),
+            _file: file,
+        })
+    }
+
+    pub fn reserve_app_id(&self, id: &AppId) -> Result<AppIdLock> {
+        let lock = self.lock_app_id(id)?;
+        if self.has_pending_companion_deletion(id)? {
+            bail!("app id {id} is reserved by a pending Chromium profile deletion");
+        }
+        Ok(lock)
+    }
+
     pub fn acquire_runtime_lock(&self, id: &AppId) -> Result<ProfileLock> {
         self.lock_profile(id, rustix::fs::FlockOperation::NonBlockingLockShared)
             .context("the WebKit profile is temporarily unavailable")
@@ -216,7 +276,12 @@ impl AppRepository {
             }
 
             let config_path = path.join(CONFIG_FILE);
-            match self.load_from_path(&config_path) {
+            let directory_id = entry.file_name().to_string_lossy().parse::<AppId>();
+            let loaded = directory_id
+                .as_ref()
+                .map_err(|error| anyhow!(error.to_string()))
+                .and_then(|id| self.load(id));
+            match loaded {
                 Ok(app) if app.id.as_str() == entry.file_name().to_string_lossy() => {
                     let policy_path = path.join(POLICY_FILE);
                     if policy_path.exists() {
@@ -248,8 +313,9 @@ impl AppRepository {
         Ok(report)
     }
 
-    pub fn load(&self, id: &AppId) -> Result<AppConfigV2> {
-        self.load_from_path(&self.app_dir(id).join(CONFIG_FILE))
+    pub fn load(&self, id: &AppId) -> Result<AppConfigV3> {
+        let _metadata_lock = self.lock_app_file(id, METADATA_LOCK_FILE)?;
+        self.load_from_path_locked(&self.app_dir(id).join(CONFIG_FILE))
     }
 
     pub fn snapshot(&self, id: &AppId) -> Result<AppSnapshot> {
@@ -262,42 +328,20 @@ impl AppRepository {
             AppPolicyV2::default()
         };
         Ok(AppSnapshot {
-            config: self.load(id)?,
+            config: self.load_from_path_locked(&self.app_dir(id).join(CONFIG_FILE))?,
             icon: self.read_icon(id)?,
             policy,
         })
     }
 
-    fn load_from_path(&self, path: &Path) -> Result<AppConfigV2> {
-        let contents = fs::read_to_string(path)
-            .with_context(|| format!("failed to read {}", path.display()))?;
-        let mut document: Value = serde_json::from_str(&contents)
-            .with_context(|| format!("invalid JSON in {}", path.display()))?;
-        let schema_version = document
-            .get("schema_version")
-            .and_then(Value::as_u64)
-            .ok_or_else(|| anyhow!("missing or invalid schema_version in {}", path.display()))?;
-
-        let migrated = match schema_version {
-            1 => {
-                let object = document
-                    .as_object_mut()
-                    .ok_or_else(|| anyhow!("app configuration must be a JSON object"))?;
-                object.insert("schema_version".to_owned(), Value::from(SCHEMA_VERSION));
-                object.remove("imported_from");
-                true
-            }
-            version if version == u64::from(SCHEMA_VERSION) => false,
-            version => bail!("unsupported app configuration version {version}"),
-        };
-
-        let mut app: AppConfigV2 = serde_json::from_value(document)
-            .with_context(|| format!("invalid JSON fields in {}", path.display()))?;
-        app.normalize_and_validate()
+    fn load_from_path_locked(&self, path: &Path) -> Result<AppConfigV3> {
+        let contents =
+            fs::read(path).with_context(|| format!("failed to read {}", path.display()))?;
+        let (app, migrated) = decode_app_config(&contents)
             .with_context(|| format!("invalid app configuration in {}", path.display()))?;
         if migrated {
             replace_json(path, &app)
-                .with_context(|| format!("failed to migrate {} to schema v2", path.display()))?;
+                .with_context(|| format!("failed to migrate {} to schema v3", path.display()))?;
         }
         Ok(app)
     }
@@ -309,6 +353,130 @@ impl AppRepository {
 
     pub fn contains(&self, id: &AppId) -> bool {
         self.app_dir(id).join(CONFIG_FILE).is_file()
+    }
+
+    pub fn companion_token(&self, id: &AppId) -> Result<String> {
+        let app_dir = self.app_dir(id);
+        if !app_dir.is_dir() {
+            bail!("app {id} is not stored locally");
+        }
+        let _metadata_lock = self.lock_app_file(id, METADATA_LOCK_FILE)?;
+        let path = app_dir.join(COMPANION_TOKEN_FILE);
+        if path.exists() {
+            let token = fs::read_to_string(&path)
+                .with_context(|| format!("failed to read {}", path.display()))?;
+            validate_companion_token(&token)?;
+            return Ok(token);
+        }
+
+        let mut bytes = [0_u8; 32];
+        rand::thread_rng().fill_bytes(&mut bytes);
+        let token = bytes
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>();
+        let temporary = stage_bytes(&path, token.as_bytes())?;
+        persist_staged(temporary, &path)?;
+        sync_parent(&path)?;
+        Ok(token)
+    }
+
+    pub fn companion_token_if_exists(&self, id: &AppId) -> Result<Option<String>> {
+        let app_dir = self.app_dir(id);
+        if !app_dir.is_dir() {
+            return Ok(None);
+        }
+        let _metadata_lock = self.lock_app_file(id, METADATA_LOCK_FILE)?;
+        let path = app_dir.join(COMPANION_TOKEN_FILE);
+        if !path.exists() {
+            return Ok(None);
+        }
+        let token = fs::read_to_string(&path)
+            .with_context(|| format!("failed to read {}", path.display()))?;
+        validate_companion_token(&token)?;
+        Ok(Some(token))
+    }
+
+    pub fn pending_companion_deletions(&self) -> Result<Vec<PendingCompanionDeletion>> {
+        fs::create_dir_all(&self.data_root)
+            .with_context(|| format!("failed to create {}", self.data_root.display()))?;
+        let _lock = self.lock_companion_queue()?;
+        Ok(self.load_companion_queue()?.entries)
+    }
+
+    pub fn has_pending_companion_deletion(&self, id: &AppId) -> Result<bool> {
+        Ok(self
+            .pending_companion_deletions()?
+            .iter()
+            .any(|pending| pending.id == *id))
+    }
+
+    pub fn enqueue_companion_deletion(&self, id_lock: &AppIdLock, token: &str) -> Result<()> {
+        validate_companion_token(token)?;
+        fs::create_dir_all(&self.data_root)
+            .with_context(|| format!("failed to create {}", self.data_root.display()))?;
+        let _lock = self.lock_companion_queue()?;
+        let mut queue = self.load_companion_queue()?;
+        if let Some(entry) = queue
+            .entries
+            .iter_mut()
+            .find(|entry| entry.id == id_lock.id)
+        {
+            entry.token = token.to_owned();
+        } else {
+            queue.entries.push(PendingCompanionDeletion {
+                id: id_lock.id.clone(),
+                token: token.to_owned(),
+            });
+        }
+        replace_json(&self.data_root.join(COMPANION_QUEUE_FILE), &queue)
+    }
+
+    pub fn complete_companion_deletion(&self, id_lock: &AppIdLock, token: &str) -> Result<()> {
+        validate_companion_token(token)?;
+        fs::create_dir_all(&self.data_root)
+            .with_context(|| format!("failed to create {}", self.data_root.display()))?;
+        let _lock = self.lock_companion_queue()?;
+        let mut queue = self.load_companion_queue()?;
+        queue
+            .entries
+            .retain(|entry| entry.id != id_lock.id || entry.token != token);
+        replace_json(&self.data_root.join(COMPANION_QUEUE_FILE), &queue)
+    }
+
+    fn load_companion_queue(&self) -> Result<PendingCompanionDeletionQueue> {
+        let path = self.data_root.join(COMPANION_QUEUE_FILE);
+        if !path.exists() {
+            return Ok(PendingCompanionDeletionQueue::default());
+        }
+        let bytes =
+            fs::read(&path).with_context(|| format!("failed to read {}", path.display()))?;
+        let queue: PendingCompanionDeletionQueue = serde_json::from_slice(&bytes)
+            .with_context(|| format!("invalid JSON in {}", path.display()))?;
+        if queue.schema_version != COMPANION_QUEUE_SCHEMA_VERSION {
+            bail!(
+                "unsupported pending Chromium deletion version {}",
+                queue.schema_version
+            );
+        }
+        for entry in &queue.entries {
+            validate_companion_token(&entry.token)?;
+        }
+        Ok(queue)
+    }
+
+    fn lock_companion_queue(&self) -> Result<fs::File> {
+        let path = self.data_root.join(COMPANION_QUEUE_LOCK_FILE);
+        let file = OpenOptions::new()
+            .create(true)
+            .read(true)
+            .write(true)
+            .truncate(false)
+            .open(&path)
+            .with_context(|| format!("failed to open {}", path.display()))?;
+        rustix::fs::flock(&file, rustix::fs::FlockOperation::LockExclusive)
+            .with_context(|| format!("failed to lock {}", path.display()))?;
+        Ok(file)
     }
 
     pub fn load_policy(&self, id: &AppId) -> Result<AppPolicyV2> {
@@ -463,17 +631,17 @@ impl AppRepository {
     }
 
     #[cfg(test)]
-    pub fn create(&self, app: &AppConfigV2, icon: &[u8]) -> Result<()> {
+    pub fn create(&self, app: &AppConfigV3, icon: &[u8]) -> Result<()> {
         self.stage_create(app, icon)?.commit()
     }
 
-    pub fn stage_create(&self, app: &AppConfigV2, icon: &[u8]) -> Result<StagedApp> {
+    pub fn stage_create(&self, app: &AppConfigV3, icon: &[u8]) -> Result<StagedApp> {
         self.stage_create_with_policy(app, icon, &AppPolicyV2::default())
     }
 
     pub fn stage_create_with_policy(
         &self,
-        app: &AppConfigV2,
+        app: &AppConfigV3,
         icon: &[u8],
         policy: &AppPolicyV2,
     ) -> Result<StagedApp> {
@@ -499,7 +667,7 @@ impl AppRepository {
         })
     }
 
-    pub fn update(&self, app: &AppConfigV2, icon: Option<&[u8]>) -> Result<()> {
+    pub fn update(&self, app: &AppConfigV3, icon: Option<&[u8]>) -> Result<()> {
         let app_dir = self.app_dir(&app.id);
         if !app_dir.is_dir() {
             bail!("app {} is not stored locally", app.id);
@@ -621,6 +789,17 @@ fn ensure_profile_source(source: &Path) -> Result<()> {
     Ok(())
 }
 
+fn validate_companion_token(token: &str) -> Result<()> {
+    if token.len() != 64
+        || !token
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    {
+        bail!("invalid Chromium companion capability token");
+    }
+    Ok(())
+}
+
 fn copy_regular_tree(source: &Path, destination: &Path) -> Result<()> {
     let mut entries = fs::read_dir(source)
         .with_context(|| format!("failed to read {}", source.display()))?
@@ -718,6 +897,7 @@ mod tests {
         policy::{Origin, PermissionDecision, PermissionKind, POLICY_SCHEMA_VERSION},
     };
     use std::str::FromStr;
+    use std::{sync::mpsc, thread, time::Duration};
 
     fn repository() -> (tempfile::TempDir, AppRepository) {
         let temp = tempfile::tempdir().unwrap();
@@ -728,7 +908,7 @@ mod tests {
     #[test]
     fn create_load_update_and_delete() {
         let (_temp, repository) = repository();
-        let mut app = AppConfigV2::new("Example", "example.org", 0).unwrap();
+        let mut app = AppConfigV3::new("Example", "example.org", 0).unwrap();
         repository.create(&app, b"icon").unwrap();
         assert_eq!(repository.load(&app.id).unwrap(), app);
         assert_eq!(repository.read_icon(&app.id).unwrap(), b"icon");
@@ -744,6 +924,47 @@ mod tests {
 
         repository.delete(&app.id).unwrap();
         assert!(!repository.contains(&app.id));
+    }
+
+    #[test]
+    fn app_id_lock_serializes_lifecycle_operations() {
+        let (_temp, repository) = repository();
+        let id = AppId::from_str("abcdefghijkl").unwrap();
+        let first_lock = repository.lock_app_id(&id).unwrap();
+        assert!(repository.lock_app_id(&id).is_err());
+        drop(first_lock);
+        assert!(repository.lock_app_id(&id).is_ok());
+    }
+
+    #[test]
+    fn companion_deletion_completion_is_token_matched() {
+        let (_temp, repository) = repository();
+        let id = AppId::from_str("abcdefghijkl").unwrap();
+        let id_lock = repository.lock_app_id(&id).unwrap();
+        let old_token = "a".repeat(64);
+        let new_token = "b".repeat(64);
+
+        repository
+            .enqueue_companion_deletion(&id_lock, &old_token)
+            .unwrap();
+        repository
+            .enqueue_companion_deletion(&id_lock, &new_token)
+            .unwrap();
+        repository
+            .complete_companion_deletion(&id_lock, &old_token)
+            .unwrap();
+        assert_eq!(
+            repository.pending_companion_deletions().unwrap(),
+            vec![PendingCompanionDeletion {
+                id: id.clone(),
+                token: new_token.clone(),
+            }]
+        );
+
+        repository
+            .complete_companion_deletion(&id_lock, &new_token)
+            .unwrap();
+        assert!(repository.pending_companion_deletions().unwrap().is_empty());
     }
 
     #[test]
@@ -813,7 +1034,8 @@ mod tests {
         assert_eq!(app.title, "Imported before v0.2");
         let migrated = fs::read_to_string(app_dir.join(CONFIG_FILE)).unwrap();
         assert!(!migrated.contains("imported_from"));
-        assert!(migrated.contains("\"schema_version\": 2"));
+        assert!(migrated.contains("\"schema_version\": 3"));
+        assert!(migrated.contains("\"engine\": \"webkit\""));
         assert_eq!(fs::read(app_dir.join(ICON_FILE)).unwrap(), b"icon");
         assert_eq!(
             fs::read(profile_dir.join("profile-state")).unwrap(),
@@ -824,9 +1046,106 @@ mod tests {
     }
 
     #[test]
+    fn config_migration_is_serialized_with_metadata_updates() {
+        let (_temp, repository) = repository();
+        let id = AppId::from_str("abcdefghijkl").unwrap();
+        let app_dir = repository.app_dir(&id);
+        fs::create_dir_all(&app_dir).unwrap();
+        fs::write(
+            app_dir.join(CONFIG_FILE),
+            r#"{
+  "schema_version": 2,
+  "id": "abcdefghijkl",
+  "title": "Legacy",
+  "start_url": "https://example.org/",
+  "user_agent": null,
+  "use_theme_color": true,
+  "window": {"width": 1200, "height": 800, "maximized": false},
+  "sort_order": 0
+}"#,
+        )
+        .unwrap();
+        fs::write(app_dir.join(ICON_FILE), b"icon").unwrap();
+
+        let metadata_lock = repository.lock_app_file(&id, METADATA_LOCK_FILE).unwrap();
+        let concurrent_repository = repository.clone();
+        let concurrent_id = id.clone();
+        let (started_sender, started_receiver) = mpsc::channel();
+        let reader = thread::spawn(move || {
+            started_sender.send(()).unwrap();
+            concurrent_repository.load(&concurrent_id).unwrap()
+        });
+        started_receiver.recv().unwrap();
+        thread::sleep(Duration::from_millis(50));
+        assert!(!reader.is_finished());
+
+        let mut updated = AppConfigV3::new("Updated", "https://example.org/", 0).unwrap();
+        updated.id = id;
+        replace_json(&app_dir.join(CONFIG_FILE), &updated).unwrap();
+        drop(metadata_lock);
+
+        assert_eq!(reader.join().unwrap(), updated);
+    }
+
+    #[test]
+    fn version_two_migration_adds_webkit_without_touching_profile_data() {
+        let (_temp, repository) = repository();
+        let id = AppId::from_str("abcdefghijkl").unwrap();
+        let app_dir = repository.app_dir(&id);
+        let profile_dir = repository.profile_dir(&id);
+        fs::create_dir_all(&app_dir).unwrap();
+        fs::create_dir_all(&profile_dir).unwrap();
+        fs::write(app_dir.join(ICON_FILE), b"icon").unwrap();
+        fs::write(profile_dir.join("profile-state"), b"webkit profile").unwrap();
+        fs::write(
+            app_dir.join(CONFIG_FILE),
+            r#"{
+  "schema_version": 2,
+  "id": "abcdefghijkl",
+  "title": "Bastle v2",
+  "start_url": "https://example.org/",
+  "user_agent": null,
+  "use_theme_color": true,
+  "window": { "width": 900, "height": 700, "maximized": false },
+  "sort_order": 1
+}"#,
+        )
+        .unwrap();
+
+        let app = repository.load(&id).unwrap();
+        assert_eq!(app.schema_version, SCHEMA_VERSION);
+        assert_eq!(app.engine, crate::model::Engine::WebKit);
+        assert_eq!(
+            fs::read(profile_dir.join("profile-state")).unwrap(),
+            b"webkit profile"
+        );
+        let migrated = fs::read_to_string(app_dir.join(CONFIG_FILE)).unwrap();
+        assert!(migrated.contains("\"schema_version\": 3"));
+        assert!(migrated.contains("\"engine\": \"webkit\""));
+    }
+
+    #[test]
+    fn companion_token_is_stable_and_invalid_tokens_are_rejected() {
+        let (_temp, repository) = repository();
+        let app = AppConfigV3::new("Chromium", "example.org", 0).unwrap();
+        repository.create(&app, b"icon").unwrap();
+
+        let token = repository.companion_token(&app.id).unwrap();
+        assert_eq!(token.len(), 64);
+        assert_eq!(repository.companion_token(&app.id).unwrap(), token);
+
+        fs::write(
+            repository.app_dir(&app.id).join(COMPANION_TOKEN_FILE),
+            "../invalid",
+        )
+        .unwrap();
+        assert!(repository.companion_token(&app.id).is_err());
+    }
+
+    #[test]
     fn policy_writes_are_atomic_and_invalid_policy_does_not_hide_app() {
         let (_temp, repository) = repository();
-        let app = AppConfigV2::new("Example", "example.org", 0).unwrap();
+        let app = AppConfigV3::new("Example", "example.org", 0).unwrap();
         repository.create(&app, b"icon").unwrap();
 
         let origin = Origin::from_str("https://example.org/path").unwrap();
@@ -854,7 +1173,7 @@ mod tests {
     #[test]
     fn policy_v1_is_atomically_migrated_to_v2() {
         let (_temp, repository) = repository();
-        let app = AppConfigV2::new("Example", "example.org", 0).unwrap();
+        let app = AppConfigV3::new("Example", "example.org", 0).unwrap();
         repository.create(&app, b"icon").unwrap();
         let policy_path = repository.app_dir(&app.id).join(POLICY_FILE);
         fs::write(
@@ -887,7 +1206,7 @@ mod tests {
     #[test]
     fn policy_migration_waits_for_the_policy_lock() {
         let (_temp, repository) = repository();
-        let app = AppConfigV2::new("Example", "example.org", 0).unwrap();
+        let app = AppConfigV3::new("Example", "example.org", 0).unwrap();
         repository.create(&app, b"icon").unwrap();
         fs::write(
             repository.app_dir(&app.id).join(POLICY_FILE),
@@ -939,7 +1258,7 @@ mod tests {
     #[test]
     fn policy_edits_merge_with_decisions_saved_by_another_process() {
         let (_temp, repository) = repository();
-        let app = AppConfigV2::new("Example", "example.org", 0).unwrap();
+        let app = AppConfigV3::new("Example", "example.org", 0).unwrap();
         repository.create(&app, b"icon").unwrap();
         let origin = Origin::from_str("https://example.org").unwrap();
         let removed_origin = Origin::from_str("https://removed.example").unwrap();
@@ -1036,7 +1355,7 @@ mod tests {
     #[test]
     fn metadata_snapshot_captures_config_icon_and_policy_together() {
         let (_temp, repository) = repository();
-        let app = AppConfigV2::new("Snapshot", "example.org", 0).unwrap();
+        let app = AppConfigV3::new("Snapshot", "example.org", 0).unwrap();
         repository.create(&app, b"snapshot-icon").unwrap();
         let origin = Origin::from_str("https://example.org").unwrap();
         repository
@@ -1066,7 +1385,7 @@ mod tests {
     #[test]
     fn missing_icon_is_reported_without_removing_config() {
         let (_temp, repository) = repository();
-        let app = AppConfigV2::new("Example", "example.org", 0).unwrap();
+        let app = AppConfigV3::new("Example", "example.org", 0).unwrap();
         repository.create(&app, b"icon").unwrap();
         fs::remove_file(repository.app_dir(&app.id).join(ICON_FILE)).unwrap();
         assert!(repository.read_icon(&app.id).is_err());
@@ -1076,7 +1395,7 @@ mod tests {
     #[test]
     fn rejected_icon_update_does_not_commit_new_config() {
         let (_temp, repository) = repository();
-        let mut app = AppConfigV2::new("Before", "example.org", 0).unwrap();
+        let mut app = AppConfigV3::new("Before", "example.org", 0).unwrap();
         repository.create(&app, b"old-icon").unwrap();
         let icon_path = repository.app_dir(&app.id).join(ICON_FILE);
         fs::remove_file(&icon_path).unwrap();

@@ -7,6 +7,8 @@ mod application;
 mod background;
 mod backup;
 mod backup_dialog;
+mod chromium;
+mod compatibility;
 mod config;
 mod content_filters;
 mod create_app_dialog;

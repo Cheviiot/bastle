@@ -8,8 +8,9 @@ use futures::channel::oneshot;
 
 use crate::{
     background::{BackgroundBackend, PortalBackground},
+    chromium::{ChromiumBackend, ChromiumClient, CompanionCapabilities},
     launcher::{LauncherBackend, PortalLauncher, UninstallOutcome},
-    model::{AppConfigV2, AppId, WindowState},
+    model::{AppConfigV3, AppId, WindowState},
     policy::{AppPolicyV2, Origin, PermissionDecision, PermissionKind},
     repository::{
         AppRepository, AppSnapshot, BackgroundLock, LoadReport, ProfileLock, StagedProfile,
@@ -17,24 +18,37 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub struct AppService<L, B = PortalBackground> {
+pub struct AppService<L, B = PortalBackground, C = ChromiumClient> {
     repository: AppRepository,
     launcher: L,
     background: B,
+    chromium: C,
 }
 
-impl<L: LauncherBackend> AppService<L, PortalBackground> {
+impl<L: LauncherBackend> AppService<L, PortalBackground, ChromiumClient> {
     pub fn new(repository: AppRepository, launcher: L) -> Self {
         Self::with_background(repository, launcher, PortalBackground)
     }
 }
 
-impl<L: LauncherBackend, B: BackgroundBackend> AppService<L, B> {
+impl<L: LauncherBackend, B: BackgroundBackend> AppService<L, B, ChromiumClient> {
     pub fn with_background(repository: AppRepository, launcher: L, background: B) -> Self {
+        Self::with_backends(repository, launcher, background, ChromiumClient)
+    }
+}
+
+impl<L: LauncherBackend, B: BackgroundBackend, C: ChromiumBackend> AppService<L, B, C> {
+    pub fn with_backends(
+        repository: AppRepository,
+        launcher: L,
+        background: B,
+        chromium: C,
+    ) -> Self {
         Self {
             repository,
             launcher,
             background,
+            chromium,
         }
     }
 
@@ -47,7 +61,7 @@ impl<L: LauncherBackend, B: BackgroundBackend> AppService<L, B> {
         self.repository.list()
     }
 
-    pub fn load(&self, id: &AppId) -> Result<AppConfigV2> {
+    pub fn load(&self, id: &AppId) -> Result<AppConfigV3> {
         self.repository.load(id)
     }
 
@@ -73,6 +87,53 @@ impl<L: LauncherBackend, B: BackgroundBackend> AppService<L, B> {
 
     pub fn contains_any_data(&self, id: &AppId) -> bool {
         self.repository.contains_any_data(id)
+    }
+
+    pub fn has_pending_companion_deletion(&self, id: &AppId) -> Result<bool> {
+        self.repository.has_pending_companion_deletion(id)
+    }
+
+    pub fn id_is_reserved(&self, id: &AppId) -> Result<bool> {
+        Ok(self.contains_any_data(id) || self.has_pending_companion_deletion(id)?)
+    }
+
+    pub fn chromium_capabilities(&self) -> Result<CompanionCapabilities> {
+        let capabilities = self.chromium.capabilities()?;
+        self.retry_pending_companion_deletions()?;
+        Ok(capabilities)
+    }
+
+    pub fn open_chromium(&self, app: &AppConfigV3, start_in_background: bool) -> Result<()> {
+        let capabilities = self.chromium_capabilities()?;
+        capabilities.require("open-app")?;
+        capabilities.require("policy-v2")?;
+        if start_in_background {
+            capabilities.require("background")?;
+        }
+        let token = self.repository.companion_token(&app.id)?;
+        let policy = self.repository.load_policy(&app.id)?;
+        self.chromium
+            .open_app(app, &policy, &token, start_in_background)
+    }
+
+    fn retry_pending_companion_deletions(&self) -> Result<()> {
+        for pending in self.repository.pending_companion_deletions()? {
+            let Ok(id_lock) = self.repository.lock_app_id(&pending.id) else {
+                continue;
+            };
+            if self.repository.contains(&pending.id) {
+                continue;
+            }
+            if self
+                .chromium
+                .delete_profile(&pending.id, &pending.token)
+                .is_ok()
+            {
+                self.repository
+                    .complete_companion_deletion(&id_lock, &pending.token)?;
+            }
+        }
+        Ok(())
     }
 
     pub fn acquire_runtime_lock(&self, id: &AppId) -> Result<ProfileLock> {
@@ -257,11 +318,12 @@ impl<L: LauncherBackend, B: BackgroundBackend> AppService<L, B> {
 
     pub async fn create(
         &self,
-        mut app: AppConfigV2,
+        mut app: AppConfigV3,
         icon: &[u8],
         parent: Option<&WindowIdentifier>,
-    ) -> Result<AppConfigV2> {
+    ) -> Result<AppConfigV3> {
         app.normalize_and_validate()?;
+        let _id_lock = self.repository.reserve_app_id(&app.id)?;
         let staged = self.repository.stage_create(&app, icon)?;
         self.launcher
             .install(&app, icon, parent)
@@ -281,15 +343,16 @@ impl<L: LauncherBackend, B: BackgroundBackend> AppService<L, B> {
 
     pub async fn create_from_backup(
         &self,
-        mut app: AppConfigV2,
+        mut app: AppConfigV3,
         icon: &[u8],
         policy: &AppPolicyV2,
         profile_source: Option<&std::path::Path>,
         parent: Option<&WindowIdentifier>,
-    ) -> Result<AppConfigV2> {
+    ) -> Result<AppConfigV3> {
         app.normalize_and_validate()?;
         let policy = policy.for_restore();
         policy.validate()?;
+        let _id_lock = self.repository.reserve_app_id(&app.id)?;
         let staged_app = self
             .repository
             .stage_create_with_policy(&app, icon, &policy)?;
@@ -339,10 +402,10 @@ impl<L: LauncherBackend, B: BackgroundBackend> AppService<L, B> {
 
     pub async fn update(
         &self,
-        mut app: AppConfigV2,
+        mut app: AppConfigV3,
         icon: Option<&[u8]>,
         parent: Option<&WindowIdentifier>,
-    ) -> Result<AppConfigV2> {
+    ) -> Result<AppConfigV3> {
         app.normalize_and_validate()?;
         let previous = self.repository.load(&app.id)?;
         let previous_icon = self.repository.read_icon(&app.id)?;
@@ -371,6 +434,8 @@ impl<L: LauncherBackend, B: BackgroundBackend> AppService<L, B> {
     }
 
     pub async fn delete(&self, id: &AppId) -> Result<UninstallOutcome> {
+        let id_lock = self.repository.lock_app_id(id)?;
+        let chromium_token = self.repository.companion_token_if_exists(id)?;
         let profile_existed = self.repository.profile_dir(id).exists();
         let profile_lock = self.repository.acquire_delete_profile_lock(id)?;
         let _background_lock = self.lock_background().await?;
@@ -401,9 +466,19 @@ impl<L: LauncherBackend, B: BackgroundBackend> AppService<L, B> {
                     return Err(error);
                 }
             };
+            if let Some(token) = chromium_token.as_deref() {
+                self.repository
+                    .enqueue_companion_deletion(&id_lock, token)?;
+            }
             self.repository
                 .delete_with_profile_lock(id, profile_lock)
                 .context("launcher was removed but local data cleanup failed")?;
+            if let Some(token) = chromium_token.as_deref() {
+                if self.chromium.delete_profile(id, token).is_ok() {
+                    self.repository
+                        .complete_companion_deletion(&id_lock, token)?;
+                }
+            }
             Ok(outcome)
         }
         .await;
@@ -429,7 +504,7 @@ impl<L: LauncherBackend, B: BackgroundBackend> AppService<L, B> {
     }
 }
 
-impl AppService<PortalLauncher, PortalBackground> {
+impl AppService<PortalLauncher, PortalBackground, ChromiumClient> {
     pub fn portal() -> Self {
         Self::new(AppRepository::for_current_user(), PortalLauncher)
     }
@@ -439,7 +514,7 @@ impl AppService<PortalLauncher, PortalBackground> {
 mod tests {
     use std::{
         cell::{Cell, RefCell},
-        collections::{HashMap, HashSet},
+        collections::{BTreeSet, HashMap, HashSet},
         rc::Rc,
         str::FromStr,
     };
@@ -451,6 +526,7 @@ mod tests {
     use super::*;
     use crate::{
         background::BackgroundGrant,
+        model::Engine,
         policy::{Origin, PermissionDecision, PermissionKind},
     };
 
@@ -466,7 +542,7 @@ mod tests {
     impl LauncherBackend for FakeLauncher {
         async fn install(
             &self,
-            app: &AppConfigV2,
+            app: &AppConfigV3,
             _icon: &[u8],
             _parent: Option<&WindowIdentifier>,
         ) -> Result<()> {
@@ -539,6 +615,63 @@ mod tests {
         }
     }
 
+    #[derive(Debug, Clone, Default)]
+    struct FakeChromium {
+        available: Rc<Cell<bool>>,
+        opened: Rc<RefCell<Vec<(AppId, bool)>>>,
+        deleted: Rc<RefCell<Vec<AppId>>>,
+        repository: Rc<RefCell<Option<AppRepository>>>,
+        deleted_while_local_present: Rc<Cell<bool>>,
+    }
+
+    impl ChromiumBackend for FakeChromium {
+        fn capabilities(&self) -> Result<CompanionCapabilities> {
+            if !self.available.get() {
+                bail!("companion unavailable");
+            }
+            Ok(CompanionCapabilities {
+                protocol_version: crate::chromium::PROTOCOL_VERSION,
+                features: BTreeSet::from([
+                    "open-app".to_owned(),
+                    "policy-v2".to_owned(),
+                    "profile-delete".to_owned(),
+                ]),
+            })
+        }
+
+        fn open_app(
+            &self,
+            app: &AppConfigV3,
+            _policy: &AppPolicyV2,
+            _token: &str,
+            start_in_background: bool,
+        ) -> Result<()> {
+            if !self.available.get() {
+                bail!("companion unavailable");
+            }
+            self.opened
+                .borrow_mut()
+                .push((app.id.clone(), start_in_background));
+            Ok(())
+        }
+
+        fn delete_profile(&self, id: &AppId, _token: &str) -> Result<()> {
+            if !self.available.get() {
+                bail!("companion unavailable");
+            }
+            if self
+                .repository
+                .borrow()
+                .as_ref()
+                .is_some_and(|repository| repository.contains(id))
+            {
+                self.deleted_while_local_present.set(true);
+            }
+            self.deleted.borrow_mut().push(id.clone());
+            Ok(())
+        }
+    }
+
     fn service() -> (tempfile::TempDir, AppService<FakeLauncher>, FakeLauncher) {
         let temp = tempfile::tempdir().unwrap();
         let repository = AppRepository::new(temp.path().join("data"), temp.path().join("cache"));
@@ -561,10 +694,27 @@ mod tests {
         (temp, service, launcher, background)
     }
 
+    fn service_with_chromium() -> (
+        tempfile::TempDir,
+        AppService<FakeLauncher, FakeBackground, FakeChromium>,
+        FakeLauncher,
+        FakeChromium,
+    ) {
+        let temp = tempfile::tempdir().unwrap();
+        let repository = AppRepository::new(temp.path().join("data"), temp.path().join("cache"));
+        let launcher = FakeLauncher::default();
+        let background = FakeBackground::default();
+        let chromium = FakeChromium::default();
+        chromium.repository.replace(Some(repository.clone()));
+        let service =
+            AppService::with_backends(repository, launcher.clone(), background, chromium.clone());
+        (temp, service, launcher, chromium)
+    }
+
     #[test]
     fn full_crud_and_missing_launcher() {
         let (_temp, service, launcher) = service();
-        let app = AppConfigV2::new("Example", "example.org", 0).unwrap();
+        let app = AppConfigV3::new("Example", "example.org", 0).unwrap();
         block_on(service.create(app.clone(), b"icon", None)).unwrap();
         assert!(service.repository().contains(&app.id));
         assert!(launcher.installed.borrow().contains(&app.id));
@@ -581,10 +731,131 @@ mod tests {
     }
 
     #[test]
+    fn missing_companion_does_not_fall_back_without_confirmation() {
+        let (_temp, service, _launcher, chromium) = service_with_chromium();
+        let mut app = AppConfigV3::new("Chromium", "example.org", 0).unwrap();
+        app.engine = Engine::Chromium;
+        block_on(service.create(app.clone(), b"icon", None)).unwrap();
+
+        assert!(service.open_chromium(&app, false).is_err());
+        assert!(chromium.opened.borrow().is_empty());
+        assert_eq!(service.load(&app.id).unwrap().engine, Engine::Chromium);
+    }
+
+    #[test]
+    fn unavailable_companion_profile_deletion_is_deferred_and_retried() {
+        let (_temp, service, _launcher, chromium) = service_with_chromium();
+        let mut app = AppConfigV3::new("Chromium", "example.org", 0).unwrap();
+        app.engine = Engine::Chromium;
+        block_on(service.create(app.clone(), b"icon", None)).unwrap();
+        service.repository().companion_token(&app.id).unwrap();
+
+        block_on(service.delete(&app.id)).unwrap();
+        assert!(!service.contains_any_data(&app.id));
+        assert_eq!(
+            service
+                .repository()
+                .pending_companion_deletions()
+                .unwrap()
+                .len(),
+            1
+        );
+
+        chromium.available.set(true);
+        service.chromium_capabilities().unwrap();
+        assert_eq!(*chromium.deleted.borrow(), vec![app.id.clone()]);
+        assert!(service
+            .repository()
+            .pending_companion_deletions()
+            .unwrap()
+            .is_empty());
+        assert!(!chromium.deleted_while_local_present.get());
+    }
+
+    #[test]
+    fn deleting_after_switching_back_to_webkit_removes_the_chromium_profile() {
+        let (_temp, service, _launcher, chromium) = service_with_chromium();
+        chromium.available.set(true);
+        let mut app = AppConfigV3::new("Chromium", "example.org", 0).unwrap();
+        app.engine = Engine::Chromium;
+        block_on(service.create(app.clone(), b"icon", None)).unwrap();
+        service.open_chromium(&app, false).unwrap();
+
+        app.engine = Engine::WebKit;
+        block_on(service.update(app.clone(), None, None)).unwrap();
+        block_on(service.delete(&app.id)).unwrap();
+
+        assert_eq!(*chromium.deleted.borrow(), vec![app.id]);
+        assert!(!chromium.deleted_while_local_present.get());
+    }
+
+    #[test]
+    fn pending_companion_deletion_never_erases_a_live_local_app() {
+        let (_temp, service, _launcher, chromium) = service_with_chromium();
+        let app = AppConfigV3::new("Local", "example.org", 0).unwrap();
+        block_on(service.create(app.clone(), b"icon", None)).unwrap();
+        let token = service.repository().companion_token(&app.id).unwrap();
+        let id_lock = service.repository().lock_app_id(&app.id).unwrap();
+        service
+            .repository()
+            .enqueue_companion_deletion(&id_lock, &token)
+            .unwrap();
+        drop(id_lock);
+        chromium.available.set(true);
+
+        service.chromium_capabilities().unwrap();
+
+        assert!(chromium.deleted.borrow().is_empty());
+        assert_eq!(
+            service
+                .repository()
+                .pending_companion_deletions()
+                .unwrap()
+                .len(),
+            1
+        );
+    }
+
+    #[test]
+    fn pending_companion_retry_waits_for_the_app_id_lifecycle_lock() {
+        let (_temp, service, _launcher, chromium) = service_with_chromium();
+        let app = AppConfigV3::new("Queued", "example.org", 0).unwrap();
+        block_on(service.create(app.clone(), b"icon", None)).unwrap();
+        let token = service.repository().companion_token(&app.id).unwrap();
+        let id_lock = service.repository().lock_app_id(&app.id).unwrap();
+        service
+            .repository()
+            .enqueue_companion_deletion(&id_lock, &token)
+            .unwrap();
+        service.repository().delete(&app.id).unwrap();
+        chromium.available.set(true);
+
+        service.chromium_capabilities().unwrap();
+        assert!(chromium.deleted.borrow().is_empty());
+        assert_eq!(
+            service
+                .repository()
+                .pending_companion_deletions()
+                .unwrap()
+                .len(),
+            1
+        );
+
+        drop(id_lock);
+        service.chromium_capabilities().unwrap();
+        assert_eq!(*chromium.deleted.borrow(), vec![app.id]);
+        assert!(service
+            .repository()
+            .pending_companion_deletions()
+            .unwrap()
+            .is_empty());
+    }
+
+    #[test]
     fn portal_denial_rolls_back_staged_create() {
         let (_temp, service, launcher) = service();
         *launcher.deny_install.borrow_mut() = true;
-        let app = AppConfigV2::new("Example", "example.org", 0).unwrap();
+        let app = AppConfigV3::new("Example", "example.org", 0).unwrap();
         assert!(block_on(service.create(app.clone(), b"icon", None)).is_err());
         assert!(!service.repository().contains(&app.id));
         assert!(!launcher.installed.borrow().contains(&app.id));
@@ -593,7 +864,7 @@ mod tests {
     #[test]
     fn portal_error_preserves_local_data_on_delete() {
         let (_temp, service, launcher) = service();
-        let app = AppConfigV2::new("Example", "example.org", 0).unwrap();
+        let app = AppConfigV3::new("Example", "example.org", 0).unwrap();
         block_on(service.create(app.clone(), b"icon", None)).unwrap();
         *launcher.deny_uninstall.borrow_mut() = true;
         assert!(block_on(service.delete(&app.id)).is_err());
@@ -603,7 +874,7 @@ mod tests {
     #[test]
     fn active_profile_blocks_delete_before_launcher_removal() {
         let (_temp, service, launcher) = service();
-        let app = AppConfigV2::new("Running", "example.org", 0).unwrap();
+        let app = AppConfigV3::new("Running", "example.org", 0).unwrap();
         block_on(service.create(app.clone(), b"icon", None)).unwrap();
         let runtime_lock = service.acquire_runtime_lock(&app.id).unwrap();
 
@@ -619,7 +890,7 @@ mod tests {
     #[test]
     fn deletion_lock_rejects_new_runtime_without_queueing() {
         let (_temp, service, _launcher) = service();
-        let app = AppConfigV2::new("Deleting", "example.org", 0).unwrap();
+        let app = AppConfigV3::new("Deleting", "example.org", 0).unwrap();
         block_on(service.create(app.clone(), b"icon", None)).unwrap();
         let deletion_lock = service
             .repository()
@@ -638,7 +909,7 @@ mod tests {
     #[test]
     fn runtime_state_is_merged_into_the_latest_config() {
         let (_temp, service, _launcher) = service();
-        let app = AppConfigV2::new("Before", "example.org", 0).unwrap();
+        let app = AppConfigV3::new("Before", "example.org", 0).unwrap();
         block_on(service.create(app.clone(), b"icon", None)).unwrap();
 
         let mut edited = app.clone();
@@ -659,7 +930,7 @@ mod tests {
     #[test]
     fn permission_policy_is_persisted_through_the_service() {
         let (_temp, service, _launcher) = service();
-        let app = AppConfigV2::new("Example", "example.org", 0).unwrap();
+        let app = AppConfigV3::new("Example", "example.org", 0).unwrap();
         block_on(service.create(app.clone(), b"icon", None)).unwrap();
 
         let origin = Origin::from_str("https://example.org/path").unwrap();
@@ -685,7 +956,7 @@ mod tests {
     #[test]
     fn background_portal_changes_roll_back_when_policy_commit_fails() {
         let (_temp, service, _launcher, background) = service_with_background();
-        let app = AppConfigV2::new("Transactional", "example.org", 0).unwrap();
+        let app = AppConfigV3::new("Transactional", "example.org", 0).unwrap();
         block_on(service.create(app.clone(), b"icon", None)).unwrap();
         let original = service.load_policy(&app.id).unwrap();
         let mut edited = original.clone();
@@ -707,7 +978,7 @@ mod tests {
     #[test]
     fn background_rollback_uses_policy_reloaded_under_global_lock() {
         let (_temp, service, _launcher, background) = service_with_background();
-        let app = AppConfigV2::new("Concurrent", "example.org", 0).unwrap();
+        let app = AppConfigV3::new("Concurrent", "example.org", 0).unwrap();
         block_on(service.create(app.clone(), b"icon", None)).unwrap();
 
         let stale_original = AppPolicyV2::default();
@@ -741,7 +1012,7 @@ mod tests {
     #[test]
     fn stale_autostart_edit_does_not_reenable_background() {
         let (_temp, service, _launcher, background) = service_with_background();
-        let app = AppConfigV2::new("Concurrent", "example.org", 0).unwrap();
+        let app = AppConfigV3::new("Concurrent", "example.org", 0).unwrap();
         block_on(service.create(app.clone(), b"icon", None)).unwrap();
 
         let mut original = AppPolicyV2::default();
@@ -769,8 +1040,8 @@ mod tests {
     #[test]
     fn unrelated_policy_edits_skip_the_global_autostart_scan() {
         let (_temp, service, _launcher, background) = service_with_background();
-        let app = AppConfigV2::new("Healthy", "example.org", 0).unwrap();
-        let corrupt = AppConfigV2::new("Corrupt", "corrupt.example", 1).unwrap();
+        let app = AppConfigV3::new("Healthy", "example.org", 0).unwrap();
+        let corrupt = AppConfigV3::new("Corrupt", "corrupt.example", 1).unwrap();
         block_on(service.create(app.clone(), b"icon", None)).unwrap();
         block_on(service.create(corrupt.clone(), b"icon", None)).unwrap();
         std::fs::write(
@@ -797,8 +1068,8 @@ mod tests {
     #[test]
     fn denied_global_autostart_does_not_commit_an_inconsistent_policy() {
         let (_temp, service, _launcher, background) = service_with_background();
-        let opted_in = AppConfigV2::new("Opted in", "one.example", 0).unwrap();
-        let edited_app = AppConfigV2::new("Edited", "two.example", 1).unwrap();
+        let opted_in = AppConfigV3::new("Opted in", "one.example", 0).unwrap();
+        let edited_app = AppConfigV3::new("Edited", "two.example", 1).unwrap();
         block_on(service.create(opted_in.clone(), b"icon", None)).unwrap();
         block_on(service.create(edited_app.clone(), b"icon", None)).unwrap();
         let mut opted_in_policy = AppPolicyV2::default();
@@ -830,7 +1101,7 @@ mod tests {
     #[test]
     fn deleting_last_autostart_app_updates_portal_and_rolls_back_failure() {
         let (_temp, service, launcher, background) = service_with_background();
-        let app = AppConfigV2::new("Autostart", "example.org", 0).unwrap();
+        let app = AppConfigV3::new("Autostart", "example.org", 0).unwrap();
         block_on(service.create(app.clone(), b"icon", None)).unwrap();
         let mut policy = AppPolicyV2::default();
         policy.background.enabled = true;
@@ -856,7 +1127,7 @@ mod tests {
     #[test]
     fn corrupt_policy_does_not_prevent_explicit_deletion() {
         let (_temp, service, _launcher, background) = service_with_background();
-        let app = AppConfigV2::new("Corrupt policy", "example.org", 0).unwrap();
+        let app = AppConfigV3::new("Corrupt policy", "example.org", 0).unwrap();
         block_on(service.create(app.clone(), b"icon", None)).unwrap();
         std::fs::write(
             service.repository().app_dir(&app.id).join("policy.json"),
@@ -874,7 +1145,7 @@ mod tests {
         let (_temp, service, launcher) = service();
         let source = tempfile::tempdir().unwrap();
         std::fs::write(source.path().join("profile-state"), b"session").unwrap();
-        let app = AppConfigV2::new("Example", "example.org", 0).unwrap();
+        let app = AppConfigV3::new("Example", "example.org", 0).unwrap();
         let origin = Origin::from_str("https://example.org").unwrap();
         let mut policy = AppPolicyV2::default();
         policy.set_decision(
@@ -912,7 +1183,7 @@ mod tests {
             b"session"
         );
 
-        let denied = AppConfigV2::new("Denied", "denied.example", 1).unwrap();
+        let denied = AppConfigV3::new("Denied", "denied.example", 1).unwrap();
         *launcher.deny_install.borrow_mut() = true;
         assert!(block_on(service.create_from_backup(
             denied.clone(),

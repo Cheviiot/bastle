@@ -5,6 +5,24 @@ Changelog and versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+
+- `AppConfigV3` with an explicit `WebKit` or `Chromium` engine and an atomic
+  v1/v2 migration that keeps existing Bastle applications on WebKitGTK.
+- A local, release-pinned compatibility catalog that explains known WebKitGTK
+  incompatibilities without telemetry or network updates.
+- An authenticated, versioned D-Bus boundary for the separately sandboxed
+  `bastle-chromium` companion, including delayed profile-deletion cleanup.
+- Explicit Chromium recommendations during creation, editing, and recognized
+  WebKitGTK load failures; the engine changes only after user confirmation.
+
+### Security
+
+- Keep WebKit and Chromium profiles separate, strip WebKit-only content filters
+  from companion policy, and never silently fall back between engines.
+- Reject Chromium site-data backup through the WebKit profile path so stale
+  local data cannot be mislabeled as the companion profile.
+
 ## [0.4.0] - 2026-09-05
 
 ### Added

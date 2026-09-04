@@ -16,7 +16,7 @@ use tempfile::{Builder as TempBuilder, NamedTempFile, TempDir};
 
 use crate::{
     launcher::{LauncherBackend, PortalLauncher},
-    model::{AppConfigV2, AppId},
+    model::{decode_app_config, AppConfigV3, AppId, Engine},
     policy::{decode_policy, AppPolicyV2, MAX_POLICY_SERIALIZED_SIZE},
     repository::{ProfileLock, RUNTIME_LOCK_FILE},
     service::AppService,
@@ -209,10 +209,14 @@ impl<L: LauncherBackend + Clone> BackupService<L> {
         let mut manifest_apps = Vec::new();
         let mut profile_locks = Vec::new();
         for id in ids {
+            let snapshot = self.service.snapshot(id)?;
             if include_site_data {
+                ensure!(
+                    snapshot.config.engine == Engine::WebKit,
+                    "Chromium site data must be exported by the optional companion and is not available in this backup"
+                );
                 profile_locks.push(self.service.try_acquire_profile_snapshot_lock(id)?);
             }
-            let snapshot = self.service.snapshot(id)?;
             ensure!(
                 snapshot.config.id == *id,
                 "stored app id does not match its path"
@@ -313,20 +317,28 @@ impl<L: LauncherBackend + Clone> BackupService<L> {
         let mut entries = Vec::new();
         for manifest_app in &manifest.apps {
             let archived = read_archived_app(extracted.path(), &manifest_app.id)?;
-            let (target_id, disposition) = if self.service.contains(&manifest_app.id) {
+            let pending_companion_deletion = self
+                .service
+                .has_pending_companion_deletion(&manifest_app.id)?;
+            let (target_id, disposition) = if pending_companion_deletion {
+                (
+                    self.generate_restore_id(&reserved)?,
+                    RestoreDisposition::RestoreWithNewId,
+                )
+            } else if self.service.contains(&manifest_app.id) {
                 if self.existing_matches(&manifest_app.id, &archived)?
                     && !manifest.includes_site_data
                 {
                     (manifest_app.id.clone(), RestoreDisposition::SkipIdentical)
                 } else {
                     (
-                        self.generate_restore_id(&reserved),
+                        self.generate_restore_id(&reserved)?,
                         RestoreDisposition::RestoreWithNewId,
                     )
                 }
             } else if self.service.contains_any_data(&manifest_app.id) {
                 (
-                    self.generate_restore_id(&reserved),
+                    self.generate_restore_id(&reserved)?,
                     RestoreDisposition::RestoreWithNewId,
                 )
             } else {
@@ -348,11 +360,11 @@ impl<L: LauncherBackend + Clone> BackupService<L> {
         })
     }
 
-    fn generate_restore_id(&self, reserved: &HashSet<AppId>) -> AppId {
+    fn generate_restore_id(&self, reserved: &HashSet<AppId>) -> Result<AppId> {
         loop {
             let id = AppId::generate();
-            if !reserved.contains(&id) && !self.service.contains_any_data(&id) {
-                return id;
+            if !reserved.contains(&id) && !self.service.id_is_reserved(&id)? {
+                return Ok(id);
             }
         }
     }
@@ -437,16 +449,15 @@ pub fn is_encrypted_backup(path: &Path) -> Result<bool> {
 
 #[derive(Debug)]
 struct ArchivedApp {
-    config: AppConfigV2,
+    config: AppConfigV3,
     icon: Vec<u8>,
     policy: AppPolicyV2,
 }
 
 fn read_archived_app(root: &Path, id: &AppId) -> Result<ArchivedApp> {
     let directory = root.join("apps").join(id.as_str());
-    let mut config: AppConfigV2 =
-        read_limited_json(&directory.join("app.json"), MAX_APP_CONFIG_SIZE)?;
-    config.normalize_and_validate()?;
+    let config_bytes = read_limited_file(&directory.join("app.json"), MAX_APP_CONFIG_SIZE)?;
+    let (config, _) = decode_app_config(&config_bytes)?;
     ensure!(config.id == *id, "archive app id does not match its path");
     let icon = read_limited_file(&directory.join("icon.png"), MAX_ICON_SIZE)?;
     ensure!(!icon.is_empty(), "archive icon is empty");
@@ -602,7 +613,11 @@ fn extract_backup(
     );
     validate_archive_paths(&manifest, &paths)?;
     for app in &manifest.apps {
-        read_archived_app(extracted.path(), &app.id)?;
+        let archived = read_archived_app(extracted.path(), &app.id)?;
+        ensure!(
+            !manifest.includes_site_data || archived.config.engine == Engine::WebKit,
+            "site data in a Bastle backup must belong to a WebKit application"
+        );
     }
     Ok((extracted, manifest, encrypted))
 }
@@ -764,7 +779,7 @@ mod tests {
     impl LauncherBackend for FakeLauncher {
         async fn install(
             &self,
-            app: &AppConfigV2,
+            app: &AppConfigV3,
             _icon: &[u8],
             _parent: Option<&WindowIdentifier>,
         ) -> Result<()> {
@@ -793,7 +808,7 @@ mod tests {
     fn metadata_backup_round_trips_and_never_contains_cache() {
         let source = tempfile::tempdir().unwrap();
         let source_service = backup_service(source.path());
-        let app = AppConfigV2::new("Example", "https://example.org", 0).unwrap();
+        let app = AppConfigV3::new("Example", "https://example.org", 0).unwrap();
         block_on(source_service.service.create(app.clone(), b"icon", None)).unwrap();
         fs::create_dir_all(source_service.service.cache_dir(&app.id)).unwrap();
         fs::write(
@@ -827,7 +842,7 @@ mod tests {
     fn site_data_requires_encryption_and_an_idle_profile() {
         let source = tempfile::tempdir().unwrap();
         let service = backup_service(source.path());
-        let app = AppConfigV2::new("Example", "example.org", 0).unwrap();
+        let app = AppConfigV3::new("Example", "example.org", 0).unwrap();
         block_on(service.service.create(app.clone(), b"icon", None)).unwrap();
         fs::create_dir_all(service.service.profile_dir(&app.id)).unwrap();
         fs::write(
@@ -898,10 +913,145 @@ mod tests {
     }
 
     #[test]
+    fn chromium_site_data_is_not_mistaken_for_a_webkit_profile() {
+        let source = tempfile::tempdir().unwrap();
+        let service = backup_service(source.path());
+        let mut app = AppConfigV3::new("Chromium", "example.org", 0).unwrap();
+        app.engine = Engine::Chromium;
+        block_on(service.service.create(app.clone(), b"icon", None)).unwrap();
+        fs::create_dir_all(service.service.profile_dir(&app.id)).unwrap();
+        fs::write(
+            service.service.profile_dir(&app.id).join("webkit-leftover"),
+            b"must not export",
+        )
+        .unwrap();
+
+        let options = BackupOptions {
+            include_site_data: true,
+            passphrase: Some(SecretString::from("test passphrase".to_owned())),
+        };
+        let error = service
+            .create_backup(
+                &source.path().join("chromium.bastle-backup"),
+                &[app.id],
+                &options,
+            )
+            .unwrap_err();
+        assert!(error.to_string().contains("optional companion"));
+    }
+
+    #[test]
+    fn restore_rejects_chromium_archives_that_claim_webkit_site_data() {
+        let temp = tempfile::tempdir().unwrap();
+        let backup = temp.path().join("forged-chromium.bastle-backup");
+        let id: AppId = "abcdefghijkl".parse().unwrap();
+        let mut app = AppConfigV3::new("Chromium", "https://example.org", 0).unwrap();
+        app.id = id.clone();
+        app.engine = Engine::Chromium;
+        let manifest = BackupManifestV1 {
+            schema_version: BACKUP_SCHEMA_VERSION,
+            includes_site_data: true,
+            apps: vec![BackupManifestAppV1 {
+                id: id.clone(),
+                title: app.title.clone(),
+            }],
+        };
+        let passphrase = SecretString::from("test passphrase".to_owned());
+        let file = File::create(&backup).unwrap();
+        let encryptor = age::Encryptor::with_user_passphrase(passphrase.clone());
+        let age_writer = encryptor.wrap_output(file).unwrap();
+        let zstd_writer = zstd::stream::Encoder::new(age_writer, 1).unwrap();
+        let mut archive = tar::Builder::new(zstd_writer);
+        let mut budget = ArchiveBudget::default();
+        append_json(
+            &mut archive,
+            Path::new(MANIFEST_PATH),
+            &manifest,
+            MAX_MANIFEST_SIZE,
+            &mut budget,
+        )
+        .unwrap();
+        let app_prefix = PathBuf::from("apps").join(id.as_str());
+        append_json(
+            &mut archive,
+            &app_prefix.join("app.json"),
+            &app,
+            MAX_APP_CONFIG_SIZE,
+            &mut budget,
+        )
+        .unwrap();
+        append_bytes(
+            &mut archive,
+            &app_prefix.join("icon.png"),
+            b"icon",
+            MAX_ICON_SIZE,
+            &mut budget,
+        )
+        .unwrap();
+        append_json(
+            &mut archive,
+            &app_prefix.join("policy.json"),
+            &AppPolicyV2::default(),
+            MAX_POLICY_SIZE,
+            &mut budget,
+        )
+        .unwrap();
+        append_bytes(
+            &mut archive,
+            &PathBuf::from("profiles").join(id.as_str()).join("Cookies"),
+            b"site data",
+            MAX_UNCOMPRESSED_SIZE,
+            &mut budget,
+        )
+        .unwrap();
+        let zstd_writer = archive.into_inner().unwrap();
+        let age_writer = zstd_writer.finish().unwrap();
+        age_writer.finish().unwrap();
+
+        let service = backup_service(temp.path());
+        let error = service
+            .prepare_restore(&backup, Some(&passphrase))
+            .unwrap_err();
+        assert!(error.to_string().contains("must belong to a WebKit"));
+    }
+
+    #[test]
+    fn backups_created_before_config_v3_remain_readable() {
+        let extracted = tempfile::tempdir().unwrap();
+        let id = AppId::from_str("abcdefghijkl").unwrap();
+        let app_dir = extracted.path().join("apps").join(id.as_str());
+        fs::create_dir_all(&app_dir).unwrap();
+        fs::write(
+            app_dir.join("app.json"),
+            r#"{
+  "schema_version": 2,
+  "id": "abcdefghijkl",
+  "title": "Bastle v0.4 backup",
+  "start_url": "https://example.org/",
+  "user_agent": null,
+  "use_theme_color": true,
+  "window": {"width": 1200, "height": 800, "maximized": false},
+  "sort_order": 0
+}"#,
+        )
+        .unwrap();
+        fs::write(app_dir.join("icon.png"), b"icon").unwrap();
+        fs::write(
+            app_dir.join("policy.json"),
+            serde_json::to_vec_pretty(&AppPolicyV2::default()).unwrap(),
+        )
+        .unwrap();
+
+        let archived = read_archived_app(extracted.path(), &id).unwrap();
+        assert_eq!(archived.config.schema_version, crate::model::SCHEMA_VERSION);
+        assert_eq!(archived.config.engine, Engine::WebKit);
+    }
+
+    #[test]
     fn conflicting_ids_are_remapped_and_identical_ids_are_skipped() {
         let source = tempfile::tempdir().unwrap();
         let source_service = backup_service(source.path());
-        let app = AppConfigV2::new("Source", "example.org", 0).unwrap();
+        let app = AppConfigV3::new("Source", "example.org", 0).unwrap();
         block_on(source_service.service.create(app.clone(), b"icon", None)).unwrap();
         let backup = source.path().join("conflict.bastle-backup");
         source_service
@@ -933,10 +1083,102 @@ mod tests {
     }
 
     #[test]
+    fn pending_companion_deletion_reserves_the_restore_id() {
+        let source = tempfile::tempdir().unwrap();
+        let source_service = backup_service(source.path());
+        let app = AppConfigV3::new("Source", "example.org", 0).unwrap();
+        block_on(source_service.service.create(app.clone(), b"icon", None)).unwrap();
+        let backup = source.path().join("reserved-id.bastle-backup");
+        source_service
+            .create_backup(
+                &backup,
+                std::slice::from_ref(&app.id),
+                &BackupOptions::default(),
+            )
+            .unwrap();
+
+        let target = tempfile::tempdir().unwrap();
+        let target_service = backup_service(target.path());
+        let id_lock = target_service
+            .service
+            .repository()
+            .lock_app_id(&app.id)
+            .unwrap();
+        target_service
+            .service
+            .repository()
+            .enqueue_companion_deletion(
+                &id_lock,
+                "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+            )
+            .unwrap();
+        drop(id_lock);
+
+        let plan = target_service.prepare_restore(&backup, None).unwrap();
+        assert_eq!(
+            plan.entries[0].disposition,
+            RestoreDisposition::RestoreWithNewId
+        );
+        let restored_id = plan.entries[0].target_id.clone();
+        assert_ne!(restored_id, app.id);
+
+        let selected = HashSet::from([app.id.clone()]);
+        let report = block_on(target_service.restore(plan, &selected, None));
+        assert_eq!(report.restored, 1);
+        assert!(report.failed.is_empty());
+        assert!(target_service.service.contains(&restored_id));
+        assert!(target_service
+            .service
+            .has_pending_companion_deletion(&app.id)
+            .unwrap());
+    }
+
+    #[test]
+    fn restore_rechecks_pending_deletion_after_preview() {
+        let source = tempfile::tempdir().unwrap();
+        let source_service = backup_service(source.path());
+        let app = AppConfigV3::new("Source", "example.org", 0).unwrap();
+        block_on(source_service.service.create(app.clone(), b"icon", None)).unwrap();
+        let backup = source.path().join("late-reservation.bastle-backup");
+        source_service
+            .create_backup(
+                &backup,
+                std::slice::from_ref(&app.id),
+                &BackupOptions::default(),
+            )
+            .unwrap();
+
+        let target = tempfile::tempdir().unwrap();
+        let target_service = backup_service(target.path());
+        let plan = target_service.prepare_restore(&backup, None).unwrap();
+        assert_eq!(plan.entries[0].disposition, RestoreDisposition::RestoreAsIs);
+        let id_lock = target_service
+            .service
+            .repository()
+            .lock_app_id(&app.id)
+            .unwrap();
+        target_service
+            .service
+            .repository()
+            .enqueue_companion_deletion(
+                &id_lock,
+                "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+            )
+            .unwrap();
+        drop(id_lock);
+
+        let selected = HashSet::from([app.id.clone()]);
+        let report = block_on(target_service.restore(plan, &selected, None));
+        assert_eq!(report.restored, 0);
+        assert_eq!(report.failed.len(), 1);
+        assert!(!target_service.service.contains(&app.id));
+    }
+
+    #[test]
     fn identical_backup_with_background_settings_is_skipped() {
         let source = tempfile::tempdir().unwrap();
         let service = backup_service(source.path());
-        let app = AppConfigV2::new("Background", "example.org", 0).unwrap();
+        let app = AppConfigV3::new("Background", "example.org", 0).unwrap();
         block_on(service.service.create(app.clone(), b"icon", None)).unwrap();
         let mut policy = AppPolicyV2::default();
         policy.background.enabled = true;
@@ -1063,8 +1305,8 @@ mod tests {
     fn restore_continues_after_one_launcher_is_denied() {
         let source = tempfile::tempdir().unwrap();
         let source_service = backup_service(source.path());
-        let first = AppConfigV2::new("First", "https://first.example", 0).unwrap();
-        let second = AppConfigV2::new("Second", "https://second.example", 1).unwrap();
+        let first = AppConfigV3::new("First", "https://first.example", 0).unwrap();
+        let second = AppConfigV3::new("Second", "https://second.example", 1).unwrap();
         block_on(source_service.service.create(first.clone(), b"first", None)).unwrap();
         block_on(
             source_service

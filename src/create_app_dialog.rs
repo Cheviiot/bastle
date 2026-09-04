@@ -8,8 +8,9 @@ use gettextrs::gettext;
 use gtk::glib;
 
 use crate::{
+    compatibility::{reason_description, CompatibilityCatalogV1},
     config,
-    model::{parse_web_url, AppConfigV2},
+    model::{parse_web_url, AppConfigV3, Engine},
     service::AppService,
     util,
 };
@@ -38,6 +39,10 @@ mod imp {
         pub icon_image: TemplateChild<gtk::Image>,
         #[template_child]
         pub title_entry: TemplateChild<adw::EntryRow>,
+        #[template_child]
+        pub engine_row: TemplateChild<adw::ComboRow>,
+        #[template_child]
+        pub recommendation_row: TemplateChild<adw::ActionRow>,
         #[property(get, set)]
         pub loading: Cell<bool>,
     }
@@ -132,11 +137,16 @@ mod imp {
                 .map(|report| report.apps.len() as u32)
                 .unwrap_or_default();
             let result = async {
-                let mut app = AppConfigV2::new(
+                let mut app = AppConfigV3::new(
                     self.title_entry.text().as_str(),
                     self.url_entry.text().as_str(),
                     sort_order,
                 )?;
+                app.engine = if self.engine_row.selected() == 1 {
+                    Engine::Chromium
+                } else {
+                    Engine::WebKit
+                };
                 while service.contains(&app.id) {
                     app.id = crate::model::AppId::generate();
                 }
@@ -175,14 +185,45 @@ impl CreateAppDialog {
         let dialog: Self = glib::Object::builder().build();
         dialog.imp().icon_image.set_icon_name(Some(config::APP_ID));
         dialog
+            .imp()
+            .engine_row
+            .set_model(Some(&gtk::StringList::new(&[
+                "WebKitGTK",
+                "Chromium companion",
+            ])));
+        dialog
     }
 
     fn validate_input(&self) -> bool {
+        self.refresh_recommendation();
         let valid = parse_web_url(&self.imp().url_entry.text()).is_ok()
             && !self.imp().title_entry.text().trim().is_empty()
             && !self.loading();
         self.imp().button.set_sensitive(valid);
         valid
+    }
+
+    fn refresh_recommendation(&self) {
+        let recommendation = CompatibilityCatalogV1::bundled()
+            .and_then(|catalog| {
+                catalog
+                    .recommendation(&self.imp().url_entry.text())
+                    .map(|entry| {
+                        entry
+                            .filter(|entry| entry.recommended_engine() == Engine::Chromium)
+                            .map(|entry| entry.reason_code().to_owned())
+                    })
+            })
+            .ok()
+            .flatten();
+        self.imp()
+            .recommendation_row
+            .set_visible(recommendation.is_some());
+        if let Some(reason_code) = recommendation {
+            self.imp()
+                .recommendation_row
+                .set_subtitle(&reason_description(&reason_code));
+        }
     }
 
     fn toast(&self, message: &str) {

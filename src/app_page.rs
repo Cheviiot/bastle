@@ -7,7 +7,12 @@ use ashpd::WindowIdentifier;
 use gettextrs::gettext;
 use gtk::{gio, glib};
 
-use crate::{model::AppConfigV2, service::AppService, util};
+use crate::{
+    compatibility::{reason_description, CompatibilityCatalogV1},
+    model::{AppConfigV3, Engine},
+    service::AppService,
+    util,
+};
 
 fn menu_item(label: &str, action: &str, target: &str) -> gio::MenuItem {
     let item = gio::MenuItem::new(Some(label), None);
@@ -21,7 +26,7 @@ mod imp {
     #[derive(Debug, Default, gtk::CompositeTemplate)]
     #[template(resource = "/io/github/cheviiot/bastle/app_page.ui")]
     pub struct AppPage {
-        pub config: RefCell<Option<AppConfigV2>>,
+        pub config: RefCell<Option<AppConfigV3>>,
         pub pending_icon: RefCell<Option<Vec<u8>>>,
         pub populating: Cell<bool>,
         #[template_child]
@@ -38,6 +43,10 @@ mod imp {
         pub edit_headerbar: TemplateChild<adw::HeaderBar>,
         #[template_child]
         pub titlebar_color: TemplateChild<adw::SwitchRow>,
+        #[template_child]
+        pub engine_row: TemplateChild<adw::ComboRow>,
+        #[template_child]
+        pub recommendation_row: TemplateChild<adw::ActionRow>,
         #[template_child]
         pub user_agent_expander: TemplateChild<adw::ExpanderRow>,
         #[template_child]
@@ -75,6 +84,15 @@ mod imp {
                         }
                     }
                 ));
+            self.engine_row.connect_selected_notify(glib::clone!(
+                #[weak(rename_to = page)]
+                self.obj(),
+                move |_| {
+                    if !page.imp().populating.get() {
+                        page.mark_dirty();
+                    }
+                }
+            ));
         }
     }
     impl WidgetImpl for AppPage {}
@@ -95,6 +113,11 @@ mod imp {
             config.title = self.title_entry.text().to_string();
             config.start_url = self.url_entry.text().to_string();
             config.use_theme_color = self.titlebar_color.is_active();
+            config.engine = if self.engine_row.selected() == 1 {
+                Engine::Chromium
+            } else {
+                Engine::WebKit
+            };
             config.user_agent = self
                 .user_agent_expander
                 .enables_expansion()
@@ -148,6 +171,12 @@ mod imp {
         }
 
         #[template_callback]
+        fn on_url_apply(&self, _entry: adw::EntryRow) {
+            self.obj().refresh_recommendation();
+            self.obj().mark_dirty();
+        }
+
+        #[template_callback]
         fn update_unsaved_details_cb(&self, _widget: gtk::Widget) {
             self.obj().mark_dirty();
         }
@@ -161,8 +190,15 @@ glib::wrapper! {
 }
 
 impl AppPage {
-    pub fn new(config: AppConfigV2) -> Self {
+    pub fn new(config: AppConfigV3) -> Self {
         let page: Self = glib::Object::builder().build();
+        page.imp().populating.set(true);
+        page.imp()
+            .engine_row
+            .set_model(Some(&gtk::StringList::new(&[
+                "WebKitGTK",
+                "Chromium companion",
+            ])));
         page.show_config(&config);
         let id = config.id.clone();
         page.imp().page_menu.append_item(&menu_item(
@@ -201,18 +237,46 @@ impl AppPage {
         page
     }
 
-    fn show_config(&self, config: &AppConfigV2) {
+    fn show_config(&self, config: &AppConfigV3) {
         let imp = self.imp();
         imp.populating.set(true);
         self.set_title(&config.title);
         imp.url_entry.set_text(&config.start_url);
         imp.title_entry.set_text(&config.title);
         imp.titlebar_color.set_active(config.use_theme_color);
+        imp.engine_row.set_selected(match config.engine {
+            Engine::WebKit => 0,
+            Engine::Chromium => 1,
+        });
         imp.user_agent_expander
             .set_enable_expansion(config.user_agent.is_some());
         imp.user_agent_entry
             .set_text(config.user_agent.as_deref().unwrap_or_default());
+        self.refresh_recommendation();
         imp.populating.set(false);
+    }
+
+    fn refresh_recommendation(&self) {
+        let recommendation = CompatibilityCatalogV1::bundled()
+            .and_then(|catalog| {
+                catalog
+                    .recommendation(&self.imp().url_entry.text())
+                    .map(|entry| {
+                        entry
+                            .filter(|entry| entry.recommended_engine() == Engine::Chromium)
+                            .map(|entry| entry.reason_code().to_owned())
+                    })
+            })
+            .ok()
+            .flatten();
+        self.imp()
+            .recommendation_row
+            .set_visible(recommendation.is_some());
+        if let Some(reason_code) = recommendation {
+            self.imp()
+                .recommendation_row
+                .set_subtitle(&reason_description(&reason_code));
+        }
     }
 
     fn cancel_changes(&self) {
@@ -247,7 +311,7 @@ pub(crate) fn run_ui_smoke_test() -> anyhow::Result<()> {
     use anyhow::ensure;
 
     for user_agent in [None, Some("Bastle UI smoke test".to_owned())] {
-        let mut config = AppConfigV2::new("UI smoke test", "https://example.org", 0)?;
+        let mut config = AppConfigV3::new("UI smoke test", "https://example.org", 0)?;
         config.user_agent = user_agent;
         let page = AppPage::new(config);
         ensure!(!page.is_dirty(), "opening the editor marked it as dirty");
@@ -263,6 +327,15 @@ pub(crate) fn run_ui_smoke_test() -> anyhow::Result<()> {
 
         page.cancel_changes();
         ensure!(!page.is_dirty(), "cancelling the edit stayed dirty");
+
+        page.imp().engine_row.set_selected(1);
+        ensure!(page.is_dirty(), "changing the browser engine stayed clean");
+        page.cancel_changes();
+        ensure!(
+            page.imp().engine_row.selected() == 0,
+            "cancelling did not restore the browser engine"
+        );
+        ensure!(!page.is_dirty(), "cancelling the engine edit stayed dirty");
     }
     Ok(())
 }
