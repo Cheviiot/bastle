@@ -63,7 +63,7 @@ template $BastleAppPage: Adw.NavigationPage {
             Adw.EntryRow url_entry {
               title: _("URL");
               show-apply-button: true;
-              apply => $update_unsaved_details_cb() swapped;
+              apply => $on_url_apply() swapped;
             }
 
             Adw.EntryRow title_entry {
@@ -98,7 +98,18 @@ template $BastleAppPage: Adw.NavigationPage {
           }
           Adw.PreferencesGroup {
             title: _("Browser Behavior");
-            description: _("WebKit settings for this application");
+            description: _("Choose an isolated browser engine for this application");
+
+            Adw.ComboRow engine_row {
+              title: _("Browser Engine");
+              subtitle: _("Chromium is optional; profiles and cookies are never transferred between engines");
+            }
+
+            Adw.ActionRow recommendation_row {
+              visible: false;
+              title: _("Chromium Recommended");
+              icon-name: "dialog-information-symbolic";
+            }
 
             Adw.ExpanderRow user_agent_expander {
               show-enable-switch: true;

@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "entries": [
+    {
+      "host_pattern": "meet.google.com",
+      "recommended_engine": "chromium",
+      "reason_code": "webrtc_compatibility"
+    },
+    {
+      "host_pattern": "teams.microsoft.com",
+      "recommended_engine": "chromium",
+      "reason_code": "unsupported_browser"
+    },
+    {
+      "host_pattern": "*.office.com",
+      "recommended_engine": "chromium",
+      "reason_code": "optimized_for_chromium"
+    },
+    {
+      "host_pattern": "discord.com",
+      "recommended_engine": "chromium",
+      "reason_code": "unsupported_browser"
+    },
+    {
+      "host_pattern": "web.whatsapp.com",
+      "recommended_engine": "chromium",
+      "reason_code": "unsupported_browser"
+    }
+  ]
+}

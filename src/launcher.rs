@@ -11,7 +11,7 @@ use ashpd::{
 use async_trait::async_trait;
 use gtk::glib;
 
-use crate::{config, model::AppConfigV2, model::AppId};
+use crate::{config, model::AppConfigV3, model::AppId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UninstallOutcome {
@@ -23,7 +23,7 @@ pub enum UninstallOutcome {
 pub trait LauncherBackend {
     async fn install(
         &self,
-        app: &AppConfigV2,
+        app: &AppConfigV3,
         icon: &[u8],
         parent: Option<&WindowIdentifier>,
     ) -> Result<()>;
@@ -47,7 +47,7 @@ impl PortalLauncher {
         format!("{}.desktop", config::managed_app_id(id))
     }
 
-    fn desktop_entry(app: &AppConfigV2) -> Result<String> {
+    fn desktop_entry(app: &AppConfigV3) -> Result<String> {
         let key_file = glib::KeyFile::new();
         key_file.set_string("Desktop Entry", "Type", "Application");
         key_file.set_string("Desktop Entry", "Name", &app.title);
@@ -96,7 +96,7 @@ impl PortalLauncher {
 impl LauncherBackend for PortalLauncher {
     async fn install(
         &self,
-        app: &AppConfigV2,
+        app: &AppConfigV3,
         icon: &[u8],
         parent: Option<&WindowIdentifier>,
     ) -> Result<()> {
@@ -163,7 +163,7 @@ mod tests {
 
     #[test]
     fn desktop_entry_is_generated_by_key_file() {
-        let app = AppConfigV2::new("Example\nExec=bad", "example.org", 0).unwrap();
+        let app = AppConfigV3::new("Example\nExec=bad", "example.org", 0).unwrap();
         let desktop = PortalLauncher::desktop_entry(&app).unwrap();
         assert!(desktop.contains("Name=Example Exec=bad"));
         assert_eq!(desktop.matches("Exec=").count(), 2);

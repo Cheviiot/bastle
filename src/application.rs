@@ -9,7 +9,13 @@ use gettextrs::gettext;
 use glib::{OptionArg, OptionFlags};
 use gtk::{gio, glib};
 
-use crate::{app_window::AppWindow, config, model::AppId, service::AppService, BastleWindow};
+use crate::{
+    app_window::AppWindow,
+    config,
+    model::{AppConfigV3, AppId, Engine},
+    service::AppService,
+    BastleWindow,
+};
 
 pub fn settings() -> gio::Settings {
     gio::Settings::new(config::APP_ID)
@@ -225,11 +231,25 @@ mod imp {
                         }
                     }
                 }
-                let window = AppWindow::new(&*self.obj(), &config);
-                if start_in_background {
-                    window.start_in_background();
-                } else {
-                    window.present();
+                match config.engine {
+                    Engine::WebKit => {
+                        let window = AppWindow::new(&*self.obj(), &config);
+                        if start_in_background {
+                            window.start_in_background();
+                        } else {
+                            window.present();
+                        }
+                    }
+                    Engine::Chromium => {
+                        let result = service.open_chromium(&config, start_in_background);
+                        if let Err(error) = result {
+                            if start_in_background {
+                                eprintln!("Error: {error:#}");
+                                return glib::ExitCode::FAILURE;
+                            }
+                            self.obj().show_companion_diagnostic(config, error);
+                        }
+                    }
                 }
                 return glib::ExitCode::SUCCESS;
             }
@@ -406,6 +426,45 @@ impl BastleApplication {
             return Err(anyhow!("unknown app id {id}"));
         }
         spawn_app_process(&id, false)
+    }
+
+    fn show_companion_diagnostic(&self, config: AppConfigV3, error: anyhow::Error) {
+        let manager = BastleWindow::new(self);
+        manager.present();
+        let app = self.clone();
+        glib::spawn_future_local(async move {
+            let body = format!(
+                "{error:#}\n\n{}",
+                gettext(
+                    "Install a compatible Bastle Chromium companion, or run this application once with WebKitGTK. Your engine choice and profiles will not be changed."
+                )
+            );
+            let dialog = adw::AlertDialog::new(
+                Some(&gettext("Chromium Companion Unavailable")),
+                Some(&body),
+            );
+            dialog.add_responses(&[
+                ("cancel", &gettext("Cancel")),
+                ("install", &gettext("Installation Help")),
+                ("webkit", &gettext("Run Once with WebKit")),
+            ]);
+            dialog.set_response_appearance("webkit", adw::ResponseAppearance::Suggested);
+            dialog.set_default_response(Some("webkit"));
+            dialog.set_close_response("cancel");
+            match dialog.choose_future(Some(&manager)).await.as_str() {
+                "webkit" => {
+                    manager.close();
+                    AppWindow::new(&app, &config).present();
+                }
+                "install" => {
+                    let _ = gio::AppInfo::launch_default_for_uri(
+                        "https://github.com/Cheviiot/bastle-chromium/releases",
+                        None::<&gio::AppLaunchContext>,
+                    );
+                }
+                _ => {}
+            }
+        });
     }
 }
 

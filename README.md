@@ -3,9 +3,10 @@
 ![Bastle icon](data/icons/hicolor/scalable/apps/io.github.cheviiot.bastle.svg)
 
 Bastle is a GNOME-native manager for isolated web applications powered by the
-system WebKitGTK engine. It creates desktop launchers through the Dynamic
-Launcher Portal and keeps each application's metadata, profile, cookies, and
-cache separate.
+system WebKitGTK engine, with an optional separately sandboxed Chromium
+companion for explicitly selected sites. It creates desktop launchers through
+the Dynamic Launcher Portal and keeps each application's metadata, profile,
+cookies, and cache separate.
 
 The name *bastle* means a detached fortified house: each website gets its own
 small, self-contained space. The friendly shelter icon reflects that idea; the
@@ -19,7 +20,9 @@ launcher repair, offline creation, popup/OAuth windows, navigation controls,
 zoom, fullscreen, runtime permissions, managed downloads, and native
 notifications. The v0.4 policy layer adds optional top-level origin
 restrictions, per-app WebKit proxy selection, portal-authorized background
-activity, and user-imported WebKit content filters.
+activity, and user-imported WebKit content filters. Development for v0.5 adds
+an explicit per-app engine choice and a local compatibility catalog; unknown
+sites continue to use WebKitGTK.
 
 Flathub submission is intentionally deferred until Bastle has an independent
 release history and enough differentiation from Spider.
@@ -44,8 +47,10 @@ per-app policy so ordinary backups remain self-contained.
 Bastle backups use the versioned `.bastle-backup` format: a deterministic
 `tar.zst` archive containing application configuration, icons, and permission
 policies. Cache and downloads are never exported. Cookies and WebKit site
-storage are optional; selecting them requires passphrase encryption with
-`age`, and the application must not be running while its profile is copied.
+storage are optional for WebKitGTK apps; selecting them requires passphrase
+encryption with `age`, and the application must not be running while its
+profile is copied. Chromium profile data remains inside the companion sandbox
+and is never mistaken for a local WebKit profile.
 
 Restore shows a preview before making changes. Identical applications are
 skipped, ID conflicts receive a fresh Bastle ID, and each launcher is installed
@@ -55,7 +60,8 @@ path traversal, links, duplicate entries, or unexpected files are rejected.
 ## Development environment
 
 Security boundaries and known limitations are documented in the
-[threat model](docs/threat-model.md).
+[threat model](docs/threat-model.md). The optional companion boundary is
+specified in the [Chromium protocol](docs/chromium-companion-protocol.md).
 
 Development is reproducible in the Fedora 44 Distrobox named `bastle-dev`:
 

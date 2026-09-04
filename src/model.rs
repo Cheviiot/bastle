@@ -2,12 +2,13 @@
 
 use std::{fmt, str::FromStr};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use rand::{distributions::Uniform, Rng};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use url::Url;
 
-pub const SCHEMA_VERSION: u32 = 2;
+pub const SCHEMA_VERSION: u32 = 3;
 pub const APP_ID_LENGTH: usize = 12;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
@@ -84,8 +85,25 @@ fn default_window_height() -> i32 {
     800
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Engine {
+    #[default]
+    WebKit,
+    Chromium,
+}
+
+impl Engine {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::WebKit => "webkit",
+            Self::Chromium => "chromium",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct AppConfigV2 {
+pub struct AppConfigV3 {
     pub schema_version: u32,
     pub id: AppId,
     pub title: String,
@@ -98,13 +116,15 @@ pub struct AppConfigV2 {
     pub window: WindowState,
     #[serde(default)]
     pub sort_order: u32,
+    #[serde(default)]
+    pub engine: Engine,
 }
 
 fn default_true() -> bool {
     true
 }
 
-impl AppConfigV2 {
+impl AppConfigV3 {
     pub fn new(
         title: impl Into<String>,
         start_url: impl Into<String>,
@@ -119,6 +139,7 @@ impl AppConfigV2 {
             use_theme_color: true,
             window: WindowState::default(),
             sort_order,
+            engine: Engine::WebKit,
         };
         config.normalize_and_validate()?;
         Ok(config)
@@ -146,6 +167,41 @@ impl AppConfigV2 {
         }
         Ok(())
     }
+}
+
+pub fn decode_app_config(bytes: &[u8]) -> Result<(AppConfigV3, bool)> {
+    let mut document: Value = serde_json::from_slice(bytes).context("invalid app JSON")?;
+    let schema_version = document
+        .get("schema_version")
+        .and_then(Value::as_u64)
+        .ok_or_else(|| anyhow!("missing or invalid app schema_version"))?;
+
+    let migrated = match schema_version {
+        1 => {
+            let object = document
+                .as_object_mut()
+                .ok_or_else(|| anyhow!("app configuration must be a JSON object"))?;
+            object.insert("schema_version".to_owned(), Value::from(SCHEMA_VERSION));
+            object.remove("imported_from");
+            object.insert("engine".to_owned(), Value::from("webkit"));
+            true
+        }
+        2 => {
+            let object = document
+                .as_object_mut()
+                .ok_or_else(|| anyhow!("app configuration must be a JSON object"))?;
+            object.insert("schema_version".to_owned(), Value::from(SCHEMA_VERSION));
+            object.insert("engine".to_owned(), Value::from("webkit"));
+            true
+        }
+        version if version == u64::from(SCHEMA_VERSION) => false,
+        version => bail!("unsupported app configuration version {version}"),
+    };
+
+    let mut app: AppConfigV3 =
+        serde_json::from_value(document).context("invalid app configuration fields")?;
+    app.normalize_and_validate()?;
+    Ok((app, migrated))
 }
 
 pub fn parse_web_url(value: &str) -> Result<Url> {
@@ -210,12 +266,43 @@ mod tests {
     }
 
     #[test]
-    fn config_round_trips_as_version_two() {
-        let config = AppConfigV2::new("Example", "https://example.org", 2).unwrap();
+    fn config_round_trips_as_version_three() {
+        let config = AppConfigV3::new("Example", "https://example.org", 2).unwrap();
         let json = serde_json::to_string(&config).unwrap();
         assert!(json.contains("\"user_agent\":null"));
+        assert!(json.contains("\"engine\":\"webkit\""));
         assert!(!json.contains("imported_from"));
-        let decoded: AppConfigV2 = serde_json::from_str(&json).unwrap();
+        let decoded: AppConfigV3 = serde_json::from_str(&json).unwrap();
         assert_eq!(decoded, config);
+    }
+
+    #[test]
+    fn engine_names_are_stable() {
+        assert_eq!(
+            serde_json::to_string(&Engine::WebKit).unwrap(),
+            "\"webkit\""
+        );
+        assert_eq!(
+            serde_json::to_string(&Engine::Chromium).unwrap(),
+            "\"chromium\""
+        );
+    }
+
+    #[test]
+    fn legacy_config_decoding_defaults_to_webkit_without_provenance() {
+        let bytes = br#"{
+            "schema_version": 1,
+            "id": "abcdefghijkl",
+            "title": "Legacy Bastle",
+            "start_url": "https://example.org/",
+            "imported_from": {"app_id": "ignored", "legacy_id": 1}
+        }"#;
+        let (config, migrated) = decode_app_config(bytes).unwrap();
+        assert!(migrated);
+        assert_eq!(config.schema_version, SCHEMA_VERSION);
+        assert_eq!(config.engine, Engine::WebKit);
+        assert!(!serde_json::to_string(&config)
+            .unwrap()
+            .contains("imported_from"));
     }
 }
