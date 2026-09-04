@@ -52,11 +52,11 @@ restricted), use:
 distrobox enter bastle-dev -- flatpak-builder --disable-rofiles-fuse --user --force-clean --install-deps-from=flathub .flatpak-build build-aux/io.github.cheviiot.bastle.Devel.json
 ```
 
-Run GUI smoke tests on a virtual display so they do not interrupt the active
-desktop session:
+GUI smoke tests must use a dedicated virtual display and explicitly disable
+the Wayland socket so Flatpak cannot fall back to the active desktop session:
 
 ```sh
-distrobox enter bastle-dev -- xvfb-run -a timeout 10s flatpak run io.github.cheviiot.bastle
+distrobox enter bastle-dev -- env -u WAYLAND_DISPLAY xvfb-run -a timeout 10s flatpak run --nosocket=wayland --socket=x11 --env=GDK_BACKEND=x11 io.github.cheviiot.bastle
 ```
 
 Project-specific system packages are not installed on the ALT Workstation
