@@ -37,7 +37,7 @@ jobs:
           dnf install -y rust cargo gcc pkgconf-pkg-config meson ninja-build
           blueprint-compiler gtk4-devel libadwaita-devel webkitgtk6.0-devel
           gettext openssl-devel appstream desktop-file-utils glib2-devel
-          xorg-x11-server-Xvfb
+          xorg-x11-server-Xvfb dbus-daemon
       - run: meson setup build --fatal-meson-warnings -Dui_tests=true
       - run: meson compile -C build
       - run: meson test -C build --print-errorlogs
