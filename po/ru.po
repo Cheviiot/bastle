@@ -1137,8 +1137,11 @@ msgstr "Удалить это приложение?"
 
 #: src/window.rs:210
 msgid ""
-"Its launcher, settings, WebKit profile, cookies, and cache will be removed."
-msgstr "Будут удалены ярлык, настройки, профиль WebKit, cookies и кэш."
+"Its launcher, settings, WebKit data, and any Chromium companion profile—"
+"including cookies and caches—will be removed."
+msgstr ""
+"Будут удалены ярлык, настройки, данные WebKit и профиль Chromium-компаньона, "
+"если он существует, включая cookies и кэши."
 
 #: src/window.rs:215
 msgid "Delete"

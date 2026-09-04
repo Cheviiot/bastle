@@ -369,6 +369,13 @@ impl AppRepository {
         Ok(self.load_companion_queue()?.entries)
     }
 
+    pub fn has_pending_companion_deletion(&self, id: &AppId) -> Result<bool> {
+        Ok(self
+            .pending_companion_deletions()?
+            .iter()
+            .any(|pending| pending.id == *id))
+    }
+
     pub fn enqueue_companion_deletion(&self, id: &AppId, token: &str) -> Result<()> {
         validate_companion_token(token)?;
         fs::create_dir_all(&self.data_root)

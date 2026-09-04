@@ -317,20 +317,28 @@ impl<L: LauncherBackend + Clone> BackupService<L> {
         let mut entries = Vec::new();
         for manifest_app in &manifest.apps {
             let archived = read_archived_app(extracted.path(), &manifest_app.id)?;
-            let (target_id, disposition) = if self.service.contains(&manifest_app.id) {
+            let pending_companion_deletion = self
+                .service
+                .has_pending_companion_deletion(&manifest_app.id)?;
+            let (target_id, disposition) = if pending_companion_deletion {
+                (
+                    self.generate_restore_id(&reserved)?,
+                    RestoreDisposition::RestoreWithNewId,
+                )
+            } else if self.service.contains(&manifest_app.id) {
                 if self.existing_matches(&manifest_app.id, &archived)?
                     && !manifest.includes_site_data
                 {
                     (manifest_app.id.clone(), RestoreDisposition::SkipIdentical)
                 } else {
                     (
-                        self.generate_restore_id(&reserved),
+                        self.generate_restore_id(&reserved)?,
                         RestoreDisposition::RestoreWithNewId,
                     )
                 }
             } else if self.service.contains_any_data(&manifest_app.id) {
                 (
-                    self.generate_restore_id(&reserved),
+                    self.generate_restore_id(&reserved)?,
                     RestoreDisposition::RestoreWithNewId,
                 )
             } else {
@@ -352,11 +360,11 @@ impl<L: LauncherBackend + Clone> BackupService<L> {
         })
     }
 
-    fn generate_restore_id(&self, reserved: &HashSet<AppId>) -> AppId {
+    fn generate_restore_id(&self, reserved: &HashSet<AppId>) -> Result<AppId> {
         loop {
             let id = AppId::generate();
-            if !reserved.contains(&id) && !self.service.contains_any_data(&id) {
-                return id;
+            if !reserved.contains(&id) && !self.service.id_is_reserved(&id)? {
+                return Ok(id);
             }
         }
     }
@@ -1072,6 +1080,86 @@ mod tests {
             RestoreDisposition::RestoreWithNewId
         );
         assert_ne!(conflict.entries[0].target_id, app.id);
+    }
+
+    #[test]
+    fn pending_companion_deletion_reserves_the_restore_id() {
+        let source = tempfile::tempdir().unwrap();
+        let source_service = backup_service(source.path());
+        let app = AppConfigV3::new("Source", "example.org", 0).unwrap();
+        block_on(source_service.service.create(app.clone(), b"icon", None)).unwrap();
+        let backup = source.path().join("reserved-id.bastle-backup");
+        source_service
+            .create_backup(
+                &backup,
+                std::slice::from_ref(&app.id),
+                &BackupOptions::default(),
+            )
+            .unwrap();
+
+        let target = tempfile::tempdir().unwrap();
+        let target_service = backup_service(target.path());
+        target_service
+            .service
+            .repository()
+            .enqueue_companion_deletion(
+                &app.id,
+                "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+            )
+            .unwrap();
+
+        let plan = target_service.prepare_restore(&backup, None).unwrap();
+        assert_eq!(
+            plan.entries[0].disposition,
+            RestoreDisposition::RestoreWithNewId
+        );
+        let restored_id = plan.entries[0].target_id.clone();
+        assert_ne!(restored_id, app.id);
+
+        let selected = HashSet::from([app.id.clone()]);
+        let report = block_on(target_service.restore(plan, &selected, None));
+        assert_eq!(report.restored, 1);
+        assert!(report.failed.is_empty());
+        assert!(target_service.service.contains(&restored_id));
+        assert!(target_service
+            .service
+            .has_pending_companion_deletion(&app.id)
+            .unwrap());
+    }
+
+    #[test]
+    fn restore_rechecks_pending_deletion_after_preview() {
+        let source = tempfile::tempdir().unwrap();
+        let source_service = backup_service(source.path());
+        let app = AppConfigV3::new("Source", "example.org", 0).unwrap();
+        block_on(source_service.service.create(app.clone(), b"icon", None)).unwrap();
+        let backup = source.path().join("late-reservation.bastle-backup");
+        source_service
+            .create_backup(
+                &backup,
+                std::slice::from_ref(&app.id),
+                &BackupOptions::default(),
+            )
+            .unwrap();
+
+        let target = tempfile::tempdir().unwrap();
+        let target_service = backup_service(target.path());
+        let plan = target_service.prepare_restore(&backup, None).unwrap();
+        assert_eq!(plan.entries[0].disposition, RestoreDisposition::RestoreAsIs);
+        target_service
+            .service
+            .repository()
+            .enqueue_companion_deletion(
+                &app.id,
+                "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+            )
+            .unwrap();
+
+        let selected = HashSet::from([app.id.clone()]);
+        let report = block_on(target_service.restore(plan, &selected, None));
+        assert_eq!(report.restored, 0);
+        assert_eq!(report.failed.len(), 1);
+        assert!(!target_service.service.contains(&app.id));
     }
 
     #[test]

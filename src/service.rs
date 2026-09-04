@@ -89,6 +89,14 @@ impl<L: LauncherBackend, B: BackgroundBackend, C: ChromiumBackend> AppService<L,
         self.repository.contains_any_data(id)
     }
 
+    pub fn has_pending_companion_deletion(&self, id: &AppId) -> Result<bool> {
+        self.repository.has_pending_companion_deletion(id)
+    }
+
+    pub fn id_is_reserved(&self, id: &AppId) -> Result<bool> {
+        Ok(self.contains_any_data(id) || self.has_pending_companion_deletion(id)?)
+    }
+
     pub fn chromium_capabilities(&self) -> Result<CompanionCapabilities> {
         let capabilities = self.chromium.capabilities()?;
         self.retry_pending_companion_deletions()?;
@@ -311,6 +319,12 @@ impl<L: LauncherBackend, B: BackgroundBackend, C: ChromiumBackend> AppService<L,
         parent: Option<&WindowIdentifier>,
     ) -> Result<AppConfigV3> {
         app.normalize_and_validate()?;
+        if self.has_pending_companion_deletion(&app.id)? {
+            return Err(anyhow!(
+                "app id {} is reserved by a pending Chromium profile deletion",
+                app.id
+            ));
+        }
         let staged = self.repository.stage_create(&app, icon)?;
         self.launcher
             .install(&app, icon, parent)
@@ -339,6 +353,12 @@ impl<L: LauncherBackend, B: BackgroundBackend, C: ChromiumBackend> AppService<L,
         app.normalize_and_validate()?;
         let policy = policy.for_restore();
         policy.validate()?;
+        if self.has_pending_companion_deletion(&app.id)? {
+            return Err(anyhow!(
+                "app id {} is reserved by a pending Chromium profile deletion",
+                app.id
+            ));
+        }
         let staged_app = self
             .repository
             .stage_create_with_policy(&app, icon, &policy)?;

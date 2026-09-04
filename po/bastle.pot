@@ -1091,7 +1091,8 @@ msgstr ""
 
 #: src/window.rs:210
 msgid ""
-"Its launcher, settings, WebKit profile, cookies, and cache will be removed."
+"Its launcher, settings, WebKit data, and any Chromium companion profile—"
+"including cookies and caches—will be removed."
 msgstr ""
 
 #: src/window.rs:215
