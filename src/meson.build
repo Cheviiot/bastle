@@ -80,8 +80,11 @@ if get_option('ui_tests')
   ui_test_env.set('XDG_CONFIG_HOME', meson.project_build_root() / 'ui-test-config')
   test(
     'UI smoke',
-    dbus_run_session,
-    args: ['--', xvfb_run.full_path(), '-a', cargo_build.full_path(), '--ui-test-app-page'],
+    xvfb_run,
+    args: [
+      '-a', dbus_run_session.full_path(), '--',
+      cargo_build.full_path(), '--ui-test-app-page',
+    ],
     env: ui_test_env,
     depends: [cargo_build, resources, test_schema],
     timeout: 30,
