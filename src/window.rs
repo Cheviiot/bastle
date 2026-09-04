@@ -293,7 +293,7 @@ fn optional_availability(available: Option<bool>) -> String {
 fn portal_feature(feature: &PortalFeature) -> String {
     match feature {
         PortalFeature::Available { version } => format!("{} (v{version})", gettext("Available")),
-        PortalFeature::Unavailable(error) => format!("{} ({error})", gettext("Unavailable")),
+        PortalFeature::Problem(error) => error.to_string(),
     }
 }
 

@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: bastle 0.4.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-05 09:52+1000\n"
+"POT-Creation-Date: 2026-09-05 09:59+1000\n"
 "PO-Revision-Date: 2026-09-05 00:00+1000\n"
 "Last-Translator: Bastle contributors\n"
 "Language-Team: Russian\n"
@@ -655,7 +655,7 @@ msgstr "Восстановлено"
 msgid "Skipped"
 msgstr "Пропущено"
 
-#: src/backup_dialog.rs:308 src/download_manager.rs:129
+#: src/backup_dialog.rs:308 src/download_manager.rs:132
 msgid "Failed"
 msgstr "Ошибка"
 
@@ -752,31 +752,31 @@ msgstr "Отменено"
 msgid "Download cancelled"
 msgstr "Загрузка отменена"
 
-#: src/download_manager.rs:131
+#: src/download_manager.rs:134
 msgid "Download failed"
 msgstr "Не удалось загрузить файл"
 
-#: src/download_manager.rs:171
+#: src/download_manager.rs:174
 msgid "Download"
 msgstr "Загрузка"
 
-#: src/download_manager.rs:275
+#: src/download_manager.rs:279
 msgid "Downloads"
 msgstr "Загрузки"
 
-#: src/download_manager.rs:285
+#: src/download_manager.rs:289
 msgid "No Downloads"
 msgstr "Нет загрузок"
 
-#: src/download_manager.rs:286
+#: src/download_manager.rs:290
 msgid "Downloads from this app will appear here."
 msgstr "Загрузки из этого приложения появятся здесь."
 
-#: src/download_manager.rs:317
+#: src/download_manager.rs:321
 msgid "The download session is unavailable"
 msgstr "Сеанс загрузки недоступен"
 
-#: src/download_manager.rs:321
+#: src/download_manager.rs:325
 msgid "The download could not be retried"
 msgstr "Не удалось повторить загрузку"
 
@@ -1164,7 +1164,7 @@ msgstr "_О Bastle"
 msgid "Available"
 msgstr "Доступно"
 
-#: src/window.rs:177 src/window.rs:296
+#: src/window.rs:177
 msgid "Unavailable"
 msgstr "Недоступно"
 

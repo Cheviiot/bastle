@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: bastle\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-05 09:52+1000\n"
+"POT-Creation-Date: 2026-09-05 09:59+1000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -625,7 +625,7 @@ msgstr ""
 msgid "Skipped"
 msgstr ""
 
-#: src/backup_dialog.rs:308 src/download_manager.rs:129
+#: src/backup_dialog.rs:308 src/download_manager.rs:132
 msgid "Failed"
 msgstr ""
 
@@ -720,31 +720,31 @@ msgstr ""
 msgid "Download cancelled"
 msgstr ""
 
-#: src/download_manager.rs:131
+#: src/download_manager.rs:134
 msgid "Download failed"
 msgstr ""
 
-#: src/download_manager.rs:171
+#: src/download_manager.rs:174
 msgid "Download"
 msgstr ""
 
-#: src/download_manager.rs:275
+#: src/download_manager.rs:279
 msgid "Downloads"
 msgstr ""
 
-#: src/download_manager.rs:285
+#: src/download_manager.rs:289
 msgid "No Downloads"
 msgstr ""
 
-#: src/download_manager.rs:286
+#: src/download_manager.rs:290
 msgid "Downloads from this app will appear here."
 msgstr ""
 
-#: src/download_manager.rs:317
+#: src/download_manager.rs:321
 msgid "The download session is unavailable"
 msgstr ""
 
-#: src/download_manager.rs:321
+#: src/download_manager.rs:325
 msgid "The download could not be retried"
 msgstr ""
 
@@ -1122,7 +1122,7 @@ msgstr ""
 msgid "Available"
 msgstr ""
 
-#: src/window.rs:177 src/window.rs:296
+#: src/window.rs:177
 msgid "Unavailable"
 msgstr ""
 

@@ -58,6 +58,7 @@ test uses Xvfb with Wayland explicitly removed:
 ```sh
 distrobox enter bastle-dev -- bash -lc \
   'cd /home/cheviiot/Project/Progs/Spider && \
+   meson setup --reconfigure build -Dui_tests=true && \
    env -u WAYLAND_DISPLAY GDK_BACKEND=x11 \
    meson test -C build --print-errorlogs'
 ```

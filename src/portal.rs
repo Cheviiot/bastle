@@ -80,8 +80,8 @@ pub fn classify_ashpd_error(error: &ashpd::Error) -> PortalFailureKind {
         ashpd::Error::RequiresVersion(_, _) => PortalFailureKind::Unsupported,
         ashpd::Error::Response(ResponseError::Cancelled)
         | ashpd::Error::Portal(PortalError::Cancelled(_)) => PortalFailureKind::Cancelled,
-        ashpd::Error::Response(ResponseError::Other)
-        | ashpd::Error::Portal(PortalError::NotAllowed(_)) => PortalFailureKind::Denied,
+        ashpd::Error::Portal(PortalError::NotAllowed(_)) => PortalFailureKind::Denied,
+        ashpd::Error::Response(ResponseError::Other) => PortalFailureKind::Failed,
         ashpd::Error::Zbus(error) if dbus_interface_is_missing(&error.to_string()) => {
             PortalFailureKind::Unavailable
         }
@@ -100,14 +100,14 @@ fn dbus_interface_is_missing(message: &str) -> bool {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PortalFeature {
     Available { version: u32 },
-    Unavailable(PortalOperationError),
+    Problem(PortalOperationError),
 }
 
 impl PortalFeature {
     fn from_result(result: Result<u32, PortalOperationError>) -> Self {
         match result {
             Ok(version) => Self::Available { version },
-            Err(error) => Self::Unavailable(error),
+            Err(error) => Self::Problem(error),
         }
     }
 }
@@ -189,7 +189,7 @@ async fn probe_capabilities_with(backend: &impl PortalProbeBackend) -> PortalCap
             web_application_launchers: Some(capability.web_application_launchers),
         },
         Err(error) => DynamicLauncherCapability {
-            interface: PortalFeature::Unavailable(error),
+            interface: PortalFeature::Problem(error),
             application_launchers: None,
             web_application_launchers: None,
         },
@@ -300,7 +300,7 @@ mod tests {
         let report = futures::executor::block_on(probe_capabilities_with(&probe));
         assert!(matches!(
             report.file_chooser,
-            PortalFeature::Unavailable(PortalOperationError {
+            PortalFeature::Problem(PortalOperationError {
                 kind: PortalFailureKind::Unavailable,
                 ..
             })
@@ -331,7 +331,7 @@ mod tests {
         let report = futures::executor::block_on(probe_capabilities_with(&probe));
         assert!(matches!(
             report.documents,
-            PortalFeature::Unavailable(PortalOperationError {
+            PortalFeature::Problem(PortalOperationError {
                 kind: PortalFailureKind::Cancelled,
                 ..
             })
@@ -345,7 +345,7 @@ mod tests {
         let report = futures::executor::block_on(probe_capabilities_with(&probe));
         assert!(matches!(
             report.dynamic_launcher.interface,
-            PortalFeature::Unavailable(PortalOperationError {
+            PortalFeature::Problem(PortalOperationError {
                 kind: PortalFailureKind::Denied,
                 ..
             })
@@ -365,6 +365,20 @@ mod tests {
             classify_file_dialog_error("restore", &error)
                 .expect("failure")
                 .kind,
+            PortalFailureKind::Denied
+        );
+    }
+
+    #[test]
+    fn catch_all_response_is_failure_not_denial() {
+        assert_eq!(
+            classify_ashpd_error(&ashpd::Error::Response(ResponseError::Other)),
+            PortalFailureKind::Failed
+        );
+        assert_eq!(
+            classify_ashpd_error(&ashpd::Error::Portal(PortalError::NotAllowed(
+                "policy denied the request".to_owned(),
+            ))),
             PortalFailureKind::Denied
         );
     }

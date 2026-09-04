@@ -122,7 +122,10 @@ impl DownloadItem {
     }
 
     fn fail(&self, error: &impl std::fmt::Display) {
-        if self.state.get() == DownloadState::Cancelled {
+        if matches!(
+            self.state.get(),
+            DownloadState::Cancelled | DownloadState::Failed
+        ) {
             return;
         }
         self.state.set(DownloadState::Failed);
@@ -241,7 +244,8 @@ impl DownloadManager {
                                     gettext("Choose download destination"),
                                     &error,
                                 ) {
-                                    item.fail(&error.to_string());
+                                    item.fail(&error);
+                                    download.cancel();
                                     manager.show();
                                 } else {
                                     item.cancel();
