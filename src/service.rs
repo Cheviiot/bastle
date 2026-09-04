@@ -319,12 +319,7 @@ impl<L: LauncherBackend, B: BackgroundBackend, C: ChromiumBackend> AppService<L,
         parent: Option<&WindowIdentifier>,
     ) -> Result<AppConfigV3> {
         app.normalize_and_validate()?;
-        if self.has_pending_companion_deletion(&app.id)? {
-            return Err(anyhow!(
-                "app id {} is reserved by a pending Chromium profile deletion",
-                app.id
-            ));
-        }
+        let _id_lock = self.repository.reserve_app_id(&app.id)?;
         let staged = self.repository.stage_create(&app, icon)?;
         self.launcher
             .install(&app, icon, parent)
@@ -353,12 +348,7 @@ impl<L: LauncherBackend, B: BackgroundBackend, C: ChromiumBackend> AppService<L,
         app.normalize_and_validate()?;
         let policy = policy.for_restore();
         policy.validate()?;
-        if self.has_pending_companion_deletion(&app.id)? {
-            return Err(anyhow!(
-                "app id {} is reserved by a pending Chromium profile deletion",
-                app.id
-            ));
-        }
+        let _id_lock = self.repository.reserve_app_id(&app.id)?;
         let staged_app = self
             .repository
             .stage_create_with_policy(&app, icon, &policy)?;
@@ -440,6 +430,7 @@ impl<L: LauncherBackend, B: BackgroundBackend, C: ChromiumBackend> AppService<L,
     }
 
     pub async fn delete(&self, id: &AppId) -> Result<UninstallOutcome> {
+        let id_lock = self.repository.lock_app_id(id)?;
         let chromium_token = self.repository.companion_token_if_exists(id)?;
         let profile_existed = self.repository.profile_dir(id).exists();
         let profile_lock = self.repository.acquire_delete_profile_lock(id)?;
@@ -472,7 +463,8 @@ impl<L: LauncherBackend, B: BackgroundBackend, C: ChromiumBackend> AppService<L,
                 }
             };
             if let Some(token) = chromium_token.as_deref() {
-                self.repository.enqueue_companion_deletion(id, token)?;
+                self.repository
+                    .enqueue_companion_deletion(&id_lock, token)?;
             }
             self.repository
                 .delete_with_profile_lock(id, profile_lock)
@@ -798,10 +790,12 @@ mod tests {
         let app = AppConfigV3::new("Local", "example.org", 0).unwrap();
         block_on(service.create(app.clone(), b"icon", None)).unwrap();
         let token = service.repository().companion_token(&app.id).unwrap();
+        let id_lock = service.repository().lock_app_id(&app.id).unwrap();
         service
             .repository()
-            .enqueue_companion_deletion(&app.id, &token)
+            .enqueue_companion_deletion(&id_lock, &token)
             .unwrap();
+        drop(id_lock);
         chromium.available.set(true);
 
         service.chromium_capabilities().unwrap();

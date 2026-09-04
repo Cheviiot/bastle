@@ -27,6 +27,7 @@ const POLICY_LOCK_FILE: &str = ".policy.lock";
 const BACKGROUND_LOCK_FILE: &str = ".background.lock";
 const COMPANION_QUEUE_FILE: &str = "pending-chromium-deletions.json";
 const COMPANION_QUEUE_LOCK_FILE: &str = ".companion-deletions.lock";
+const APP_ID_LOCKS_DIR: &str = ".app-id-locks";
 pub const RUNTIME_LOCK_FILE: &str = ".runtime.lock";
 const COMPANION_QUEUE_SCHEMA_VERSION: u32 = 1;
 
@@ -58,6 +59,12 @@ pub struct ProfileLock {
 
 #[derive(Debug)]
 pub struct BackgroundLock {
+    _file: fs::File,
+}
+
+#[derive(Debug)]
+pub struct AppIdLock {
+    id: AppId,
     _file: fs::File,
 }
 
@@ -172,6 +179,34 @@ impl AppRepository {
 
     pub fn contains_any_data(&self, id: &AppId) -> bool {
         self.app_dir(id).exists() || self.profile_dir(id).exists() || self.cache_dir(id).exists()
+    }
+
+    pub fn lock_app_id(&self, id: &AppId) -> Result<AppIdLock> {
+        let lock_directory = self.data_root.join(APP_ID_LOCKS_DIR);
+        fs::create_dir_all(&lock_directory)
+            .with_context(|| format!("failed to create {}", lock_directory.display()))?;
+        let path = lock_directory.join(id.as_str());
+        let file = OpenOptions::new()
+            .create(true)
+            .read(true)
+            .write(true)
+            .truncate(false)
+            .open(&path)
+            .with_context(|| format!("failed to open {}", path.display()))?;
+        rustix::fs::flock(&file, rustix::fs::FlockOperation::NonBlockingLockExclusive)
+            .with_context(|| format!("another lifecycle operation is in progress for app {id}"))?;
+        Ok(AppIdLock {
+            id: id.clone(),
+            _file: file,
+        })
+    }
+
+    pub fn reserve_app_id(&self, id: &AppId) -> Result<AppIdLock> {
+        let lock = self.lock_app_id(id)?;
+        if self.has_pending_companion_deletion(id)? {
+            bail!("app id {id} is reserved by a pending Chromium profile deletion");
+        }
+        Ok(lock)
     }
 
     pub fn acquire_runtime_lock(&self, id: &AppId) -> Result<ProfileLock> {
@@ -376,17 +411,21 @@ impl AppRepository {
             .any(|pending| pending.id == *id))
     }
 
-    pub fn enqueue_companion_deletion(&self, id: &AppId, token: &str) -> Result<()> {
+    pub fn enqueue_companion_deletion(&self, id_lock: &AppIdLock, token: &str) -> Result<()> {
         validate_companion_token(token)?;
         fs::create_dir_all(&self.data_root)
             .with_context(|| format!("failed to create {}", self.data_root.display()))?;
         let _lock = self.lock_companion_queue()?;
         let mut queue = self.load_companion_queue()?;
-        if let Some(entry) = queue.entries.iter_mut().find(|entry| entry.id == *id) {
+        if let Some(entry) = queue
+            .entries
+            .iter_mut()
+            .find(|entry| entry.id == id_lock.id)
+        {
             entry.token = token.to_owned();
         } else {
             queue.entries.push(PendingCompanionDeletion {
-                id: id.clone(),
+                id: id_lock.id.clone(),
                 token: token.to_owned(),
             });
         }
@@ -882,6 +921,16 @@ mod tests {
 
         repository.delete(&app.id).unwrap();
         assert!(!repository.contains(&app.id));
+    }
+
+    #[test]
+    fn app_id_lock_serializes_lifecycle_operations() {
+        let (_temp, repository) = repository();
+        let id = AppId::from_str("abcdefghijkl").unwrap();
+        let first_lock = repository.lock_app_id(&id).unwrap();
+        assert!(repository.lock_app_id(&id).is_err());
+        drop(first_lock);
+        assert!(repository.lock_app_id(&id).is_ok());
     }
 
     #[test]

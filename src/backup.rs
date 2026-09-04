@@ -1099,14 +1099,20 @@ mod tests {
 
         let target = tempfile::tempdir().unwrap();
         let target_service = backup_service(target.path());
+        let id_lock = target_service
+            .service
+            .repository()
+            .lock_app_id(&app.id)
+            .unwrap();
         target_service
             .service
             .repository()
             .enqueue_companion_deletion(
-                &app.id,
+                &id_lock,
                 "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
             )
             .unwrap();
+        drop(id_lock);
 
         let plan = target_service.prepare_restore(&backup, None).unwrap();
         assert_eq!(
@@ -1146,14 +1152,20 @@ mod tests {
         let target_service = backup_service(target.path());
         let plan = target_service.prepare_restore(&backup, None).unwrap();
         assert_eq!(plan.entries[0].disposition, RestoreDisposition::RestoreAsIs);
+        let id_lock = target_service
+            .service
+            .repository()
+            .lock_app_id(&app.id)
+            .unwrap();
         target_service
             .service
             .repository()
             .enqueue_companion_deletion(
-                &app.id,
+                &id_lock,
                 "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
             )
             .unwrap();
+        drop(id_lock);
 
         let selected = HashSet::from([app.id.clone()]);
         let report = block_on(target_service.restore(plan, &selected, None));
