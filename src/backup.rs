@@ -27,7 +27,37 @@ const MANIFEST_PATH: &str = "manifest.json";
 const AGE_HEADER: &[u8] = b"age-encryption.org/v1";
 const MAX_ARCHIVE_FILES: usize = 100_000;
 const MAX_UNCOMPRESSED_SIZE: u64 = 16 * 1024 * 1024 * 1024;
+const MAX_MANIFEST_SIZE: u64 = 16 * 1024 * 1024;
+const MAX_APP_CONFIG_SIZE: u64 = 1024 * 1024;
+const MAX_POLICY_SIZE: u64 = 16 * 1024 * 1024;
 const MAX_ICON_SIZE: u64 = 10 * 1024 * 1024;
+
+#[derive(Debug, Default)]
+struct ArchiveBudget {
+    files: usize,
+    uncompressed_size: u64,
+}
+
+impl ArchiveBudget {
+    fn include(&mut self, size: u64) -> Result<()> {
+        let files = self
+            .files
+            .checked_add(1)
+            .ok_or_else(|| anyhow!("backup file count overflow"))?;
+        ensure!(files <= MAX_ARCHIVE_FILES, "backup contains too many files");
+        let uncompressed_size = self
+            .uncompressed_size
+            .checked_add(size)
+            .ok_or_else(|| anyhow!("backup size overflow"))?;
+        ensure!(
+            uncompressed_size <= MAX_UNCOMPRESSED_SIZE,
+            "backup exceeds the uncompressed size limit"
+        );
+        self.files = files;
+        self.uncompressed_size = uncompressed_size;
+        Ok(())
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BackupManifestAppV1 {
@@ -194,25 +224,43 @@ impl<L: LauncherBackend + Clone> BackupService<L> {
     ) -> Result<()> {
         let mut archive = tar::Builder::new(writer);
         archive.mode(tar::HeaderMode::Deterministic);
-        append_json(&mut archive, Path::new(MANIFEST_PATH), manifest)?;
+        let mut budget = ArchiveBudget::default();
+        append_json(
+            &mut archive,
+            Path::new(MANIFEST_PATH),
+            manifest,
+            MAX_MANIFEST_SIZE,
+            &mut budget,
+        )?;
         for app in apps {
             let prefix = PathBuf::from("apps").join(app.id.as_str());
-            append_json(&mut archive, &prefix.join("app.json"), app)?;
+            append_json(
+                &mut archive,
+                &prefix.join("app.json"),
+                app,
+                MAX_APP_CONFIG_SIZE,
+                &mut budget,
+            )?;
             append_bytes(
                 &mut archive,
                 &prefix.join("icon.png"),
                 &self.service.read_icon(&app.id)?,
+                MAX_ICON_SIZE,
+                &mut budget,
             )?;
             append_json(
                 &mut archive,
                 &prefix.join("policy.json"),
                 &self.service.load_policy(&app.id)?,
+                MAX_POLICY_SIZE,
+                &mut budget,
             )?;
             if manifest.includes_site_data {
                 append_profile(
                     &mut archive,
                     &self.service.profile_dir(&app.id),
                     &PathBuf::from("profiles").join(app.id.as_str()),
+                    &mut budget,
                 )?;
             }
         }
@@ -231,7 +279,9 @@ impl<L: LauncherBackend + Clone> BackupService<L> {
         for manifest_app in &manifest.apps {
             let archived = read_archived_app(extracted.path(), &manifest_app.id)?;
             let (target_id, disposition) = if self.service.contains(&manifest_app.id) {
-                if self.existing_matches(&manifest_app.id, &archived)? {
+                if self.existing_matches(&manifest_app.id, &archived)?
+                    && !manifest.includes_site_data
+                {
                     (manifest_app.id.clone(), RestoreDisposition::SkipIdentical)
                 } else {
                     (
@@ -371,12 +421,13 @@ struct ArchivedApp {
 
 fn read_archived_app(root: &Path, id: &AppId) -> Result<ArchivedApp> {
     let directory = root.join("apps").join(id.as_str());
-    let mut config: AppConfigV2 = read_json(&directory.join("app.json"))?;
+    let mut config: AppConfigV2 =
+        read_limited_json(&directory.join("app.json"), MAX_APP_CONFIG_SIZE)?;
     config.normalize_and_validate()?;
     ensure!(config.id == *id, "archive app id does not match its path");
     let icon = read_limited_file(&directory.join("icon.png"), MAX_ICON_SIZE)?;
     ensure!(!icon.is_empty(), "archive icon is empty");
-    let policy: AppPolicyV1 = read_json(&directory.join("policy.json"))?;
+    let policy: AppPolicyV1 = read_limited_json(&directory.join("policy.json"), MAX_POLICY_SIZE)?;
     policy.validate()?;
     Ok(ArchivedApp {
         config,
@@ -403,13 +454,28 @@ fn append_json<W: Write>(
     archive: &mut tar::Builder<W>,
     path: &Path,
     value: &impl Serialize,
+    limit: u64,
+    budget: &mut ArchiveBudget,
 ) -> Result<()> {
     let mut bytes = serde_json::to_vec_pretty(value)?;
     bytes.push(b'\n');
-    append_bytes(archive, path, &bytes)
+    append_bytes(archive, path, &bytes, limit, budget)
 }
 
-fn append_bytes<W: Write>(archive: &mut tar::Builder<W>, path: &Path, bytes: &[u8]) -> Result<()> {
+fn append_bytes<W: Write>(
+    archive: &mut tar::Builder<W>,
+    path: &Path,
+    bytes: &[u8],
+    limit: u64,
+    budget: &mut ArchiveBudget,
+) -> Result<()> {
+    ensure!(
+        bytes.len() as u64 <= limit,
+        "{} exceeds the {} byte size limit",
+        path.display(),
+        limit
+    );
+    budget.include(bytes.len() as u64)?;
     let mut header = tar::Header::new_gnu();
     header.set_entry_type(tar::EntryType::Regular);
     header.set_mode(0o600);
@@ -426,6 +492,7 @@ fn append_profile<W: Write>(
     archive: &mut tar::Builder<W>,
     source: &Path,
     archive_prefix: &Path,
+    budget: &mut ArchiveBudget,
 ) -> Result<()> {
     if !source.exists() {
         return Ok(());
@@ -441,10 +508,11 @@ fn append_profile<W: Write>(
         }
         let archive_path = archive_prefix.join(entry.file_name());
         if file_type.is_dir() {
-            append_profile(archive, &entry.path(), &archive_path)?;
+            append_profile(archive, &entry.path(), &archive_path, budget)?;
         } else if file_type.is_file() {
             let mut file = File::open(entry.path())?;
             let size = file.metadata()?.len();
+            budget.include(size)?;
             let mut header = tar::Header::new_gnu();
             header.set_entry_type(tar::EntryType::Regular);
             header.set_mode(0o600);
@@ -487,7 +555,8 @@ fn extract_backup(
         let decoder = zstd::stream::Decoder::new(input).context("invalid zstd backup")?;
         extract_tar(decoder, extracted.path())?
     };
-    let manifest: BackupManifestV1 = read_json(&extracted.path().join(MANIFEST_PATH))?;
+    let manifest: BackupManifestV1 =
+        read_limited_json(&extracted.path().join(MANIFEST_PATH), MAX_MANIFEST_SIZE)?;
     manifest.validate()?;
     ensure!(
         !manifest.includes_site_data || encrypted,
@@ -585,9 +654,9 @@ fn validate_archive_paths(manifest: &BackupManifestV1, paths: &[PathBuf]) -> Res
     Ok(())
 }
 
-fn read_json<T: for<'de> Deserialize<'de>>(path: &Path) -> Result<T> {
-    let file = File::open(path).with_context(|| format!("failed to open {}", path.display()))?;
-    serde_json::from_reader(file).with_context(|| format!("invalid JSON in {}", path.display()))
+fn read_limited_json<T: for<'de> Deserialize<'de>>(path: &Path, limit: u64) -> Result<T> {
+    let bytes = read_limited_file(path, limit)?;
+    serde_json::from_slice(&bytes).with_context(|| format!("invalid JSON in {}", path.display()))
 }
 
 fn read_limited_file(path: &Path, limit: u64) -> Result<Vec<u8>> {
@@ -737,6 +806,11 @@ mod tests {
         let plan = service.prepare_restore(&backup, Some(&passphrase)).unwrap();
         assert!(plan.encrypted);
         assert!(plan.manifest.includes_site_data);
+        assert_eq!(
+            plan.entries[0].disposition,
+            RestoreDisposition::RestoreWithNewId
+        );
+        assert_ne!(plan.entries[0].target_id, app.id);
 
         let target = tempfile::tempdir().unwrap();
         let target_service = backup_service(target.path());
@@ -818,6 +892,21 @@ mod tests {
             .unwrap_err()
             .to_string()
             .contains("size limit"));
+    }
+
+    #[test]
+    fn archive_budget_matches_restore_limits() {
+        let mut size_budget = ArchiveBudget {
+            files: 0,
+            uncompressed_size: MAX_UNCOMPRESSED_SIZE,
+        };
+        assert!(size_budget.include(1).is_err());
+
+        let mut file_budget = ArchiveBudget {
+            files: MAX_ARCHIVE_FILES,
+            uncompressed_size: 0,
+        };
+        assert!(file_budget.include(0).is_err());
     }
 
     #[test]
