@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: bastle\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-05 07:32+1000\n"
+"POT-Creation-Date: 2026-09-05 09:52+1000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -158,8 +158,8 @@ msgstr ""
 msgid "Menu"
 msgstr ""
 
-#: src/app_page.blp:26 src/backup_dialog.rs:38 src/backup_dialog.rs:185
-#: src/backup_dialog.rs:218 src/application.rs:447 src/window.rs:214
+#: src/app_page.blp:26 src/backup_dialog.rs:39 src/backup_dialog.rs:200
+#: src/backup_dialog.rs:233 src/application.rs:447 src/window.rs:219
 msgid "Cancel"
 msgstr ""
 
@@ -237,19 +237,19 @@ msgstr ""
 msgid "User Agent"
 msgstr ""
 
-#: src/app_page.rs:204 src/permissions_dialog.rs:28
+#: src/app_page.rs:205 src/permissions_dialog.rs:28
 msgid "Permissions"
 msgstr ""
 
-#: src/app_page.rs:209 src/privacy_dialog.rs:50 src/privacy_dialog.rs:473
+#: src/app_page.rs:210 src/privacy_dialog.rs:50 src/privacy_dialog.rs:477
 msgid "Privacy & Power"
 msgstr ""
 
-#: src/app_page.rs:214
+#: src/app_page.rs:215
 msgid "Repair Launcher"
 msgstr ""
 
-#: src/app_page.rs:219
+#: src/app_page.rs:220
 msgid "Delete Application"
 msgstr ""
 
@@ -477,155 +477,163 @@ msgstr ""
 msgid "Chromium could not be started"
 msgstr ""
 
-#: src/backup_dialog.rs:22
+#: src/backup_dialog.rs:23
 msgid "There are no applications to back up"
 msgstr ""
 
-#: src/backup_dialog.rs:32
+#: src/backup_dialog.rs:33
 msgid "Back Up Bastle"
 msgstr ""
 
-#: src/backup_dialog.rs:34
+#: src/backup_dialog.rs:35
 msgid "Configuration, icons, and permissions are always included."
 msgstr ""
 
-#: src/backup_dialog.rs:39
+#: src/backup_dialog.rs:40
 msgid "Choose Destination"
 msgstr ""
 
-#: src/backup_dialog.rs:50
+#: src/backup_dialog.rs:51
 msgid "Include cookies and site storage (requires encryption)"
 msgstr ""
 
-#: src/backup_dialog.rs:53 src/backup_dialog.rs:190
+#: src/backup_dialog.rs:54 src/backup_dialog.rs:205
 msgid "Passphrase"
 msgstr ""
 
-#: src/backup_dialog.rs:58
+#: src/backup_dialog.rs:59
 msgid "Confirm Passphrase"
 msgstr ""
 
-#: src/backup_dialog.rs:83
+#: src/backup_dialog.rs:84
 msgid "Passphrases must be non-empty and match"
 msgstr ""
 
-#: src/backup_dialog.rs:91
+#: src/backup_dialog.rs:92
 msgid "Save Bastle Backup"
 msgstr ""
 
-#: src/backup_dialog.rs:92
+#: src/backup_dialog.rs:93
 msgid "Back Up"
 msgstr ""
 
 #: src/backup_dialog.rs:101
+msgid "Save backup"
+msgstr ""
+
+#: src/backup_dialog.rs:109
 msgid "The selected destination is not writable"
 msgstr ""
 
-#: src/backup_dialog.rs:114
+#: src/backup_dialog.rs:122
 msgid "Backup completed"
 msgstr ""
 
-#: src/backup_dialog.rs:115
+#: src/backup_dialog.rs:123
 msgid "Backup failed"
 msgstr ""
 
-#: src/backup_dialog.rs:116
+#: src/backup_dialog.rs:124
 msgid "The backup worker stopped unexpectedly"
 msgstr ""
 
-#: src/backup_dialog.rs:125
+#: src/backup_dialog.rs:133
 msgid "Bastle Backups"
 msgstr ""
 
-#: src/backup_dialog.rs:130
+#: src/backup_dialog.rs:138
 msgid "Open Bastle Backup"
 msgstr ""
 
-#: src/backup_dialog.rs:131 src/backup_dialog.rs:185
+#: src/backup_dialog.rs:139 src/backup_dialog.rs:200
 msgid "Open"
 msgstr ""
 
-#: src/backup_dialog.rs:140
+#: src/backup_dialog.rs:147
+msgid "Restore backup"
+msgstr ""
+
+#: src/backup_dialog.rs:155
 msgid "The selected backup cannot be read"
 msgstr ""
 
-#: src/backup_dialog.rs:167
+#: src/backup_dialog.rs:182
 msgid "Backup could not be opened"
 msgstr ""
 
-#: src/backup_dialog.rs:172
+#: src/backup_dialog.rs:187
 msgid "The restore worker stopped unexpectedly"
 msgstr ""
 
-#: src/backup_dialog.rs:182
+#: src/backup_dialog.rs:197
 msgid "Encrypted Backup"
 msgstr ""
 
-#: src/backup_dialog.rs:183
+#: src/backup_dialog.rs:198
 msgid "Enter the passphrase used to create this backup."
 msgstr ""
 
-#: src/backup_dialog.rs:204
+#: src/backup_dialog.rs:219
 msgid ""
 "This encrypted backup includes cookies and site storage. Select the "
 "applications to restore."
 msgstr ""
 
-#: src/backup_dialog.rs:207
+#: src/backup_dialog.rs:222
 msgid ""
 "This encrypted backup contains settings only. Select the applications to "
 "restore."
 msgstr ""
 
-#: src/backup_dialog.rs:209
+#: src/backup_dialog.rs:224
 msgid "Select the applications to restore."
 msgstr ""
 
-#: src/backup_dialog.rs:214
+#: src/backup_dialog.rs:229
 msgid "Background activity and autostart must be enabled again after restore."
 msgstr ""
 
-#: src/backup_dialog.rs:216
+#: src/backup_dialog.rs:231
 msgid "Restore Preview"
 msgstr ""
 
-#: src/backup_dialog.rs:219
+#: src/backup_dialog.rs:234
 msgid "Restore"
 msgstr ""
 
-#: src/backup_dialog.rs:232
+#: src/backup_dialog.rs:247
 msgid "Restore with the original ID"
 msgstr ""
 
-#: src/backup_dialog.rs:233
+#: src/backup_dialog.rs:248
 msgid "ID conflict: restore with a new ID"
 msgstr ""
 
-#: src/backup_dialog.rs:234
+#: src/backup_dialog.rs:249
 msgid "Identical application already exists"
 msgstr ""
 
-#: src/backup_dialog.rs:275
+#: src/backup_dialog.rs:290
 msgid "No applications were selected"
 msgstr ""
 
-#: src/backup_dialog.rs:285
+#: src/backup_dialog.rs:300
 msgid "Restored"
 msgstr ""
 
-#: src/backup_dialog.rs:287
+#: src/backup_dialog.rs:302
 msgid "Skipped"
 msgstr ""
 
-#: src/backup_dialog.rs:293 src/download_manager.rs:129
+#: src/backup_dialog.rs:308 src/download_manager.rs:129
 msgid "Failed"
 msgstr ""
 
-#: src/backup_dialog.rs:313
+#: src/backup_dialog.rs:328
 msgid "Restore Finished with Errors"
 msgstr ""
 
-#: src/backup_dialog.rs:315 src/window.rs:197
+#: src/backup_dialog.rs:330 src/window.rs:199
 msgid "Close"
 msgstr ""
 
@@ -720,23 +728,23 @@ msgstr ""
 msgid "Download"
 msgstr ""
 
-#: src/download_manager.rs:265
+#: src/download_manager.rs:275
 msgid "Downloads"
 msgstr ""
 
-#: src/download_manager.rs:275
+#: src/download_manager.rs:285
 msgid "No Downloads"
 msgstr ""
 
-#: src/download_manager.rs:276
+#: src/download_manager.rs:286
 msgid "Downloads from this app will appear here."
 msgstr ""
 
-#: src/download_manager.rs:307
+#: src/download_manager.rs:317
 msgid "The download session is unavailable"
 msgstr ""
 
-#: src/download_manager.rs:311
+#: src/download_manager.rs:321
 msgid "The download could not be retried"
 msgstr ""
 
@@ -818,6 +826,42 @@ msgstr ""
 msgid "Give each website its own isolated space."
 msgstr ""
 
+#: src/launcher.rs:61 src/launcher.rs:69 src/portal.rs:151 src/window.rs:183
+msgid "Dynamic Launcher"
+msgstr ""
+
+#: src/launcher.rs:64 src/portal.rs:154
+msgid "Dynamic Launcher capabilities"
+msgstr ""
+
+#: src/launcher.rs:72
+msgid "Version"
+msgstr ""
+
+#: src/launcher.rs:74
+msgid "Application launcher type is not supported"
+msgstr ""
+
+#: src/launcher.rs:75
+msgid "desktop session"
+msgstr ""
+
+#: src/launcher.rs:103
+msgid "Open launcher confirmation"
+msgstr ""
+
+#: src/launcher.rs:107
+msgid "Confirm launcher installation"
+msgstr ""
+
+#: src/launcher.rs:118
+msgid "Install launcher"
+msgstr ""
+
+#: src/launcher.rs:134
+msgid "Remove launcher"
+msgstr ""
+
 #: src/permissions_dialog.rs:34
 msgid "Reset All"
 msgstr ""
@@ -864,6 +908,34 @@ msgstr ""
 
 #: src/permissions_dialog.rs:164
 msgid "Third-Party Storage"
+msgstr ""
+
+#: src/portal.rs:54
+msgid "portal interface unavailable"
+msgstr ""
+
+#: src/portal.rs:55
+msgid "portal capability unsupported"
+msgstr ""
+
+#: src/portal.rs:56
+msgid "portal request cancelled"
+msgstr ""
+
+#: src/portal.rs:57
+msgid "portal request denied"
+msgstr ""
+
+#: src/portal.rs:58
+msgid "portal request failed"
+msgstr ""
+
+#: src/portal.rs:167 src/window.rs:189
+msgid "File Chooser"
+msgstr ""
+
+#: src/portal.rs:174
+msgid "Documents"
 msgstr ""
 
 #: src/privacy_dialog.rs:64
@@ -1002,7 +1074,11 @@ msgstr ""
 msgid "Import"
 msgstr ""
 
-#: src/privacy_dialog.rs:438
+#: src/privacy_dialog.rs:431
+msgid "Import content filter"
+msgstr ""
+
+#: src/privacy_dialog.rs:442
 msgid "Imported Filter"
 msgstr ""
 
@@ -1016,6 +1092,10 @@ msgstr ""
 
 #: src/util.rs:223
 msgid "App Icon"
+msgstr ""
+
+#: src/util.rs:229
+msgid "Select application icon"
 msgstr ""
 
 #: src/window.blp:26
@@ -1038,75 +1118,83 @@ msgstr ""
 msgid "_About Bastle"
 msgstr ""
 
-#: src/window.rs:168 src/window.rs:282
+#: src/window.rs:176 src/window.rs:287 src/window.rs:295
 msgid "Available"
 msgstr ""
 
-#: src/window.rs:169 src/window.rs:284
+#: src/window.rs:177 src/window.rs:296
 msgid "Unavailable"
 msgstr ""
 
-#: src/window.rs:172
-msgid "Portal Available"
-msgstr ""
-
-#: src/window.rs:175
+#: src/window.rs:181
 msgid "Desktop session"
 msgstr ""
 
-#: src/window.rs:177
-msgid "Dynamic Launcher version"
-msgstr ""
-
-#: src/window.rs:179
+#: src/window.rs:185
 msgid "Application launchers"
 msgstr ""
 
-#: src/window.rs:181
+#: src/window.rs:187
 msgid "Web application launchers"
 msgstr ""
 
-#: src/window.rs:183
+#: src/window.rs:191
+msgid "Documents access"
+msgstr ""
+
+#: src/window.rs:193
 msgid "Background activity"
 msgstr ""
 
-#: src/window.rs:185
+#: src/window.rs:195
+msgid ""
+"Creating and repairing applications requires Application launcher support. "
+"Backup restore also requires File Chooser and Documents portal access."
+msgstr ""
+
+#: src/window.rs:196
 msgid ""
 "Bastle uses portals only and never writes launchers directly to the host."
 msgstr ""
 
-#: src/window.rs:189
-msgid "Portal Unavailable"
+#: src/window.rs:198
+msgid "System Capabilities"
 msgstr ""
 
-#: src/window.rs:192
-msgid ""
-"Creating, repairing, and restoring applications requires a Dynamic Launcher "
-"Portal implementation for this desktop session."
+#: src/window.rs:199
+msgid "Retry"
 msgstr ""
 
-#: src/window.rs:208
+#: src/window.rs:213
 msgid "Delete this application?"
 msgstr ""
 
-#: src/window.rs:210
+#: src/window.rs:215
 msgid ""
 "Its launcher, settings, WebKit data, and any Chromium companion profile—"
 "including cookies and caches—will be removed."
 msgstr ""
 
-#: src/window.rs:215
+#: src/window.rs:220
 msgid "Delete"
 msgstr ""
 
-#: src/window.rs:225
+#: src/window.rs:230
 msgid "Application deleted"
 msgstr ""
 
-#: src/window.rs:238
+#: src/window.rs:243
 msgid "Launcher repaired"
 msgstr ""
 
-#: src/window.rs:255
+#: src/window.rs:260
 msgid "Some application data could not be loaded"
+msgstr ""
+
+#: src/window.rs:288
+msgid "Unsupported"
+msgstr ""
+
+#: src/window.rs:289
+msgid "Unknown (interface unavailable)"
 msgstr ""

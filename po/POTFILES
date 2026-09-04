@@ -13,7 +13,9 @@ src/create_app_dialog.rs
 src/download_manager.rs
 src/gtk/help-overlay.blp
 src/home_page.blp
+src/launcher.rs
 src/permissions_dialog.rs
+src/portal.rs
 src/privacy_dialog.rs
 src/util.rs
 src/window.blp

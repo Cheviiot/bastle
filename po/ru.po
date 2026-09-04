@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: bastle 0.4.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-05 07:32+1000\n"
+"POT-Creation-Date: 2026-09-05 09:52+1000\n"
 "PO-Revision-Date: 2026-09-05 00:00+1000\n"
 "Last-Translator: Bastle contributors\n"
 "Language-Team: Russian\n"
@@ -180,8 +180,8 @@ msgstr "Безопасная обработка URL, метаданных, зн�
 msgid "Menu"
 msgstr "Меню"
 
-#: src/app_page.blp:26 src/backup_dialog.rs:38 src/backup_dialog.rs:185
-#: src/backup_dialog.rs:218 src/application.rs:447 src/window.rs:214
+#: src/app_page.blp:26 src/backup_dialog.rs:39 src/backup_dialog.rs:200
+#: src/backup_dialog.rs:233 src/application.rs:447 src/window.rs:219
 msgid "Cancel"
 msgstr "Отмена"
 
@@ -261,19 +261,19 @@ msgstr "Собственный User-Agent"
 msgid "User Agent"
 msgstr "User-Agent"
 
-#: src/app_page.rs:204 src/permissions_dialog.rs:28
+#: src/app_page.rs:205 src/permissions_dialog.rs:28
 msgid "Permissions"
 msgstr "Разрешения"
 
-#: src/app_page.rs:209 src/privacy_dialog.rs:50 src/privacy_dialog.rs:473
+#: src/app_page.rs:210 src/privacy_dialog.rs:50 src/privacy_dialog.rs:477
 msgid "Privacy & Power"
 msgstr "Конфиденциальность и фоновые функции"
 
-#: src/app_page.rs:214
+#: src/app_page.rs:215
 msgid "Repair Launcher"
 msgstr "Восстановить ярлык"
 
-#: src/app_page.rs:219
+#: src/app_page.rs:220
 msgid "Delete Application"
 msgstr "Удалить приложение"
 
@@ -502,95 +502,103 @@ msgstr "Использовать Chromium"
 msgid "Chromium could not be started"
 msgstr "Не удалось запустить Chromium"
 
-#: src/backup_dialog.rs:22
+#: src/backup_dialog.rs:23
 msgid "There are no applications to back up"
 msgstr "Нет приложений для резервного копирования"
 
-#: src/backup_dialog.rs:32
+#: src/backup_dialog.rs:33
 msgid "Back Up Bastle"
 msgstr "Резервная копия Bastle"
 
-#: src/backup_dialog.rs:34
+#: src/backup_dialog.rs:35
 msgid "Configuration, icons, and permissions are always included."
 msgstr "Конфигурация, значки и разрешения включаются всегда."
 
-#: src/backup_dialog.rs:39
+#: src/backup_dialog.rs:40
 msgid "Choose Destination"
 msgstr "Выберите место сохранения"
 
-#: src/backup_dialog.rs:50
+#: src/backup_dialog.rs:51
 msgid "Include cookies and site storage (requires encryption)"
 msgstr "Включить cookies и данные сайтов (требуется шифрование)"
 
-#: src/backup_dialog.rs:53 src/backup_dialog.rs:190
+#: src/backup_dialog.rs:54 src/backup_dialog.rs:205
 msgid "Passphrase"
 msgstr "Парольная фраза"
 
-#: src/backup_dialog.rs:58
+#: src/backup_dialog.rs:59
 msgid "Confirm Passphrase"
 msgstr "Подтвердите парольную фразу"
 
-#: src/backup_dialog.rs:83
+#: src/backup_dialog.rs:84
 msgid "Passphrases must be non-empty and match"
 msgstr "Парольные фразы не должны быть пустыми и должны совпадать"
 
-#: src/backup_dialog.rs:91
+#: src/backup_dialog.rs:92
 msgid "Save Bastle Backup"
 msgstr "Сохранить резервную копию Bastle"
 
-#: src/backup_dialog.rs:92
+#: src/backup_dialog.rs:93
 msgid "Back Up"
 msgstr "Создать копию"
 
 #: src/backup_dialog.rs:101
+msgid "Save backup"
+msgstr "Сохранение резервной копии"
+
+#: src/backup_dialog.rs:109
 msgid "The selected destination is not writable"
 msgstr "В выбранное место нельзя записать файл"
 
-#: src/backup_dialog.rs:114
+#: src/backup_dialog.rs:122
 msgid "Backup completed"
 msgstr "Резервное копирование завершено"
 
-#: src/backup_dialog.rs:115
+#: src/backup_dialog.rs:123
 msgid "Backup failed"
 msgstr "Не удалось создать резервную копию"
 
-#: src/backup_dialog.rs:116
+#: src/backup_dialog.rs:124
 msgid "The backup worker stopped unexpectedly"
 msgstr "Процесс резервного копирования неожиданно завершился"
 
-#: src/backup_dialog.rs:125
+#: src/backup_dialog.rs:133
 msgid "Bastle Backups"
 msgstr "Резервные копии Bastle"
 
-#: src/backup_dialog.rs:130
+#: src/backup_dialog.rs:138
 msgid "Open Bastle Backup"
 msgstr "Открыть резервную копию Bastle"
 
-#: src/backup_dialog.rs:131 src/backup_dialog.rs:185
+#: src/backup_dialog.rs:139 src/backup_dialog.rs:200
 msgid "Open"
 msgstr "Открыть"
 
-#: src/backup_dialog.rs:140
+#: src/backup_dialog.rs:147
+msgid "Restore backup"
+msgstr "Восстановление резервной копии"
+
+#: src/backup_dialog.rs:155
 msgid "The selected backup cannot be read"
 msgstr "Не удалось прочитать выбранную резервную копию"
 
-#: src/backup_dialog.rs:167
+#: src/backup_dialog.rs:182
 msgid "Backup could not be opened"
 msgstr "Не удалось открыть резервную копию"
 
-#: src/backup_dialog.rs:172
+#: src/backup_dialog.rs:187
 msgid "The restore worker stopped unexpectedly"
 msgstr "Процесс восстановления неожиданно завершился"
 
-#: src/backup_dialog.rs:182
+#: src/backup_dialog.rs:197
 msgid "Encrypted Backup"
 msgstr "Зашифрованная резервная копия"
 
-#: src/backup_dialog.rs:183
+#: src/backup_dialog.rs:198
 msgid "Enter the passphrase used to create this backup."
 msgstr "Введите парольную фразу, указанную при создании этой копии."
 
-#: src/backup_dialog.rs:204
+#: src/backup_dialog.rs:219
 msgid ""
 "This encrypted backup includes cookies and site storage. Select the "
 "applications to restore."
@@ -598,7 +606,7 @@ msgstr ""
 "Эта зашифрованная копия содержит cookies и данные сайтов. Выберите "
 "приложения для восстановления."
 
-#: src/backup_dialog.rs:207
+#: src/backup_dialog.rs:222
 msgid ""
 "This encrypted backup contains settings only. Select the applications to "
 "restore."
@@ -606,56 +614,56 @@ msgstr ""
 "Эта зашифрованная копия содержит только настройки. Выберите приложения для "
 "восстановления."
 
-#: src/backup_dialog.rs:209
+#: src/backup_dialog.rs:224
 msgid "Select the applications to restore."
 msgstr "Выберите приложения для восстановления."
 
-#: src/backup_dialog.rs:214
+#: src/backup_dialog.rs:229
 msgid "Background activity and autostart must be enabled again after restore."
 msgstr ""
 "Фоновую работу и автозапуск после восстановления нужно включить заново."
 
-#: src/backup_dialog.rs:216
+#: src/backup_dialog.rs:231
 msgid "Restore Preview"
 msgstr "Предпросмотр восстановления"
 
-#: src/backup_dialog.rs:219
+#: src/backup_dialog.rs:234
 msgid "Restore"
 msgstr "Восстановить"
 
-#: src/backup_dialog.rs:232
+#: src/backup_dialog.rs:247
 msgid "Restore with the original ID"
 msgstr "Восстановить с исходным ID"
 
-#: src/backup_dialog.rs:233
+#: src/backup_dialog.rs:248
 msgid "ID conflict: restore with a new ID"
 msgstr "Конфликт ID: восстановить с новым ID"
 
-#: src/backup_dialog.rs:234
+#: src/backup_dialog.rs:249
 msgid "Identical application already exists"
 msgstr "Такое же приложение уже существует"
 
-#: src/backup_dialog.rs:275
+#: src/backup_dialog.rs:290
 msgid "No applications were selected"
 msgstr "Не выбрано ни одного приложения"
 
-#: src/backup_dialog.rs:285
+#: src/backup_dialog.rs:300
 msgid "Restored"
 msgstr "Восстановлено"
 
-#: src/backup_dialog.rs:287
+#: src/backup_dialog.rs:302
 msgid "Skipped"
 msgstr "Пропущено"
 
-#: src/backup_dialog.rs:293 src/download_manager.rs:129
+#: src/backup_dialog.rs:308 src/download_manager.rs:129
 msgid "Failed"
 msgstr "Ошибка"
 
-#: src/backup_dialog.rs:313
+#: src/backup_dialog.rs:328
 msgid "Restore Finished with Errors"
 msgstr "Восстановление завершено с ошибками"
 
-#: src/backup_dialog.rs:315 src/window.rs:197
+#: src/backup_dialog.rs:330 src/window.rs:199
 msgid "Close"
 msgstr "Закрыть"
 
@@ -752,23 +760,23 @@ msgstr "Не удалось загрузить файл"
 msgid "Download"
 msgstr "Загрузка"
 
-#: src/download_manager.rs:265
+#: src/download_manager.rs:275
 msgid "Downloads"
 msgstr "Загрузки"
 
-#: src/download_manager.rs:275
+#: src/download_manager.rs:285
 msgid "No Downloads"
 msgstr "Нет загрузок"
 
-#: src/download_manager.rs:276
+#: src/download_manager.rs:286
 msgid "Downloads from this app will appear here."
 msgstr "Загрузки из этого приложения появятся здесь."
 
-#: src/download_manager.rs:307
+#: src/download_manager.rs:317
 msgid "The download session is unavailable"
 msgstr "Сеанс загрузки недоступен"
 
-#: src/download_manager.rs:311
+#: src/download_manager.rs:321
 msgid "The download could not be retried"
 msgstr "Не удалось повторить загрузку"
 
@@ -850,6 +858,42 @@ msgstr "Добро пожаловать в Bastle"
 msgid "Give each website its own isolated space."
 msgstr "Создайте для каждого сайта отдельное изолированное пространство."
 
+#: src/launcher.rs:61 src/launcher.rs:69 src/portal.rs:151 src/window.rs:183
+msgid "Dynamic Launcher"
+msgstr "Dynamic Launcher"
+
+#: src/launcher.rs:64 src/portal.rs:154
+msgid "Dynamic Launcher capabilities"
+msgstr "Возможности Dynamic Launcher"
+
+#: src/launcher.rs:72
+msgid "Version"
+msgstr "Версия"
+
+#: src/launcher.rs:74
+msgid "Application launcher type is not supported"
+msgstr "тип ярлыка Application не поддерживается"
+
+#: src/launcher.rs:75
+msgid "desktop session"
+msgstr "сеанс рабочего стола"
+
+#: src/launcher.rs:103
+msgid "Open launcher confirmation"
+msgstr "Открытие подтверждения установки ярлыка"
+
+#: src/launcher.rs:107
+msgid "Confirm launcher installation"
+msgstr "Подтверждение установки ярлыка"
+
+#: src/launcher.rs:118
+msgid "Install launcher"
+msgstr "Установка ярлыка"
+
+#: src/launcher.rs:134
+msgid "Remove launcher"
+msgstr "Удаление ярлыка"
+
 #: src/permissions_dialog.rs:34
 msgid "Reset All"
 msgstr "Сбросить все"
@@ -897,6 +941,34 @@ msgstr "Захват указателя"
 #: src/permissions_dialog.rs:164
 msgid "Third-Party Storage"
 msgstr "Стороннее хранилище"
+
+#: src/portal.rs:54
+msgid "portal interface unavailable"
+msgstr "интерфейс портала недоступен"
+
+#: src/portal.rs:55
+msgid "portal capability unsupported"
+msgstr "возможность портала не поддерживается"
+
+#: src/portal.rs:56
+msgid "portal request cancelled"
+msgstr "запрос к порталу отменён"
+
+#: src/portal.rs:57
+msgid "portal request denied"
+msgstr "портал отклонил запрос"
+
+#: src/portal.rs:58
+msgid "portal request failed"
+msgstr "ошибка запроса к порталу"
+
+#: src/portal.rs:167 src/window.rs:189
+msgid "File Chooser"
+msgstr "Выбор файлов"
+
+#: src/portal.rs:174
+msgid "Documents"
+msgstr "Документы"
 
 #: src/privacy_dialog.rs:64
 msgid "Top-Level Navigation"
@@ -1044,7 +1116,11 @@ msgstr "Импорт фильтра содержимого"
 msgid "Import"
 msgstr "Импортировать"
 
-#: src/privacy_dialog.rs:438
+#: src/privacy_dialog.rs:431
+msgid "Import content filter"
+msgstr "Импорт фильтра содержимого"
+
+#: src/privacy_dialog.rs:442
 msgid "Imported Filter"
 msgstr "Импортированный фильтр"
 
@@ -1059,6 +1135,10 @@ msgstr "Выбрать"
 #: src/util.rs:223
 msgid "App Icon"
 msgstr "Значок приложения"
+
+#: src/util.rs:229
+msgid "Select application icon"
+msgstr "Выбор значка приложения"
 
 #: src/window.blp:26
 msgid "Applications"
@@ -1080,62 +1160,63 @@ msgstr "Системные _возможности"
 msgid "_About Bastle"
 msgstr "_О Bastle"
 
-#: src/window.rs:168 src/window.rs:282
+#: src/window.rs:176 src/window.rs:287 src/window.rs:295
 msgid "Available"
 msgstr "Доступно"
 
-#: src/window.rs:169 src/window.rs:284
+#: src/window.rs:177 src/window.rs:296
 msgid "Unavailable"
 msgstr "Недоступно"
 
-#: src/window.rs:172
-msgid "Portal Available"
-msgstr "Портал доступен"
-
-#: src/window.rs:175
+#: src/window.rs:181
 msgid "Desktop session"
 msgstr "Сеанс рабочего стола"
 
-#: src/window.rs:177
-msgid "Dynamic Launcher version"
-msgstr "Версия Dynamic Launcher"
-
-#: src/window.rs:179
+#: src/window.rs:185
 msgid "Application launchers"
 msgstr "Ярлыки приложений"
 
-#: src/window.rs:181
+#: src/window.rs:187
 msgid "Web application launchers"
 msgstr "Ярлыки веб-приложений"
 
-#: src/window.rs:183
+#: src/window.rs:191
+msgid "Documents access"
+msgstr "Доступ к документам"
+
+#: src/window.rs:193
 msgid "Background activity"
 msgstr "Фоновая работа"
 
-#: src/window.rs:185
+#: src/window.rs:195
+msgid ""
+"Creating and repairing applications requires Application launcher support. "
+"Backup restore also requires File Chooser and Documents portal access."
+msgstr ""
+"Для создания и восстановления приложений нужна поддержка ярлыков типа "
+"Application. Для восстановления резервных копий также нужен доступ к "
+"порталам выбора файлов и документов."
+
+#: src/window.rs:196
 msgid ""
 "Bastle uses portals only and never writes launchers directly to the host."
 msgstr ""
 "Bastle использует только порталы и никогда не записывает ярлыки напрямую в "
 "основную систему."
 
-#: src/window.rs:189
-msgid "Portal Unavailable"
-msgstr "Портал недоступен"
+#: src/window.rs:198
+msgid "System Capabilities"
+msgstr "Системные возможности"
 
-#: src/window.rs:192
-msgid ""
-"Creating, repairing, and restoring applications requires a Dynamic Launcher "
-"Portal implementation for this desktop session."
-msgstr ""
-"Для создания, восстановления и ремонта приложений в этом сеансе рабочего "
-"стола нужна реализация Dynamic Launcher Portal."
+#: src/window.rs:199
+msgid "Retry"
+msgstr "Повторить"
 
-#: src/window.rs:208
+#: src/window.rs:213
 msgid "Delete this application?"
 msgstr "Удалить это приложение?"
 
-#: src/window.rs:210
+#: src/window.rs:215
 msgid ""
 "Its launcher, settings, WebKit data, and any Chromium companion profile—"
 "including cookies and caches—will be removed."
@@ -1143,21 +1224,39 @@ msgstr ""
 "Будут удалены ярлык, настройки, данные WebKit и профиль Chromium-компаньона, "
 "если он существует, включая cookies и кэши."
 
-#: src/window.rs:215
+#: src/window.rs:220
 msgid "Delete"
 msgstr "Удалить"
 
-#: src/window.rs:225
+#: src/window.rs:230
 msgid "Application deleted"
 msgstr "Приложение удалено"
 
-#: src/window.rs:238
+#: src/window.rs:243
 msgid "Launcher repaired"
 msgstr "Ярлык восстановлен"
 
-#: src/window.rs:255
+#: src/window.rs:260
 msgid "Some application data could not be loaded"
 msgstr "Не удалось загрузить часть данных приложений"
+
+#: src/window.rs:288
+msgid "Unsupported"
+msgstr "Не поддерживается"
+
+#: src/window.rs:289
+msgid "Unknown (interface unavailable)"
+msgstr "Неизвестно (интерфейс недоступен)"
+
+#~ msgid "Portal Available"
+#~ msgstr "Портал доступен"
+
+#~ msgid ""
+#~ "Creating, repairing, and restoring applications requires a Dynamic "
+#~ "Launcher Portal implementation for this desktop session."
+#~ msgstr ""
+#~ "Для создания, восстановления и ремонта приложений в этом сеансе рабочего "
+#~ "стола нужна реализация Dynamic Launcher Portal."
 
 #~ msgid "Autostart could not be updated by the portal"
 #~ msgstr "Порталу не удалось изменить автозапуск"

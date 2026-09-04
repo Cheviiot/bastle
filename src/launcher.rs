@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use anyhow::{ensure, Context, Result};
+use anyhow::Result;
 use ashpd::{
     desktop::{
         dynamic_launcher::{DynamicLauncherProxy, LauncherType, PrepareInstallOptions},
@@ -9,9 +9,15 @@ use ashpd::{
     WindowIdentifier,
 };
 use async_trait::async_trait;
+use gettextrs::gettext;
 use gtk::glib;
 
-use crate::{config, model::AppConfigV3, model::AppId};
+use crate::{
+    config,
+    model::AppConfigV3,
+    model::AppId,
+    portal::{current_desktop, PortalFailureKind, PortalOperationError},
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UninstallOutcome {
@@ -34,14 +40,6 @@ pub trait LauncherBackend {
 #[derive(Debug, Clone, Copy, Default)]
 pub struct PortalLauncher;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LauncherCapabilities {
-    pub desktop: String,
-    pub portal_version: u32,
-    pub application_launchers: bool,
-    pub web_application_launchers: bool,
-}
-
 impl PortalLauncher {
     pub fn desktop_id(id: &AppId) -> String {
         format!("{}.desktop", config::managed_app_id(id))
@@ -58,36 +56,28 @@ impl PortalLauncher {
         Ok(key_file.to_data().to_string())
     }
 
-    pub async fn capabilities() -> Result<LauncherCapabilities> {
-        let proxy = DynamicLauncherProxy::new()
-            .await
-            .context("Dynamic Launcher Portal is unavailable")?;
-        let supported = proxy
-            .supported_launcher_types()
-            .await
-            .context("Dynamic Launcher Portal did not report its supported launcher types")?;
-        Ok(LauncherCapabilities {
-            desktop: current_desktop(),
-            portal_version: proxy.version(),
-            application_launchers: supported.contains(LauncherType::Application),
-            web_application_launchers: supported.contains(LauncherType::WebApplication),
-        })
-    }
-
     async fn supported_proxy() -> Result<DynamicLauncherProxy> {
-        let proxy = DynamicLauncherProxy::new()
-            .await
-            .context("Dynamic Launcher Portal is unavailable")?;
-        let supported = proxy
-            .supported_launcher_types()
-            .await
-            .context("Dynamic Launcher Portal did not report its supported launcher types")?;
-        ensure!(
-            supported.contains(LauncherType::Application),
-            "Dynamic Launcher Portal version {} does not support application launchers (desktop session: {})",
-            proxy.version(),
-            current_desktop()
-        );
+        let proxy = DynamicLauncherProxy::new().await.map_err(|error| {
+            PortalOperationError::from_ashpd(gettext("Dynamic Launcher"), error)
+        })?;
+        let supported = proxy.supported_launcher_types().await.map_err(|error| {
+            PortalOperationError::from_ashpd(gettext("Dynamic Launcher capabilities"), error)
+        })?;
+        if !supported.contains(LauncherType::Application) {
+            return Err(PortalOperationError::new(
+                PortalFailureKind::Unsupported,
+                gettext("Dynamic Launcher"),
+                format!(
+                    "{} {}: {} ({}: {})",
+                    gettext("Version"),
+                    proxy.version(),
+                    gettext("Application launcher type is not supported"),
+                    gettext("desktop session"),
+                    current_desktop()
+                ),
+            )
+            .into());
+        }
         Ok(proxy)
     }
 }
@@ -109,9 +99,13 @@ impl LauncherBackend for PortalLauncher {
         let response = proxy
             .prepare_install(parent, &app.title, Icon::Bytes(icon.to_vec()), options)
             .await
-            .context("Dynamic Launcher Portal failed to open its confirmation dialog")?
+            .map_err(|error| {
+                PortalOperationError::from_ashpd(gettext("Open launcher confirmation"), error)
+            })?
             .response()
-            .context("launcher installation was cancelled or denied")?;
+            .map_err(|error| {
+                PortalOperationError::from_ashpd(gettext("Confirm launcher installation"), error)
+            })?;
         proxy
             .install(
                 response.token(),
@@ -120,7 +114,9 @@ impl LauncherBackend for PortalLauncher {
                 Default::default(),
             )
             .await
-            .context("failed to install the launcher through the portal")?;
+            .map_err(|error| {
+                PortalOperationError::from_ashpd(gettext("Install launcher"), error)
+            })?;
         Ok(())
     }
 
@@ -134,20 +130,11 @@ impl LauncherBackend for PortalLauncher {
             Err(error) if launcher_is_missing(&error.to_string()) => {
                 Ok(UninstallOutcome::AlreadyMissing)
             }
-            Err(error) => Err(error).context("failed to remove the launcher through the portal"),
+            Err(error) => {
+                Err(PortalOperationError::from_ashpd(gettext("Remove launcher"), error).into())
+            }
         }
     }
-}
-
-fn current_desktop() -> String {
-    desktop_name(std::env::var_os("XDG_CURRENT_DESKTOP"))
-}
-
-fn desktop_name(value: Option<std::ffi::OsString>) -> String {
-    value
-        .map(|desktop| desktop.to_string_lossy().into_owned())
-        .filter(|desktop| !desktop.trim().is_empty())
-        .unwrap_or_else(|| "unknown".to_owned())
 }
 
 fn launcher_is_missing(message: &str) -> bool {
@@ -168,13 +155,6 @@ mod tests {
         assert!(desktop.contains("Name=Example Exec=bad"));
         assert_eq!(desktop.matches("Exec=").count(), 2);
         assert!(desktop.contains(&format!("Exec=bastle {}", app.id)));
-    }
-
-    #[test]
-    fn missing_desktop_session_has_a_stable_diagnostic() {
-        assert_eq!(desktop_name(None), "unknown");
-        assert_eq!(desktop_name(Some("KDE".into())), "KDE");
-        assert_eq!(desktop_name(Some("  ".into())), "unknown");
     }
 
     #[test]

@@ -10,6 +10,7 @@ use gtk::{gio, glib};
 
 use crate::{
     backup::{is_encrypted_backup, BackupOptions, BackupService, RestoreDisposition, RestorePlan},
+    portal,
     window::BastleWindow,
 };
 
@@ -95,7 +96,14 @@ pub fn start_backup(parent: &BastleWindow) {
             .build();
         let file = match file_dialog.save_future(Some(&window)).await {
             Ok(file) => file,
-            Err(_) => return,
+            Err(error) => {
+                if let Some(error) =
+                    portal::classify_file_dialog_error(gettext("Save backup"), &error)
+                {
+                    window.toast(&error.to_string());
+                }
+                return;
+            }
         };
         let Some(destination) = file.path() else {
             window.toast(&gettext("The selected destination is not writable"));
@@ -134,7 +142,14 @@ pub fn start_restore(parent: &BastleWindow) {
             .build();
         let file = match file_dialog.open_future(Some(&window)).await {
             Ok(file) => file,
-            Err(_) => return,
+            Err(error) => {
+                if let Some(error) =
+                    portal::classify_file_dialog_error(gettext("Restore backup"), &error)
+                {
+                    window.toast(&error.to_string());
+                }
+                return;
+            }
         };
         let Some(source) = file.path() else {
             window.toast(&gettext("The selected backup cannot be read"));

@@ -62,6 +62,9 @@ path traversal, links, duplicate entries, or unexpected files are rejected.
 Security boundaries and known limitations are documented in the
 [threat model](docs/threat-model.md). The optional companion boundary is
 specified in the [Chromium protocol](docs/chromium-companion-protocol.md).
+Desktop integration requirements, detected interface versions, and isolated
+GNOME/KDE smoke procedures are in the
+[portal compatibility guide](docs/portal-compatibility.md).
 
 Development is reproducible in the Fedora 44 Distrobox named `bastle-dev`:
 
@@ -101,6 +104,28 @@ rm -rf -- "$bastle_tools_dir"
 Project-specific system packages are not installed on the ALT Workstation
 host. The Flatpak manifest uses GNOME runtime 50 and the Rust SDK extension.
 
+## Desktop portal support
+
+| Desktop stack | Dynamic Launcher | Backup/restore chooser | Status |
+| --- | --- | --- | --- |
+| GNOME 50 / `xdg-desktop-portal-gnome` 50.0 | Application and Webapp advertised | File Chooser plus Documents | Source-compatible; confirm the active session with **System Capabilities** |
+| KDE Plasma 6.7 / `xdg-desktop-portal-kde` 6.7.4 | Application and Webapp advertised | File Chooser plus Documents | Best-effort; confirm the selected backend with **System Capabilities** |
+
+The versions above were the current stable upstream releases checked on
+2026-09-05. The active `portals.conf` can select a different backend, so the
+installed package name alone is not proof of compatibility. Bastle probes the
+live session and reports Dynamic Launcher, File Chooser, Documents, supported
+launcher types, and their interface versions independently.
+
+If application creation or repair fails, open **Menu → System Capabilities**.
+`Unavailable` means that the active session does not expose the interface;
+`Unsupported` means Dynamic Launcher exists but does not advertise the
+Application launcher type. A cancelled confirmation is harmless, while a
+denial is reported separately and preserves existing local data. Install or
+select the correct portal backend for the desktop, restart the user session,
+and retry. Bastle never works around a portal failure by writing directly to
+the host launcher directory.
+
 ## Provenance and license
 
 Bastle is an independent successor to
@@ -116,11 +141,11 @@ their own IDs, metadata, launchers, and WebKit profiles.
 
 - v0.2 — runtime permissions, popup/OAuth windows, zoom, fullscreen,
   notifications, and managed downloads.
-- v0.3 — Bastle backup/restore, optional encrypted site-data transfer,
-  aarch64, and portal capability diagnostics for GNOME and KDE.
+- v0.3 — Bastle backup/restore, optional encrypted site-data transfer, and
+  aarch64 bundles.
 - v0.4 — opt-in origin allowlists, per-app proxy settings, background/autostart
   through the desktop portal, content filters, and a dedicated threat model.
 - v0.5 — an optional, separately sandboxed Chromium companion for sites that
-  cannot run correctly on WebKitGTK.
+  cannot run correctly on WebKitGTK, plus live GNOME/KDE portal diagnostics.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) before proposing changes.
