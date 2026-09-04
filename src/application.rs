@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use std::{process::Command, str::FromStr};
+use std::{cell::RefCell, collections::HashMap, process::Command, str::FromStr};
 
 use adw::prelude::*;
 use adw::subclass::prelude::*;
 use anyhow::{anyhow, Context, Result};
+use gettextrs::gettext;
 use glib::{OptionArg, OptionFlags};
 use gtk::{gio, glib};
 
@@ -18,7 +19,9 @@ mod imp {
     use super::*;
 
     #[derive(Debug, Default)]
-    pub struct BastleApplication;
+    pub struct BastleApplication {
+        pub web_notifications: RefCell<HashMap<String, (String, webkit::Notification)>>,
+    }
 
     #[glib::object_subclass]
     impl ObjectSubclass for BastleApplication {
@@ -72,7 +75,9 @@ mod imp {
                 .flatten()
                 .unwrap_or(false)
             {
-                return match crate::app_page::run_ui_smoke_test() {
+                let result = crate::app_page::run_ui_smoke_test()
+                    .and_then(|()| crate::download_manager::run_ui_smoke_test(&*self.obj()));
+                return match result {
                     Ok(()) => glib::ExitCode::SUCCESS,
                     Err(error) => {
                         eprintln!("UI smoke test failed: {error:#}");
@@ -169,7 +174,70 @@ impl BastleApplication {
                     }
                 })
                 .build(),
+            gio::ActionEntry::builder("notification-activated")
+                .parameter_type(Some(&String::static_variant_type()))
+                .activate(|app: &Self, _, parameter| app.activate_web_notification(parameter))
+                .build(),
         ]);
+    }
+
+    pub fn send_web_notification(&self, id: &AppId, web_notification: &webkit::Notification) {
+        let token = format!("{}:{}", id, web_notification.id());
+        let notification_id = format!("web-{token}");
+        let title = web_notification
+            .title()
+            .map(|title| title.to_string())
+            .filter(|title| !title.is_empty())
+            .unwrap_or_else(|| gettext("Website Notification"));
+        let notification = gio::Notification::new(&title);
+        if let Some(body) = web_notification.body().filter(|body| !body.is_empty()) {
+            notification.set_body(Some(body.as_str()));
+        }
+        notification.set_icon(&gio::ThemedIcon::new(config::APP_ID));
+        notification.set_default_action_and_target_value(
+            "app.notification-activated",
+            Some(&token.to_variant()),
+        );
+
+        self.imp().web_notifications.borrow_mut().insert(
+            token.clone(),
+            (notification_id.clone(), web_notification.clone()),
+        );
+        web_notification.connect_closed(glib::clone!(
+            #[weak(rename_to = app)]
+            self,
+            #[strong]
+            token,
+            move |_| {
+                if let Some((notification_id, _)) =
+                    app.imp().web_notifications.borrow_mut().remove(&token)
+                {
+                    app.withdraw_notification(&notification_id);
+                }
+            }
+        ));
+        self.send_notification(Some(&notification_id), &notification);
+    }
+
+    fn activate_web_notification(&self, parameter: Option<&glib::Variant>) {
+        let Some(token) = parameter.and_then(|value| value.get::<String>()) else {
+            return;
+        };
+        if let Some((notification_id, notification)) =
+            self.imp().web_notifications.borrow_mut().remove(&token)
+        {
+            self.withdraw_notification(&notification_id);
+            notification.clicked();
+        }
+        if let Some(window) = self.active_window() {
+            window.present();
+            return;
+        }
+        if let Some((id, _)) = token.split_once(':') {
+            if let Err(error) = self.open_app(id) {
+                eprintln!("Failed to open app from notification: {error:#}");
+            }
+        }
     }
 
     fn show_about(&self) {

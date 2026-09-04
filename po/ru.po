@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: bastle 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-04 23:47+1000\n"
+"POT-Creation-Date: 2026-09-05 01:58+1000\n"
 "PO-Revision-Date: 2026-09-04 00:00+1000\n"
 "Last-Translator: Bastle contributors\n"
 "Language-Team: Russian\n"
@@ -60,38 +60,44 @@ msgstr ""
 "Безопасная загрузка и нормализация значков с резервным офлайн-вариантом"
 
 #: data/io.github.cheviiot.bastle.metainfo.xml.in:40
-msgid "Optionally import Spider settings without importing browser sessions"
-msgstr "Необязательный импорт настроек Spider без браузерных сессий"
+msgid ""
+"Keep each application's configuration, policy, profile, and cache separate"
+msgstr ""
+"Хранение конфигурации, правил, профиля и кеша каждого приложения отдельно"
 
 #: data/io.github.cheviiot.bastle.metainfo.xml.in:55
+msgid "Prevent a crash when opening an application card for editing"
+msgstr "Исправление сбоя при открытии карточки приложения для редактирования"
+
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:56
+msgid "Add a headless regression test for editor state changes"
+msgstr "Headless regression-тест изменений состояния редактора"
+
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:64
 msgid "Introduce the Bastle identity and isolated JSON-based storage"
 msgstr "Новая идентичность Bastle и изолированное хранилище на основе JSON"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:56
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:65
 msgid "Add transactional launcher operations and repair support"
 msgstr "Транзакционные операции с ярлыками и их восстановление"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:57
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:66
 msgid "Add an explicit, settings-only Spider importer"
 msgstr "Явный импорт только настроек Spider"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:58
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:67
 msgid "Harden URL, metadata, icon, download, and theme-color handling"
 msgstr "Безопасная обработка URL, метаданных, значков, загрузок и цветов темы"
-
-#: data/io.github.cheviiot.bastle.gschema.xml:13
-msgid "Whether the first-run Spider import prompt was handled"
-msgstr "Было ли обработано предложение импорта Spider при первом запуске"
 
 #: src/app_page.blp:16 src/app_window.blp:30 src/window.blp:41
 msgid "Menu"
 msgstr "Меню"
 
-#: src/app_page.blp:26 src/window.rs:157
+#: src/app_page.blp:26 src/window.rs:155
 msgid "Cancel"
 msgstr "Отмена"
 
-#: src/app_page.blp:32 src/app_window.rs:334
+#: src/app_page.blp:32 src/permissions_dialog.rs:38
 msgid "Save"
 msgstr "Сохранить"
 
@@ -147,61 +153,161 @@ msgstr "Параметры WebKit для этого приложения"
 msgid "Custom User Agent"
 msgstr "Собственный User-Agent"
 
-#: src/app_page.blp:110
+#: src/app_page.blp:109
 msgid "User Agent"
 msgstr "User-Agent"
 
-#: src/app_page.rs:164
+#: src/app_page.rs:169 src/permissions_dialog.rs:28
+msgid "Permissions"
+msgstr "Разрешения"
+
+#: src/app_page.rs:174
 msgid "Repair Launcher"
 msgstr "Восстановить ярлык"
 
-#: src/app_page.rs:169
+#: src/app_page.rs:179
 msgid "Delete Application"
 msgstr "Удалить приложение"
 
 #: src/app_window.blp:53
+msgid "_Downloads"
+msgstr "_Загрузки"
+
+#: src/app_window.blp:54
 msgid "_Reload"
 msgstr "_Перезагрузить"
 
-#: src/app_window.blp:54
+#: src/app_window.blp:55
 msgid "Reload Without Cache"
 msgstr "Перезагрузить без кэша"
 
-#: src/app_window.blp:55
+#: src/app_window.blp:56
 msgid "_Stop Loading"
 msgstr "_Остановить загрузку"
 
-#: src/app_window.blp:56
+#: src/app_window.blp:57
 msgid "_Home"
 msgstr "_На главную"
 
-#: src/app_window.blp:57
+#: src/app_window.blp:58
 msgid "Zoom _In"
 msgstr "_Увеличить масштаб"
 
-#: src/app_window.blp:58
+#: src/app_window.blp:59
 msgid "Zoom _Out"
 msgstr "_Уменьшить масштаб"
 
-#: src/app_window.blp:59
+#: src/app_window.blp:60
 msgid "_Reset Zoom"
 msgstr "_Сбросить масштаб"
 
-#: src/app_window.blp:60
+#: src/app_window.blp:61
 msgid "_Fullscreen"
 msgstr "_Полноэкранный режим"
 
-#: src/app_window.blp:61 src/window.blp:69
+#: src/app_window.blp:62 src/window.blp:68
 msgid "_Keyboard Shortcuts"
 msgstr "_Комбинации клавиш"
 
-#: src/app_window.rs:108 src/app_window.rs:128
+#: src/app_window.rs:112 src/app_window.rs:132
 msgid "Web App Window"
 msgstr "Окно веб-приложения"
 
-#: src/app_window.rs:335
-msgid "Download File"
-msgstr "Скачать файл"
+#: src/app_window.rs:236
+msgid "Screen sharing is not available"
+msgstr "Демонстрация экрана недоступна"
+
+#: src/app_window.rs:246
+msgid "Allow this website to use the camera?"
+msgstr "Разрешить этому сайту использовать камеру?"
+
+#: src/app_window.rs:247
+msgid "Allow this website to use the microphone?"
+msgstr "Разрешить этому сайту использовать микрофон?"
+
+#: src/app_window.rs:249
+msgid "Allow this website to use the camera and microphone?"
+msgstr "Разрешить этому сайту использовать камеру и микрофон?"
+
+#: src/app_window.rs:251
+msgid "Unknown media device request"
+msgstr "Неизвестный запрос к мультимедийному устройству"
+
+#: src/app_window.rs:258
+msgid "Allow this website to access your location?"
+msgstr "Разрешить этому сайту доступ к вашему местоположению?"
+
+#: src/app_window.rs:264
+msgid "Allow this website to send notifications?"
+msgstr "Разрешить этому сайту отправлять уведомления?"
+
+#: src/app_window.rs:270
+msgid "Allow this website to read the clipboard?"
+msgstr "Разрешить этому сайту читать буфер обмена?"
+
+#: src/app_window.rs:276
+msgid "Allow this website to lock the pointer?"
+msgstr "Разрешить этому сайту захватывать указатель?"
+
+#: src/app_window.rs:282
+msgid "Allow this website to access third-party storage?"
+msgstr "Разрешить этому сайту доступ к стороннему хранилищу?"
+
+#: src/app_window.rs:287
+msgid "This WebKit permission type is not supported"
+msgstr "Этот тип разрешения WebKit не поддерживается"
+
+#: src/app_window.rs:598
+msgid "Permission settings could not be loaded"
+msgstr "Не удалось загрузить настройки разрешений"
+
+#: src/app_window.rs:709
+msgid "Unsupported website permission request"
+msgstr "Неподдерживаемый запрос разрешения сайта"
+
+#: src/app_window.rs:720
+msgid "Website permission origin is unavailable"
+msgstr "Не удалось определить источник запроса разрешения"
+
+#: src/app_window.rs:748
+msgid "Website"
+msgstr "Сайт"
+
+#: src/app_window.rs:749
+msgid "Website Permission"
+msgstr "Разрешение сайта"
+
+#: src/app_window.rs:751
+msgid "Not Now"
+msgstr "Не сейчас"
+
+#: src/app_window.rs:752
+msgid "Always Block"
+msgstr "Всегда блокировать"
+
+#: src/app_window.rs:753
+msgid "Allow for This Session"
+msgstr "Разрешить на эту сессию"
+
+#: src/app_window.rs:754
+msgid "Always Allow"
+msgstr "Всегда разрешать"
+
+#: src/app_window.rs:781
+msgid "Permission was allowed only for this session"
+msgstr "Разрешение действует только в этом сеансе"
+
+#: src/app_window.rs:794
+msgid "Permission block could not be saved"
+msgstr "Не удалось сохранить блокировку разрешения"
+
+#: src/app_window.rs:818
+msgid "System notifications are unavailable"
+msgstr "Системные уведомления недоступны"
+
+#: src/application.rs:191
+msgid "Website Notification"
+msgstr "Уведомление сайта"
 
 #: src/create_app_dialog.blp:9
 msgid "Add a New Application"
@@ -215,6 +321,78 @@ msgstr "Создать"
 msgid ""
 "The website could not be reached. You can still create this application."
 msgstr "Сайт недоступен. Приложение всё равно можно создать."
+
+#: src/download_manager.rs:41
+msgid "Waiting"
+msgstr "Ожидание"
+
+#: src/download_manager.rs:45
+msgid "Cancel Download"
+msgstr "Отменить загрузку"
+
+#: src/download_manager.rs:50
+msgid "Retry Download"
+msgstr "Повторить загрузку"
+
+#: src/download_manager.rs:56
+msgid "Choose a destination"
+msgstr "Выберите место сохранения"
+
+#: src/download_manager.rs:78
+msgid "Downloading to"
+msgstr "Загрузка в"
+
+#: src/download_manager.rs:98
+msgid "Completed"
+msgstr "Завершено"
+
+#: src/download_manager.rs:102
+msgid "Download completed"
+msgstr "Загрузка завершена"
+
+#: src/download_manager.rs:103
+msgid "Saved to"
+msgstr "Сохранено в"
+
+#: src/download_manager.rs:115
+msgid "Cancelled"
+msgstr "Отменено"
+
+#: src/download_manager.rs:116
+msgid "Download cancelled"
+msgstr "Загрузка отменена"
+
+#: src/download_manager.rs:129
+msgid "Failed"
+msgstr "Ошибка"
+
+#: src/download_manager.rs:131
+msgid "Download failed"
+msgstr "Не удалось загрузить файл"
+
+#: src/download_manager.rs:171
+msgid "Download"
+msgstr "Загрузка"
+
+#: src/download_manager.rs:265
+msgid "Downloads"
+msgstr "Загрузки"
+
+#: src/download_manager.rs:275
+msgid "No Downloads"
+msgstr "Нет загрузок"
+
+#: src/download_manager.rs:276
+msgid "Downloads from this app will appear here."
+msgstr "Загрузки из этого приложения появятся здесь."
+
+#: src/download_manager.rs:307
+msgid "The download session is unavailable"
+msgstr "Сеанс загрузки недоступен"
+
+#: src/download_manager.rs:311
+msgid "The download could not be retried"
+msgstr "Не удалось повторить загрузку"
 
 #: src/gtk/help-overlay.blp:13
 msgctxt "shortcut window"
@@ -294,49 +472,57 @@ msgstr "Добро пожаловать в Bastle"
 msgid "Give each website its own isolated space."
 msgstr "Создайте для каждого сайта отдельное изолированное пространство."
 
-#: src/import_dialog.rs:34
-msgid ""
-"Bastle can import Spider settings without copying cookies, sessions, cache, "
-"or profiles."
-msgstr ""
-"Bastle может импортировать настройки Spider без копирования cookies, сессий, "
-"кэша и профилей."
+#: src/permissions_dialog.rs:34
+msgid "Reset All"
+msgstr "Сбросить все"
 
-#: src/import_dialog.rs:36
-msgid "Choose the old Spider GSettings keyfile or its configuration directory."
-msgstr "Выберите старый keyfile GSettings Spider или каталог его конфигурации."
+#: src/permissions_dialog.rs:53
+msgid "Ask"
+msgstr "Спрашивать"
 
-#: src/import_dialog.rs:38
-msgid "Import from Spider"
-msgstr "Импорт из Spider"
+#: src/permissions_dialog.rs:53
+msgid "Allow"
+msgstr "Разрешать"
 
-#: src/import_dialog.rs:40
-msgid "Choose Keyfile"
-msgstr "Выбрать keyfile"
+#: src/permissions_dialog.rs:53
+msgid "Block"
+msgstr "Блокировать"
 
-#: src/import_dialog.rs:41
-msgid "Choose Folder"
-msgstr "Выбрать каталог"
+#: src/permissions_dialog.rs:86
+msgid "No Saved Permissions"
+msgstr "Нет сохранённых разрешений"
 
-#: src/import_dialog.rs:42
-msgid "Not Now"
-msgstr "Не сейчас"
+#: src/permissions_dialog.rs:88
+msgid "Websites will ask before using protected capabilities."
+msgstr "Сайты будут запрашивать доступ к защищённым возможностям."
 
-#: src/import_dialog.rs:52
-msgid "Select Spider Settings"
-msgstr "Выбор настроек Spider"
+#: src/permissions_dialog.rs:158
+msgid "Camera"
+msgstr "Камера"
 
-#: src/import_dialog.rs:70
-msgid "Import Spider Applications"
-msgstr "Импорт приложений Spider"
+#: src/permissions_dialog.rs:159
+msgid "Microphone"
+msgstr "Микрофон"
 
-#: src/import_dialog.rs:107
-msgid "Invalid entries"
-msgstr "Некорректные записи"
+#: src/permissions_dialog.rs:160
+msgid "Location"
+msgstr "Местоположение"
 
-#: src/import_dialog.rs:114
-msgid "Import Selected"
-msgstr "Импортировать выбранные"
+#: src/permissions_dialog.rs:161
+msgid "Notifications"
+msgstr "Уведомления"
+
+#: src/permissions_dialog.rs:162
+msgid "Clipboard"
+msgstr "Буфер обмена"
+
+#: src/permissions_dialog.rs:163
+msgid "Pointer Lock"
+msgstr "Захват указателя"
+
+#: src/permissions_dialog.rs:164
+msgid "Third-Party Storage"
+msgstr "Стороннее хранилище"
 
 #: src/util.rs:216
 msgid "Images"
@@ -354,51 +540,34 @@ msgstr "Значок приложения"
 msgid "Applications"
 msgstr "Приложения"
 
-#: src/window.blp:68
-msgid "_Import from Spider"
-msgstr "_Импортировать из Spider"
-
-#: src/window.blp:70
+#: src/window.blp:69
 msgid "_About Bastle"
 msgstr "_О Bastle"
 
-#: src/window.rs:151
+#: src/window.rs:149
 msgid "Delete this application?"
 msgstr "Удалить это приложение?"
 
-#: src/window.rs:153
+#: src/window.rs:151
 msgid ""
 "Its launcher, settings, WebKit profile, cookies, and cache will be removed."
 msgstr "Будут удалены ярлык, настройки, профиль WebKit, cookies и кэш."
 
-#: src/window.rs:158
+#: src/window.rs:156
 msgid "Delete"
 msgstr "Удалить"
 
-#: src/window.rs:168
+#: src/window.rs:166
 msgid "Application deleted"
 msgstr "Приложение удалено"
 
-#: src/window.rs:181
+#: src/window.rs:179
 msgid "Launcher repaired"
 msgstr "Ярлык восстановлен"
 
-#: src/window.rs:198
+#: src/window.rs:196
 msgid "Some application data could not be loaded"
 msgstr "Не удалось загрузить часть данных приложений"
 
-#~ msgctxt "shortcut window"
-#~ msgid "Stop Loading"
-#~ msgstr "Остановить загрузку"
-
-#~ msgid "Imported"
-#~ msgstr "Импортировано"
-
-#~ msgid "Skipped"
-#~ msgstr "Пропущено"
-
-#~ msgid "Invalid"
-#~ msgstr "Некорректно"
-
-#~ msgid "Failed"
-#~ msgstr "С ошибкой"
+#~ msgid "Allow Once"
+#~ msgstr "Разрешить один раз"

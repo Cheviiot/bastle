@@ -6,11 +6,12 @@ mod app_window;
 mod application;
 mod config;
 mod create_app_dialog;
+mod download_manager;
 mod home_page;
-mod import_dialog;
 mod launcher;
-mod legacy;
 mod model;
+mod permissions_dialog;
+mod policy;
 mod repository;
 mod service;
 mod util;
@@ -45,8 +46,5 @@ fn main() -> glib::ExitCode {
     };
     gio::resources_register(&resources);
 
-    BastleApplication::new(
-        gio::ApplicationFlags::HANDLES_COMMAND_LINE | gio::ApplicationFlags::NON_UNIQUE,
-    )
-    .run()
+    BastleApplication::new(gio::ApplicationFlags::HANDLES_COMMAND_LINE).run()
 }

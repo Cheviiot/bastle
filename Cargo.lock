@@ -225,6 +225,7 @@ dependencies = [
  "isahc",
  "libadwaita",
  "rand",
+ "rustix",
  "scraper",
  "serde",
  "serde_json",

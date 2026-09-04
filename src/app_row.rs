@@ -6,7 +6,7 @@ use adw::subclass::prelude::*;
 use glib::clone;
 use gtk::glib;
 
-use crate::{model::AppConfigV1, service::AppService, util};
+use crate::{model::AppConfigV2, service::AppService, util};
 
 mod imp {
     use super::*;
@@ -14,7 +14,7 @@ mod imp {
     #[derive(Debug, Default, gtk::CompositeTemplate)]
     #[template(resource = "/io/github/cheviiot/bastle/app_row.ui")]
     pub struct AppRow {
-        pub config: OnceCell<AppConfigV1>,
+        pub config: OnceCell<AppConfigV2>,
         #[template_child]
         pub icon: TemplateChild<gtk::Image>,
         #[template_child]
@@ -50,7 +50,7 @@ glib::wrapper! {
 }
 
 impl AppRow {
-    pub fn new(config: AppConfigV1) -> Self {
+    pub fn new(config: AppConfigV2) -> Self {
         let row: Self = glib::Object::builder().build();
         row.imp().title.set_label(&config.title);
         row.imp().subtitle.set_label(&config.start_url);
@@ -72,7 +72,7 @@ impl AppRow {
         row
     }
 
-    pub fn config(&self) -> Option<AppConfigV1> {
+    pub fn config(&self) -> Option<AppConfigV2> {
         self.imp().config.get().cloned()
     }
 }

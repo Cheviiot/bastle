@@ -27,8 +27,8 @@ messages. User-facing strings must be translatable; update the Russian catalog
 when adding UI text.
 
 Do not add broad Flatpak permissions, a bundled browser engine, WebKit patches,
-Chromium user-agent shims, or access to Spider's sandbox. Discuss any permission
-change in an issue first.
+Chromium user-agent shims, or access to another application's sandbox. Discuss
+any permission change in an issue first.
 
 By contributing, you agree that your contribution is provided under
 `GPL-3.0-or-later`.

@@ -1,17 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use std::{
-    future::Future,
-    path::{Path, PathBuf},
-};
+use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use ashpd::WindowIdentifier;
 
 use crate::{
     launcher::{LauncherBackend, PortalLauncher, UninstallOutcome},
-    legacy::{self, ImportSummary, LegacyPreview},
-    model::{AppConfigV1, AppId, WindowState},
+    model::{AppConfigV2, AppId, WindowState},
+    policy::{AppPolicyV1, Origin, PermissionDecision, PermissionKind},
     repository::{AppRepository, LoadReport},
 };
 
@@ -38,7 +35,7 @@ impl<L: LauncherBackend> AppService<L> {
         self.repository.list()
     }
 
-    pub fn load(&self, id: &AppId) -> Result<AppConfigV1> {
+    pub fn load(&self, id: &AppId) -> Result<AppConfigV2> {
         self.repository.load(id)
     }
 
@@ -64,16 +61,37 @@ impl<L: LauncherBackend> AppService<L> {
         self.repository.update(&current, None)
     }
 
-    pub fn preview_legacy(&self, selected: &Path) -> Result<LegacyPreview> {
-        legacy::parse_keyfile(selected)
+    pub fn load_policy(&self, id: &AppId) -> Result<AppPolicyV1> {
+        self.repository.load_policy(id)
+    }
+
+    pub fn apply_policy_decisions(
+        &self,
+        id: &AppId,
+        decisions: &[(Origin, PermissionKind, PermissionDecision)],
+    ) -> Result<AppPolicyV1> {
+        self.repository.apply_policy_decisions(id, decisions)
+    }
+
+    pub fn merge_policy(
+        &self,
+        id: &AppId,
+        original: &AppPolicyV1,
+        edited: &AppPolicyV1,
+    ) -> Result<AppPolicyV1> {
+        self.repository.merge_policy(id, original, edited)
+    }
+
+    pub fn reset_policy(&self, id: &AppId) -> Result<AppPolicyV1> {
+        self.repository.reset_policy(id)
     }
 
     pub async fn create(
         &self,
-        mut app: AppConfigV1,
+        mut app: AppConfigV2,
         icon: &[u8],
         parent: Option<&WindowIdentifier>,
-    ) -> Result<AppConfigV1> {
+    ) -> Result<AppConfigV2> {
         app.normalize_and_validate()?;
         let staged = self.repository.stage_create(&app, icon)?;
         self.launcher
@@ -94,10 +112,10 @@ impl<L: LauncherBackend> AppService<L> {
 
     pub async fn update(
         &self,
-        mut app: AppConfigV1,
+        mut app: AppConfigV2,
         icon: Option<&[u8]>,
         parent: Option<&WindowIdentifier>,
-    ) -> Result<AppConfigV1> {
+    ) -> Result<AppConfigV2> {
         app.normalize_and_validate()?;
         let previous = self.repository.load(&app.id)?;
         let previous_icon = self.repository.read_icon(&app.id)?;
@@ -138,57 +156,6 @@ impl<L: LauncherBackend> AppService<L> {
         let icon = self.repository.read_icon(id)?;
         self.launcher.install(&app, &icon, parent).await
     }
-
-    pub async fn import_many<F, Fut>(
-        &self,
-        candidates: Vec<AppConfigV1>,
-        invalid: usize,
-        skipped: usize,
-        parent: Option<&WindowIdentifier>,
-        mut icon_for_url: F,
-    ) -> ImportSummary
-    where
-        F: FnMut(String) -> Fut,
-        Fut: Future<Output = Result<Vec<u8>>>,
-    {
-        let mut summary = ImportSummary {
-            invalid,
-            skipped,
-            ..Default::default()
-        };
-        for mut app in candidates {
-            let Some(source) = app.imported_from.as_ref() else {
-                summary.invalid += 1;
-                continue;
-            };
-            match self.repository.contains_legacy_source(source) {
-                Ok(true) => {
-                    summary.skipped += 1;
-                    continue;
-                }
-                Ok(false) => {}
-                Err(_) => {
-                    summary.failed += 1;
-                    continue;
-                }
-            }
-            while self.contains(&app.id) {
-                app.id = AppId::generate();
-            }
-            let icon = match icon_for_url(app.start_url.clone()).await {
-                Ok(icon) => icon,
-                Err(_) => {
-                    summary.failed += 1;
-                    continue;
-                }
-            };
-            match self.create(app, &icon, parent).await {
-                Ok(_) => summary.imported += 1,
-                Err(_) => summary.failed += 1,
-            }
-        }
-        summary
-    }
 }
 
 impl AppService<PortalLauncher> {
@@ -199,40 +166,32 @@ impl AppService<PortalLauncher> {
 
 #[cfg(test)]
 mod tests {
-    use std::{cell::RefCell, collections::HashSet, rc::Rc};
+    use std::{cell::RefCell, collections::HashSet, rc::Rc, str::FromStr};
 
     use anyhow::{bail, Result};
     use async_trait::async_trait;
     use futures::executor::block_on;
 
     use super::*;
+    use crate::policy::{Origin, PermissionDecision, PermissionKind};
 
     #[derive(Debug, Clone, Default)]
     struct FakeLauncher {
         installed: Rc<RefCell<HashSet<AppId>>>,
         deny_install: Rc<RefCell<bool>>,
         deny_uninstall: Rc<RefCell<bool>>,
-        fail_title: Rc<RefCell<Option<String>>>,
     }
 
     #[async_trait(?Send)]
     impl LauncherBackend for FakeLauncher {
         async fn install(
             &self,
-            app: &AppConfigV1,
+            app: &AppConfigV2,
             _icon: &[u8],
             _parent: Option<&WindowIdentifier>,
         ) -> Result<()> {
             if *self.deny_install.borrow() {
                 bail!("portal denied installation");
-            }
-            if self
-                .fail_title
-                .borrow()
-                .as_deref()
-                .is_some_and(|title| title == app.title)
-            {
-                bail!("selective portal failure");
             }
             self.installed.borrow_mut().insert(app.id.clone());
             Ok(())
@@ -261,7 +220,7 @@ mod tests {
     #[test]
     fn full_crud_and_missing_launcher() {
         let (_temp, service, launcher) = service();
-        let app = AppConfigV1::new("Example", "example.org", 0).unwrap();
+        let app = AppConfigV2::new("Example", "example.org", 0).unwrap();
         block_on(service.create(app.clone(), b"icon", None)).unwrap();
         assert!(service.repository().contains(&app.id));
         assert!(launcher.installed.borrow().contains(&app.id));
@@ -281,7 +240,7 @@ mod tests {
     fn portal_denial_rolls_back_staged_create() {
         let (_temp, service, launcher) = service();
         *launcher.deny_install.borrow_mut() = true;
-        let app = AppConfigV1::new("Example", "example.org", 0).unwrap();
+        let app = AppConfigV2::new("Example", "example.org", 0).unwrap();
         assert!(block_on(service.create(app.clone(), b"icon", None)).is_err());
         assert!(!service.repository().contains(&app.id));
         assert!(!launcher.installed.borrow().contains(&app.id));
@@ -290,7 +249,7 @@ mod tests {
     #[test]
     fn portal_error_preserves_local_data_on_delete() {
         let (_temp, service, launcher) = service();
-        let app = AppConfigV1::new("Example", "example.org", 0).unwrap();
+        let app = AppConfigV2::new("Example", "example.org", 0).unwrap();
         block_on(service.create(app.clone(), b"icon", None)).unwrap();
         *launcher.deny_uninstall.borrow_mut() = true;
         assert!(block_on(service.delete(&app.id)).is_err());
@@ -300,7 +259,7 @@ mod tests {
     #[test]
     fn runtime_state_is_merged_into_the_latest_config() {
         let (_temp, service, _launcher) = service();
-        let app = AppConfigV1::new("Before", "example.org", 0).unwrap();
+        let app = AppConfigV2::new("Before", "example.org", 0).unwrap();
         block_on(service.create(app.clone(), b"icon", None)).unwrap();
 
         let mut edited = app.clone();
@@ -319,45 +278,28 @@ mod tests {
     }
 
     #[test]
-    fn partial_import_reports_every_outcome() {
-        let (_temp, service, launcher) = service();
-        let source = crate::model::LegacySource {
-            app_id: "io.github.zaedus.spider".to_owned(),
-            legacy_id: "existing".to_owned(),
-        };
-        let mut existing = AppConfigV1::new("Existing", "example.org", 0).unwrap();
-        existing.imported_from = Some(source.clone());
-        block_on(service.create(existing, b"icon", None)).unwrap();
+    fn permission_policy_is_persisted_through_the_service() {
+        let (_temp, service, _launcher) = service();
+        let app = AppConfigV2::new("Example", "example.org", 0).unwrap();
+        block_on(service.create(app.clone(), b"icon", None)).unwrap();
 
-        let mut duplicate = AppConfigV1::new("Duplicate", "example.org", 1).unwrap();
-        duplicate.imported_from = Some(source);
-        let mut success = AppConfigV1::new("Success", "example.net", 2).unwrap();
-        success.imported_from = Some(crate::model::LegacySource {
-            app_id: "io.github.zaedus.spider".to_owned(),
-            legacy_id: "success".to_owned(),
-        });
-        let mut failure = AppConfigV1::new("Failure", "example.com", 3).unwrap();
-        failure.imported_from = Some(crate::model::LegacySource {
-            app_id: "io.github.zaedus.spider".to_owned(),
-            legacy_id: "failure".to_owned(),
-        });
-        *launcher.fail_title.borrow_mut() = Some("Failure".to_owned());
+        let origin = Origin::from_str("https://example.org/path").unwrap();
+        let mut policy = service.load_policy(&app.id).unwrap();
+        policy.set_decision(
+            origin.clone(),
+            PermissionKind::Notifications,
+            PermissionDecision::Allow,
+        );
+        service
+            .merge_policy(&app.id, &AppPolicyV1::default(), &policy)
+            .unwrap();
 
-        let summary = block_on(service.import_many(
-            vec![duplicate, success, failure],
-            1,
-            0,
-            None,
-            |_| async { Ok(b"icon".to_vec()) },
-        ));
         assert_eq!(
-            summary,
-            ImportSummary {
-                imported: 1,
-                skipped: 1,
-                invalid: 1,
-                failed: 1,
-            }
+            service
+                .load_policy(&app.id)
+                .unwrap()
+                .decision(&origin, PermissionKind::Notifications),
+            PermissionDecision::Allow
         );
     }
 }

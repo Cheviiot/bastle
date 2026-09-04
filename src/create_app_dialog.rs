@@ -9,7 +9,7 @@ use gtk::glib;
 
 use crate::{
     config,
-    model::{parse_web_url, AppConfigV1},
+    model::{parse_web_url, AppConfigV2},
     service::AppService,
     util,
 };
@@ -132,7 +132,7 @@ mod imp {
                 .map(|report| report.apps.len() as u32)
                 .unwrap_or_default();
             let result = async {
-                let mut app = AppConfigV1::new(
+                let mut app = AppConfigV2::new(
                     self.title_entry.text().as_str(),
                     self.url_entry.text().as_str(),
                     sort_order,

@@ -7,6 +7,13 @@ Changelog and versions follow Semantic Versioning.
 
 ### Added
 
+- Versioned per-application permission policy storage with atomic writes and
+  origin normalization.
+- Per-origin WebKit permission prompts with session-only or persistent choices,
+  a permission editor, and safe rejection of unsupported request types.
+- Native system notifications that return to the corresponding Bastle app.
+- A download manager with destination selection, progress, cancellation,
+  completed/failed states, and retry through the same isolated network session.
 - Related WebKit popup windows for `window.open`, target-blank links, and OAuth
   flows, sharing the originating application's isolated network session.
 - Discoverable reload, reload-without-cache, stop, home, bounded zoom, and
@@ -18,6 +25,16 @@ Changelog and versions follow Semantic Versioning.
   malformed Russian AppStream translation.
 - Build development and CI Flatpaks from the generated, offline Cargo source
   set instead of relying on live crates.io downloads.
+
+### Changed
+
+- Migrate existing Bastle application configurations from schema v1 to v2
+  while preserving IDs, icons, profiles, and cache.
+
+### Removed
+
+- Spider settings import, first-run prompt, legacy parser, GSettings state, and
+  all Spider-specific runtime service interfaces.
 
 ## [0.1.1] - 2026-09-05
 
