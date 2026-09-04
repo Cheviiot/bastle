@@ -5,6 +5,8 @@ Changelog and versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-09-05
+
 ### Fixed
 
 - Prevent the application manager from aborting when an application card is
@@ -29,5 +31,6 @@ Changelog and versions follow Semantic Versioning.
   sanitization, validated theme colors, sandboxed glycin decoding, and safe file
   URI downloads.
 
-[Unreleased]: https://github.com/Cheviiot/bastle/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/Cheviiot/bastle/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/Cheviiot/bastle/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/Cheviiot/bastle/releases/tag/v0.1.0
