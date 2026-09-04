@@ -40,7 +40,7 @@ Development is reproducible in the Fedora 44 Distrobox named `bastle-dev`:
 
 ```sh
 distrobox create --name bastle-dev --image registry.fedoraproject.org/fedora:44 --yes
-distrobox enter bastle-dev -- sudo dnf install -y rust cargo rustfmt clippy gcc pkgconf-pkg-config meson ninja-build blueprint-compiler gtk4-devel libadwaita-devel webkitgtk6.0-devel openssl-devel appstream desktop-file-utils flatpak-builder gettext glib2-devel librsvg2-tools git
+distrobox enter bastle-dev -- sudo dnf install -y rust cargo rustfmt clippy gcc pkgconf-pkg-config meson ninja-build blueprint-compiler gtk4-devel libadwaita-devel webkitgtk6.0-devel openssl-devel appstream desktop-file-utils flatpak-builder gettext glib2-devel librsvg2-tools xorg-x11-server-Xvfb git
 distrobox enter bastle-dev -- meson setup build
 distrobox enter bastle-dev -- meson compile -C build
 ```
@@ -50,6 +50,13 @@ restricted), use:
 
 ```sh
 distrobox enter bastle-dev -- flatpak-builder --disable-rofiles-fuse --user --force-clean --install-deps-from=flathub .flatpak-build build-aux/io.github.cheviiot.bastle.Devel.json
+```
+
+Run GUI smoke tests on a virtual display so they do not interrupt the active
+desktop session:
+
+```sh
+distrobox enter bastle-dev -- xvfb-run -a timeout 10s flatpak run io.github.cheviiot.bastle
 ```
 
 Project-specific system packages are not installed on the ALT Workstation
