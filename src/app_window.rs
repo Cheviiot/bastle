@@ -328,7 +328,6 @@ mod imp {
         pub config: RefCell<Option<AppConfigV2>>,
         pub policy: RefCell<AppPolicyV2>,
         pub session_permissions: RefCell<BTreeSet<(Origin, PermissionKind)>>,
-        pub one_time_navigation: RefCell<BTreeSet<String>>,
         pub download_manager: RefCell<Option<std::rc::Rc<DownloadManager>>>,
         pub webview: RefCell<Option<WebView>>,
         pub provider: RefCell<Option<gtk::CssProvider>>,
@@ -616,23 +615,28 @@ impl AppWindow {
         if config.window.maximized {
             self.maximize();
         }
-        match AppService::portal().load_policy(&config.id) {
+        let policy_loaded = match AppService::portal().load_policy(&config.id) {
             Ok(policy) => {
                 self.imp().policy.replace(policy);
+                true
             }
             Err(error) => {
                 self.imp().policy.replace(AppPolicyV2::default());
                 self.toast(&format!(
                     "{}: {error}",
-                    gettext("Permission settings could not be loaded")
+                    gettext("Privacy policy could not be loaded; web content was not started")
                 ));
+                false
             }
-        }
+        };
         if let Some(action) = self
             .lookup_action("stop-background")
             .and_downcast::<gio::SimpleAction>()
         {
             action.set_enabled(self.imp().policy.borrow().background.enabled);
+        }
+        if !policy_loaded {
+            return;
         }
         match self.imp().create_webview(config) {
             Ok(view) => {
@@ -807,17 +811,13 @@ impl AppWindow {
         let Ok(origin) = Origin::from_url(&url) else {
             return false;
         };
-        let target = url.to_string();
-        if self.imp().one_time_navigation.borrow_mut().remove(&target) {
-            return false;
-        }
         if self.imp().policy.borrow().navigation.allows(&origin) {
             return false;
         }
 
-        decision.ignore();
         let window = self.clone();
-        let view = view.clone();
+        let decision = decision.clone();
+        let download = response_requires_download(view, &decision);
         glib::spawn_future_local(async move {
             let body = format!(
                 "{}\n\n{}: {}",
@@ -837,23 +837,25 @@ impl AppWindow {
             dialog.set_default_response(Some("once"));
             dialog.set_close_response("block");
             match dialog.choose_future(Some(&window)).await.as_str() {
-                "once" => {
-                    window
-                        .imp()
-                        .one_time_navigation
-                        .borrow_mut()
-                        .insert(target.clone());
-                    view.load_uri(&target);
-                }
+                "once" => accept_policy_decision(&decision, download),
                 "allow" => match window.persist_navigation_origin(origin) {
-                    Ok(()) => view.load_uri(&target),
-                    Err(error) => window.toast(&format!(
-                        "{}: {error}",
-                        gettext("The origin could not be saved")
-                    )),
+                    Ok(()) => accept_policy_decision(&decision, download),
+                    Err(error) => {
+                        decision.ignore();
+                        window.toast(&format!(
+                            "{}: {error}",
+                            gettext("The origin could not be saved")
+                        ));
+                    }
                 },
-                "external" => launch_external_uri(&target),
-                _ => window.toast(&gettext("Navigation blocked")),
+                "external" => {
+                    decision.ignore();
+                    launch_external_uri(url.as_str());
+                }
+                _ => {
+                    decision.ignore();
+                    window.toast(&gettext("Navigation blocked"));
+                }
             }
         });
         true
@@ -1149,6 +1151,14 @@ impl AppWindow {
 
     pub(crate) fn toast(&self, message: &str) {
         self.imp().toast_overlay.add_toast(adw::Toast::new(message));
+    }
+}
+
+fn accept_policy_decision(decision: &PolicyDecision, download: bool) {
+    if download {
+        decision.download();
+    } else {
+        decision.use_();
     }
 }
 

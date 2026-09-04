@@ -15,6 +15,26 @@ pub fn settings() -> gio::Settings {
     gio::Settings::new(config::APP_ID)
 }
 
+fn command_app_id(arguments: &[std::ffi::OsString]) -> Option<AppId> {
+    arguments
+        .iter()
+        .skip(1)
+        .find_map(|value| AppId::from_str(&value.to_string_lossy()).ok())
+}
+
+fn spawn_app_process(id: &AppId, start_in_background: bool) -> Result<()> {
+    let executable = std::env::current_exe().unwrap_or_else(|_| "bastle".into());
+    let mut command = Command::new(executable);
+    command.arg(id.as_str());
+    if start_in_background {
+        command.arg("--start-background");
+    }
+    command
+        .spawn()
+        .context("failed to start the isolated app process")?;
+    Ok(())
+}
+
 mod imp {
     use super::*;
 
@@ -49,6 +69,14 @@ mod imp {
                 OptionFlags::NONE,
                 OptionArg::None,
                 "Start opted-in web applications in the background",
+                None,
+            );
+            app.add_main_option(
+                "start-background",
+                glib::Char::from(0),
+                OptionFlags::HIDDEN,
+                OptionArg::None,
+                "Start one opted-in web application without showing its window",
                 None,
             );
             #[cfg(feature = "ui-tests")]
@@ -107,12 +135,19 @@ mod imp {
             {
                 return match service.list() {
                     Ok(report) => {
+                        let mut failed = false;
                         for config in report.apps {
                             match service.load_policy(&config.id) {
                                 Ok(policy)
                                     if policy.background.enabled && policy.background.autostart =>
                                 {
-                                    AppWindow::new(&*self.obj(), &config).start_in_background();
+                                    if let Err(error) = spawn_app_process(&config.id, true) {
+                                        failed = true;
+                                        eprintln!(
+                                            "Failed to start {} in the background: {error:#}",
+                                            config.id
+                                        );
+                                    }
                                 }
                                 Ok(_) => {}
                                 Err(error) => eprintln!(
@@ -121,7 +156,11 @@ mod imp {
                                 ),
                             }
                         }
-                        glib::ExitCode::SUCCESS
+                        if failed {
+                            glib::ExitCode::FAILURE
+                        } else {
+                            glib::ExitCode::SUCCESS
+                        }
                     }
                     Err(error) => {
                         eprintln!("Error: {error:#}");
@@ -150,22 +189,53 @@ mod imp {
                 }
             }
 
-            let window: Result<gtk::Window> = match command_line.arguments().get(1) {
-                Some(value) => AppId::from_str(&value.to_string_lossy())
-                    .and_then(|id| service.load(&id))
-                    .map(|app| AppWindow::new(&self.obj().clone(), &app).upcast()),
-                None => Ok(BastleWindow::new(&*self.obj()).upcast()),
-            };
-            match window {
-                Ok(window) => {
-                    window.present();
-                    glib::ExitCode::SUCCESS
-                }
-                Err(error) => {
-                    eprintln!("Error: {error:#}");
-                    glib::ExitCode::FAILURE
-                }
+            let arguments = command_line.arguments();
+            let app_id = command_app_id(&arguments);
+            let start_in_background = command_line
+                .options_dict()
+                .lookup::<bool>("start-background")
+                .ok()
+                .flatten()
+                .unwrap_or(false);
+            if start_in_background && app_id.is_none() {
+                eprintln!("Error: --start-background requires an application ID");
+                return glib::ExitCode::FAILURE;
             }
+            if let Some(id) = app_id {
+                if let Some(window) = self.obj().app_window(&id) {
+                    if !start_in_background {
+                        window.show_from_background();
+                    }
+                    return glib::ExitCode::SUCCESS;
+                }
+                let config = match service.load(&id) {
+                    Ok(config) => config,
+                    Err(error) => {
+                        eprintln!("Error: {error:#}");
+                        return glib::ExitCode::FAILURE;
+                    }
+                };
+                if start_in_background {
+                    match service.load_policy(&id) {
+                        Ok(policy) if policy.background.enabled && policy.background.autostart => {}
+                        Ok(_) => return glib::ExitCode::SUCCESS,
+                        Err(error) => {
+                            eprintln!("Error: {error:#}");
+                            return glib::ExitCode::FAILURE;
+                        }
+                    }
+                }
+                let window = AppWindow::new(&*self.obj(), &config);
+                if start_in_background {
+                    window.start_in_background();
+                } else {
+                    window.present();
+                }
+                return glib::ExitCode::SUCCESS;
+            }
+
+            BastleWindow::new(&*self.obj()).present();
+            glib::ExitCode::SUCCESS
         }
     }
 
@@ -188,11 +258,10 @@ impl BastleApplication {
     }
 
     fn instance_app_id() -> String {
-        std::env::args()
-            .nth(1)
-            .and_then(|value| AppId::from_str(&value).ok())
+        let arguments = std::env::args_os().collect::<Vec<_>>();
+        command_app_id(&arguments)
             .filter(|id| AppService::portal().contains(id))
-            .map(|id| format!("{}.{}", config::APP_ID, id))
+            .map(|id| format!("{}.app{}", config::APP_ID, id))
             .unwrap_or_else(|| config::APP_ID.to_owned())
     }
 
@@ -239,16 +308,20 @@ impl BastleApplication {
         ]);
     }
 
-    fn background_window(&self, parameter: Option<&glib::Variant>) -> Option<AppWindow> {
-        let id = parameter
-            .and_then(|value| value.get::<String>())
-            .and_then(|value| AppId::from_str(&value).ok())?;
+    fn app_window(&self, id: &AppId) -> Option<AppWindow> {
         self.windows().into_iter().find_map(|window| {
             window
                 .downcast::<AppWindow>()
                 .ok()
-                .filter(|window| window.app_id().as_ref() == Some(&id))
+                .filter(|window| window.app_id().as_ref() == Some(id))
         })
+    }
+
+    fn background_window(&self, parameter: Option<&glib::Variant>) -> Option<AppWindow> {
+        let id = parameter
+            .and_then(|value| value.get::<String>())
+            .and_then(|value| AppId::from_str(&value).ok())?;
+        self.app_window(&id)
     }
 
     pub fn send_web_notification(&self, id: &AppId, web_notification: &webkit::Notification) {
@@ -330,11 +403,24 @@ impl BastleApplication {
         if !AppService::portal().contains(&id) {
             return Err(anyhow!("unknown app id {id}"));
         }
-        let executable = std::env::current_exe().unwrap_or_else(|_| "bastle".into());
-        Command::new(executable)
-            .arg(id.as_str())
-            .spawn()
-            .context("failed to start the isolated app process")?;
-        Ok(())
+        spawn_app_process(&id, false)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn app_id_is_found_independently_of_internal_options() {
+        let arguments = [
+            std::ffi::OsString::from("bastle"),
+            std::ffi::OsString::from("--start-background"),
+            std::ffi::OsString::from("abcdefghijkl"),
+        ];
+        assert_eq!(
+            command_app_id(&arguments).as_ref().map(AppId::as_str),
+            Some("abcdefghijkl")
+        );
     }
 }

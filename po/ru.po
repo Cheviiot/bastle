@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: bastle 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-05 05:04+1000\n"
+"POT-Creation-Date: 2026-09-05 05:20+1000\n"
 "PO-Revision-Date: 2026-09-04 00:00+1000\n"
 "Last-Translator: Bastle contributors\n"
 "Language-Team: Russian\n"
@@ -16,7 +16,7 @@ msgstr ""
 "n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
 
 #: data/io.github.cheviiot.bastle.desktop.in:3
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:5 src/app_window.rs:1058
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:5 src/app_window.rs:1060
 #: src/home_page.blp:7
 msgid "Bastle"
 msgstr "Bastle"
@@ -316,10 +316,10 @@ msgid "This WebKit permission type is not supported"
 msgstr "Этот тип разрешения WebKit не поддерживается"
 
 #: src/app_window.rs:627
-msgid "Permission settings could not be loaded"
-msgstr "Не удалось загрузить настройки разрешений"
+msgid "Privacy policy could not be loaded; web content was not started"
+msgstr "Не удалось загрузить политику конфиденциальности; веб-содержимое не запущено"
 
-#: src/app_window.rs:645
+#: src/app_window.rs:649
 msgid "Some content filters could not be enabled"
 msgstr "Не удалось включить некоторые фильтры содержимого"
 
@@ -351,71 +351,71 @@ msgstr "Открыть один раз"
 msgid "Always Allow Origin"
 msgstr "Всегда разрешать origin"
 
-#: src/app_window.rs:852
+#: src/app_window.rs:847
 msgid "The origin could not be saved"
 msgstr "Не удалось сохранить origin"
 
-#: src/app_window.rs:856
+#: src/app_window.rs:857
 msgid "Navigation blocked"
 msgstr "Навигация заблокирована"
 
-#: src/app_window.rs:869
+#: src/app_window.rs:871
 msgid "Unsupported website permission request"
 msgstr "Неподдерживаемый запрос разрешения сайта"
 
-#: src/app_window.rs:880
+#: src/app_window.rs:882
 msgid "Website permission origin is unavailable"
 msgstr "Не удалось определить источник запроса разрешения"
 
-#: src/app_window.rs:908
+#: src/app_window.rs:910
 msgid "Website"
 msgstr "Сайт"
 
-#: src/app_window.rs:909
+#: src/app_window.rs:911
 msgid "Website Permission"
 msgstr "Разрешение сайта"
 
-#: src/app_window.rs:911
+#: src/app_window.rs:913
 msgid "Not Now"
 msgstr "Не сейчас"
 
-#: src/app_window.rs:912
+#: src/app_window.rs:914
 msgid "Always Block"
 msgstr "Всегда блокировать"
 
-#: src/app_window.rs:913
+#: src/app_window.rs:915
 msgid "Allow for This Session"
 msgstr "Разрешить на эту сессию"
 
-#: src/app_window.rs:914
+#: src/app_window.rs:916
 msgid "Always Allow"
 msgstr "Всегда разрешать"
 
-#: src/app_window.rs:941
+#: src/app_window.rs:943
 msgid "Permission was allowed only for this session"
 msgstr "Разрешение действует только в этом сеансе"
 
-#: src/app_window.rs:954
+#: src/app_window.rs:956
 msgid "Permission block could not be saved"
 msgstr "Не удалось сохранить блокировку разрешения"
 
-#: src/app_window.rs:978
+#: src/app_window.rs:980
 msgid "System notifications are unavailable"
 msgstr "Системные уведомления недоступны"
 
-#: src/app_window.rs:1059
+#: src/app_window.rs:1061
 msgid "Web App Running in Background"
 msgstr "Веб-приложение работает в фоне"
 
-#: src/app_window.rs:1063
+#: src/app_window.rs:1065
 msgid "is still active. Use Stop to end its process."
 msgstr "всё ещё активно. Нажмите «Остановить», чтобы завершить его процесс."
 
-#: src/app_window.rs:1070
+#: src/app_window.rs:1072
 msgid "Stop"
 msgstr "Остановить"
 
-#: src/app_window.rs:1077
+#: src/app_window.rs:1079
 msgid "Bastle web apps are running"
 msgstr "Веб-приложения Bastle работают"
 
@@ -575,7 +575,7 @@ msgstr "Закрыть"
 msgid "Keep selected Bastle web applications running in the background"
 msgstr "Разрешить выбранным веб-приложениям Bastle работать в фоне"
 
-#: src/application.rs:261
+#: src/application.rs:334
 msgid "Website Notification"
 msgstr "Уведомление сайта"
 
@@ -1043,6 +1043,9 @@ msgstr "Ярлык восстановлен"
 #: src/window.rs:255
 msgid "Some application data could not be loaded"
 msgstr "Не удалось загрузить часть данных приложений"
+
+#~ msgid "Permission settings could not be loaded"
+#~ msgstr "Не удалось загрузить настройки разрешений"
 
 #~ msgid "Allow Once"
 #~ msgstr "Разрешить один раз"

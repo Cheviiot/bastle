@@ -198,7 +198,7 @@ impl AppRepository {
                 Ok(app) if app.id.as_str() == entry.file_name().to_string_lossy() => {
                     let policy_path = path.join(POLICY_FILE);
                     if policy_path.exists() {
-                        if let Err(error) = self.load_policy_from_path(&policy_path) {
+                        if let Err(error) = self.load_policy(&app.id) {
                             report.warnings.push(RepositoryWarning {
                                 path: policy_path,
                                 message: error.to_string(),
@@ -233,10 +233,16 @@ impl AppRepository {
     pub fn snapshot(&self, id: &AppId) -> Result<AppSnapshot> {
         let _metadata_lock = self.lock_app_file(id, METADATA_LOCK_FILE)?;
         let _policy_lock = self.lock_app_file(id, POLICY_LOCK_FILE)?;
+        let policy_path = self.app_dir(id).join(POLICY_FILE);
+        let policy = if policy_path.exists() {
+            self.load_policy_from_locked_path(&policy_path)?
+        } else {
+            AppPolicyV2::default()
+        };
         Ok(AppSnapshot {
             config: self.load(id)?,
             icon: self.read_icon(id)?,
-            policy: self.load_policy(id)?,
+            policy,
         })
     }
 
@@ -288,10 +294,14 @@ impl AppRepository {
         if !path.exists() {
             return Ok(AppPolicyV2::default());
         }
-        self.load_policy_from_path(&path)
+        let _policy_lock = self.lock_app_file(id, POLICY_LOCK_FILE)?;
+        if !path.exists() {
+            return Ok(AppPolicyV2::default());
+        }
+        self.load_policy_from_locked_path(&path)
     }
 
-    fn load_policy_from_path(&self, path: &Path) -> Result<AppPolicyV2> {
+    fn load_policy_from_locked_path(&self, path: &Path) -> Result<AppPolicyV2> {
         let contents =
             fs::read(path).with_context(|| format!("failed to read {}", path.display()))?;
         let (policy, migrated) = decode_policy(&contents)
@@ -395,10 +405,15 @@ impl AppRepository {
         let _metadata_lock = self.lock_app_file(id, METADATA_LOCK_FILE)?;
         let _policy_lock = self.lock_app_file(id, POLICY_LOCK_FILE)?;
 
-        let mut policy = self.load_policy(id)?;
+        let policy_path = app_dir.join(POLICY_FILE);
+        let mut policy = if policy_path.exists() {
+            self.load_policy_from_locked_path(&policy_path)?
+        } else {
+            AppPolicyV2::default()
+        };
         mutate(&mut policy);
         policy.validate()?;
-        replace_json(&app_dir.join(POLICY_FILE), &policy)?;
+        replace_json(&policy_path, &policy)?;
         Ok(policy)
     }
 
@@ -822,6 +837,37 @@ mod tests {
         let migrated = fs::read_to_string(policy_path).unwrap();
         assert!(migrated.contains("\"schema_version\": 2"));
         assert!(!migrated.contains(".tmp-"));
+    }
+
+    #[test]
+    fn policy_migration_waits_for_the_policy_lock() {
+        let (_temp, repository) = repository();
+        let app = AppConfigV2::new("Example", "example.org", 0).unwrap();
+        repository.create(&app, b"icon").unwrap();
+        fs::write(
+            repository.app_dir(&app.id).join(POLICY_FILE),
+            r#"{"schema_version":1,"permissions":{}}"#,
+        )
+        .unwrap();
+
+        let policy_lock = repository.lock_app_file(&app.id, POLICY_LOCK_FILE).unwrap();
+        let repository_for_thread = repository.clone();
+        let id = app.id.clone();
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let thread = std::thread::spawn(move || {
+            let _ = sender.send(repository_for_thread.load_policy(&id));
+        });
+        assert!(matches!(
+            receiver.recv_timeout(std::time::Duration::from_millis(100)),
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout)
+        ));
+        drop(policy_lock);
+        let migrated = receiver
+            .recv_timeout(std::time::Duration::from_secs(2))
+            .unwrap()
+            .unwrap();
+        thread.join().unwrap();
+        assert_eq!(migrated.schema_version, POLICY_SCHEMA_VERSION);
     }
 
     #[test]
