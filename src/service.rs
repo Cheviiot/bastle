@@ -394,6 +394,25 @@ mod tests {
     }
 
     #[test]
+    fn deletion_lock_rejects_new_runtime_without_queueing() {
+        let (_temp, service, _launcher) = service();
+        let app = AppConfigV2::new("Deleting", "example.org", 0).unwrap();
+        block_on(service.create(app.clone(), b"icon", None)).unwrap();
+        let deletion_lock = service
+            .repository()
+            .acquire_delete_profile_lock(&app.id)
+            .unwrap();
+
+        let error = service.acquire_runtime_lock(&app.id).unwrap_err();
+        assert!(error
+            .to_string()
+            .contains("profile is temporarily unavailable"));
+
+        drop(deletion_lock);
+        assert!(service.acquire_runtime_lock(&app.id).is_ok());
+    }
+
+    #[test]
     fn runtime_state_is_merged_into_the_latest_config() {
         let (_temp, service, _launcher) = service();
         let app = AppConfigV2::new("Before", "example.org", 0).unwrap();

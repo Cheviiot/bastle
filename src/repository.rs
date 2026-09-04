@@ -128,7 +128,8 @@ impl AppRepository {
     }
 
     pub fn acquire_runtime_lock(&self, id: &AppId) -> Result<ProfileLock> {
-        self.lock_profile(id, rustix::fs::FlockOperation::LockShared)
+        self.lock_profile(id, rustix::fs::FlockOperation::NonBlockingLockShared)
+            .context("the WebKit profile is temporarily unavailable")
     }
 
     pub fn try_acquire_profile_snapshot_lock(&self, id: &AppId) -> Result<ProfileLock> {
