@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: bastle 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-04 21:52+1000\n"
+"POT-Creation-Date: 2026-09-04 23:20+1000\n"
 "PO-Revision-Date: 2026-09-04 00:00+1000\n"
 "Last-Translator: Bastle contributors\n"
 "Language-Team: Russian\n"
@@ -15,12 +15,12 @@ msgstr ""
 "Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
 "n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
 
-#: data/io.github.cheviiot.bastle.desktop.in:2
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:5 src/home_page.blp:5
+#: data/io.github.cheviiot.bastle.desktop.in:3
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:5 src/home_page.blp:7
 msgid "Bastle"
 msgstr "Bastle"
 
-#: data/io.github.cheviiot.bastle.desktop.in:3
+#: data/io.github.cheviiot.bastle.desktop.in:4
 msgid "Create isolated web applications"
 msgstr "Создание изолированных веб-приложений"
 
@@ -61,8 +61,6 @@ msgstr "Безопасная загрузка и нормализация зна
 #: data/io.github.cheviiot.bastle.metainfo.xml.in:40
 msgid "Optionally import Spider settings without importing browser sessions"
 msgstr "Необязательный импорт настроек Spider без браузерных сессий"
-"Bastle может импортировать настройки Spider без копирования cookies, сессий, "
-"кэша и профилей."
 
 #: data/io.github.cheviiot.bastle.metainfo.xml.in:55
 msgid "Introduce the Bastle identity and isolated JSON-based storage"
@@ -80,108 +78,227 @@ msgstr "Явный импорт только настроек Spider"
 msgid "Harden URL, metadata, icon, download, and theme-color handling"
 msgstr "Безопасная обработка URL, метаданных, значков, загрузок и цветов темы"
 
-#: data/io.github.cheviiot.bastle.gschema.xml:12
+#: data/io.github.cheviiot.bastle.gschema.xml:13
 msgid "Whether the first-run Spider import prompt was handled"
 msgstr "Было ли обработано предложение импорта Spider при первом запуске"
 
-#: src/app_page.blp:24 src/window.rs:155
+#: src/app_page.blp:16 src/app_window.blp:30 src/window.blp:41
+msgid "Menu"
+msgstr "Меню"
+
+#: src/app_page.blp:26 src/window.rs:157
 msgid "Cancel"
 msgstr "Отмена"
 
-#: src/app_page.blp:30 src/app_window.rs:142
+#: src/app_page.blp:32 src/app_window.rs:305
 msgid "Save"
 msgstr "Сохранить"
 
-#: src/app_page.blp:58
+#: src/app_page.blp:60
 msgid "General"
 msgstr "Общие"
 
-#: src/app_page.blp:59
+#: src/app_page.blp:61
 msgid "Basic options"
 msgstr "Основные параметры"
 
-#: src/app_page.blp:62 src/create_app_dialog.blp:30
+#: src/app_page.blp:64 src/create_app_dialog.blp:32
 msgid "URL"
 msgstr "URL"
 
-#: src/app_page.blp:68 src/create_app_dialog.blp:42
+#: src/app_page.blp:70 src/create_app_dialog.blp:44
 msgid "Title"
 msgstr "Название"
 
-#: src/app_page.blp:74 src/create_app_dialog.blp:53
+#: src/app_page.blp:76 src/create_app_dialog.blp:55
 msgid "Icon"
 msgstr "Значок"
 
-#: src/app_page.blp:75 src/create_app_dialog.blp:54
+#: src/app_page.blp:77 src/create_app_dialog.blp:56
 msgid "Automatically normalized to 256×256"
 msgstr "Автоматически приводится к размеру 256×256"
 
-#: src/app_page.blp:88
+#: src/app_page.blp:90
 msgid "User Interface"
 msgstr "Интерфейс"
 
-#: src/app_page.blp:89
+#: src/app_page.blp:91
 msgid "Customize the application window"
 msgstr "Настройте окно приложения"
 
-#: src/app_page.blp:92
+#: src/app_page.blp:94
 msgid "Titlebar Color"
 msgstr "Цвет заголовка"
 
-#: src/app_page.blp:93
+#: src/app_page.blp:95
 msgid "Use a valid theme color supplied by the website"
 msgstr "Использовать корректный цвет темы, указанный сайтом"
 
-#: src/app_page.blp:98
+#: src/app_page.blp:100
 msgid "Browser Behavior"
 msgstr "Поведение браузера"
 
-#: src/app_page.blp:99
+#: src/app_page.blp:101
 msgid "WebKit settings for this application"
 msgstr "Параметры WebKit для этого приложения"
 
-#: src/app_page.blp:104
+#: src/app_page.blp:106
 msgid "Custom User Agent"
 msgstr "Собственный User-Agent"
 
-#: src/app_page.blp:108
+#: src/app_page.blp:110
 msgid "User Agent"
 msgstr "User-Agent"
 
-#: src/app_page.rs:167
+#: src/app_page.rs:164
 msgid "Repair Launcher"
 msgstr "Восстановить ярлык"
 
-#: src/app_page.rs:172
+#: src/app_page.rs:169
 msgid "Delete Application"
 msgstr "Удалить приложение"
 
-#: src/app_window.rs:143
+#: src/app_window.blp:53
+msgid "_Reload"
+msgstr "_Перезагрузить"
+
+#: src/app_window.blp:54
+msgid "Reload Without Cache"
+msgstr "Перезагрузить без кэша"
+
+#: src/app_window.blp:55
+msgid "_Stop Loading"
+msgstr "_Остановить загрузку"
+
+#: src/app_window.blp:56
+msgid "_Home"
+msgstr "_На главную"
+
+#: src/app_window.blp:57
+msgid "Zoom _In"
+msgstr "_Увеличить масштаб"
+
+#: src/app_window.blp:58
+msgid "Zoom _Out"
+msgstr "_Уменьшить масштаб"
+
+#: src/app_window.blp:59
+msgid "_Reset Zoom"
+msgstr "_Сбросить масштаб"
+
+#: src/app_window.blp:60
+msgid "_Fullscreen"
+msgstr "_Полноэкранный режим"
+
+#: src/app_window.blp:61 src/window.blp:69
+msgid "_Keyboard Shortcuts"
+msgstr "_Комбинации клавиш"
+
+#: src/app_window.rs:100 src/app_window.rs:114
+msgid "Web App Window"
+msgstr "Окно веб-приложения"
+
+#: src/app_window.rs:306
 msgid "Download File"
 msgstr "Скачать файл"
 
-#: src/create_app_dialog.blp:7
+#: src/create_app_dialog.blp:9
 msgid "Add a New Application"
 msgstr "Добавить новое приложение"
 
-#: src/create_app_dialog.blp:82
+#: src/create_app_dialog.blp:84
 msgid "Create"
 msgstr "Создать"
 
-#: src/create_app_dialog.rs:93
+#: src/create_app_dialog.rs:91
 msgid ""
 "The website could not be reached. You can still create this application."
 msgstr "Сайт недоступен. Приложение всё равно можно создать."
 
-#: src/home_page.blp:13
+#: src/gtk/help-overlay.blp:13
+msgctxt "shortcut window"
+msgid "General"
+msgstr "Общие"
+
+#: src/gtk/help-overlay.blp:16
+msgctxt "shortcut window"
+msgid "Show Shortcuts"
+msgstr "Показать комбинации клавиш"
+
+#: src/gtk/help-overlay.blp:21
+msgctxt "shortcut window"
+msgid "Quit"
+msgstr "Выйти"
+
+#: src/gtk/help-overlay.blp:27
+msgctxt "shortcut window"
+msgid "Navigation"
+msgstr "Навигация"
+
+#: src/gtk/help-overlay.blp:30
+msgctxt "shortcut window"
+msgid "Back"
+msgstr "Назад"
+
+#: src/gtk/help-overlay.blp:35
+msgctxt "shortcut window"
+msgid "Forward"
+msgstr "Вперёд"
+
+#: src/gtk/help-overlay.blp:40
+msgctxt "shortcut window"
+msgid "Reload"
+msgstr "Перезагрузить"
+
+#: src/gtk/help-overlay.blp:45
+msgctxt "shortcut window"
+msgid "Reload Without Cache"
+msgstr "Перезагрузить без кэша"
+
+#: src/gtk/help-overlay.blp:50
+msgctxt "shortcut window"
+msgid "Stop Loading"
+msgstr "Остановить загрузку"
+
+#: src/gtk/help-overlay.blp:55
+msgctxt "shortcut window"
+msgid "Home"
+msgstr "На главную"
+
+#: src/gtk/help-overlay.blp:61
+msgctxt "shortcut window"
+msgid "View"
+msgstr "Вид"
+
+#: src/gtk/help-overlay.blp:64
+msgctxt "shortcut window"
+msgid "Zoom In"
+msgstr "Увеличить масштаб"
+
+#: src/gtk/help-overlay.blp:69
+msgctxt "shortcut window"
+msgid "Zoom Out"
+msgstr "Уменьшить масштаб"
+
+#: src/gtk/help-overlay.blp:74
+msgctxt "shortcut window"
+msgid "Reset Zoom"
+msgstr "Сбросить масштаб"
+
+#: src/gtk/help-overlay.blp:79
+msgctxt "shortcut window"
+msgid "Toggle Fullscreen"
+msgstr "Переключить полноэкранный режим"
+
+#: src/home_page.blp:15
 msgid "Welcome to Bastle"
 msgstr "Добро пожаловать в Bastle"
 
-#: src/home_page.blp:14
+#: src/home_page.blp:16
 msgid "Give each website its own isolated space."
 msgstr "Создайте для каждого сайта отдельное изолированное пространство."
 
-#: src/import_dialog.rs:32
+#: src/import_dialog.rs:34
 msgid ""
 "Bastle can import Spider settings without copying cookies, sessions, cache, "
 "or profiles."
@@ -189,80 +306,76 @@ msgstr ""
 "Bastle может импортировать настройки Spider без копирования cookies, сессий, "
 "кэша и профилей."
 
-#: src/import_dialog.rs:34
+#: src/import_dialog.rs:36
 msgid "Choose the old Spider GSettings keyfile or its configuration directory."
 msgstr "Выберите старый keyfile GSettings Spider или каталог его конфигурации."
 
-#: src/import_dialog.rs:36
+#: src/import_dialog.rs:38
 msgid "Import from Spider"
 msgstr "Импорт из Spider"
 
-#: src/import_dialog.rs:38
+#: src/import_dialog.rs:40
 msgid "Choose Keyfile"
 msgstr "Выбрать keyfile"
 
-#: src/import_dialog.rs:39
+#: src/import_dialog.rs:41
 msgid "Choose Folder"
 msgstr "Выбрать каталог"
 
-#: src/import_dialog.rs:40
+#: src/import_dialog.rs:42
 msgid "Not Now"
 msgstr "Не сейчас"
 
-#: src/import_dialog.rs:53
+#: src/import_dialog.rs:52
 msgid "Select Spider Settings"
 msgstr "Выбор настроек Spider"
 
-#: src/import_dialog.rs:71
+#: src/import_dialog.rs:70
 msgid "Import Spider Applications"
 msgstr "Импорт приложений Spider"
 
-#: src/import_dialog.rs:108
+#: src/import_dialog.rs:107
 msgid "Invalid entries"
 msgstr "Некорректные записи"
 
-#: src/import_dialog.rs:115
+#: src/import_dialog.rs:114
 msgid "Import Selected"
 msgstr "Импортировать выбранные"
 
-#: src/util.rs:214
+#: src/util.rs:216
 msgid "Images"
 msgstr "Изображения"
 
-#: src/util.rs:219
+#: src/util.rs:221
 msgid "Select"
 msgstr "Выбрать"
 
-#: src/util.rs:221
+#: src/util.rs:223
 msgid "App Icon"
 msgstr "Значок приложения"
 
-#: src/window.blp:24
+#: src/window.blp:26
 msgid "Applications"
 msgstr "Приложения"
 
-#: src/window.blp:66
+#: src/window.blp:68
 msgid "_Import from Spider"
 msgstr "_Импортировать из Spider"
 
-#: src/window.blp:67
-msgid "_Keyboard Shortcuts"
-msgstr "_Комбинации клавиш"
-
-#: src/window.blp:68
+#: src/window.blp:70
 msgid "_About Bastle"
 msgstr "_О Bastle"
 
-#: src/window.rs:149
+#: src/window.rs:151
 msgid "Delete this application?"
 msgstr "Удалить это приложение?"
 
-#: src/window.rs:151
+#: src/window.rs:153
 msgid ""
 "Its launcher, settings, WebKit profile, cookies, and cache will be removed."
 msgstr "Будут удалены ярлык, настройки, профиль WebKit, cookies и кэш."
 
-#: src/window.rs:156
+#: src/window.rs:158
 msgid "Delete"
 msgstr "Удалить"
 
@@ -270,28 +383,13 @@ msgstr "Удалить"
 msgid "Application deleted"
 msgstr "Приложение удалено"
 
-#: src/window.rs:184
+#: src/window.rs:181
 msgid "Launcher repaired"
 msgstr "Ярлык восстановлен"
 
-#: src/window.rs:201
+#: src/window.rs:198
 msgid "Some application data could not be loaded"
 msgstr "Не удалось загрузить часть данных приложений"
-
-#~ msgid "Menu"
-#~ msgstr "Меню"
-
-#~ msgctxt "shortcut window"
-#~ msgid "General"
-#~ msgstr "Общие"
-
-#~ msgctxt "shortcut window"
-#~ msgid "Show Shortcuts"
-#~ msgstr "Показать комбинации клавиш"
-
-#~ msgctxt "shortcut window"
-#~ msgid "Quit"
-#~ msgstr "Выйти"
 
 #~ msgid "Imported"
 #~ msgstr "Импортировано"

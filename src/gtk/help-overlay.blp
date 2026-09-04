@@ -22,5 +22,63 @@ ShortcutsWindow help_overlay {
         action-name: "app.quit";
       }
     }
+
+    ShortcutsGroup {
+      title: C_("shortcut window", "Navigation");
+
+      ShortcutsShortcut {
+        title: C_("shortcut window", "Back");
+        action-name: "win.back";
+      }
+
+      ShortcutsShortcut {
+        title: C_("shortcut window", "Forward");
+        action-name: "win.forward";
+      }
+
+      ShortcutsShortcut {
+        title: C_("shortcut window", "Reload");
+        action-name: "win.reload";
+      }
+
+      ShortcutsShortcut {
+        title: C_("shortcut window", "Reload Without Cache");
+        action-name: "win.reload-bypass-cache";
+      }
+
+      ShortcutsShortcut {
+        title: C_("shortcut window", "Stop Loading");
+        action-name: "win.stop";
+      }
+
+      ShortcutsShortcut {
+        title: C_("shortcut window", "Home");
+        action-name: "win.home";
+      }
+    }
+
+    ShortcutsGroup {
+      title: C_("shortcut window", "View");
+
+      ShortcutsShortcut {
+        title: C_("shortcut window", "Zoom In");
+        action-name: "win.zoom-in";
+      }
+
+      ShortcutsShortcut {
+        title: C_("shortcut window", "Zoom Out");
+        action-name: "win.zoom-out";
+      }
+
+      ShortcutsShortcut {
+        title: C_("shortcut window", "Reset Zoom");
+        action-name: "win.zoom-reset";
+      }
+
+      ShortcutsShortcut {
+        title: C_("shortcut window", "Toggle Fullscreen");
+        action-name: "win.toggle-fullscreen";
+      }
+    }
   }
 }

@@ -72,7 +72,8 @@ licensed under `GPL-3.0-or-later`; see [COPYING](COPYING).
 ## Roadmap
 
 - v0.2 — runtime permissions, popup/OAuth windows, zoom, fullscreen,
-  notifications, and improved downloads.
+  notifications, and improved downloads. Popup/OAuth handling and the core
+  navigation, zoom, and fullscreen controls are in development.
 - v0.3 — Bastle backup/import, optional site-data transfer, aarch64, and KDE
   portal compatibility.
 - v0.4 — privacy and power features after a dedicated threat model.

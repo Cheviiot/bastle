@@ -7,7 +7,10 @@ use anyhow::{Context, Result};
 use gettextrs::gettext;
 use glib::clone;
 use gtk::{gdk, gio, glib};
-use webkit::{prelude::*, HardwareAccelerationPolicy, PolicyDecisionType, WebContext, WebView};
+use webkit::{
+    prelude::*, HardwareAccelerationPolicy, NavigationAction, PolicyDecision, PolicyDecisionType,
+    WebContext, WebView,
+};
 
 use crate::{
     model::{AppConfigV1, WindowState},
@@ -17,6 +20,189 @@ use crate::{
 
 fn relative_luminance(color: &gdk::RGBA) -> f32 {
     0.2126 * color.red() + 0.7152 * color.green() + 0.0722 * color.blue()
+}
+
+const DEFAULT_ZOOM_LEVEL: f64 = 1.0;
+const MIN_ZOOM_LEVEL: f64 = 0.5;
+const MAX_ZOOM_LEVEL: f64 = 3.0;
+const ZOOM_STEP: f64 = 0.1;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PopupTarget {
+    InApp,
+    External,
+    Blocked,
+}
+
+fn classify_popup_target(uri: Option<&str>) -> PopupTarget {
+    let Some(uri) = uri else {
+        return PopupTarget::InApp;
+    };
+    let Ok(uri) = url::Url::parse(uri) else {
+        return PopupTarget::Blocked;
+    };
+    match uri.scheme() {
+        "http" | "https" | "about" | "blob" => PopupTarget::InApp,
+        "mailto" | "tel" => PopupTarget::External,
+        _ => PopupTarget::Blocked,
+    }
+}
+
+fn adjusted_zoom_level(current: f64, delta: f64) -> f64 {
+    let stepped = ((current + delta) * 10.0).round() / 10.0;
+    stepped.clamp(MIN_ZOOM_LEVEL, MAX_ZOOM_LEVEL)
+}
+
+fn navigation_uri(decision: &PolicyDecision) -> Option<glib::GString> {
+    decision
+        .clone()
+        .downcast::<webkit::NavigationPolicyDecision>()
+        .ok()
+        .and_then(|policy| policy.navigation_action())
+        .and_then(|action| action.request())
+        .and_then(|request| request.uri())
+}
+
+fn launch_external_uri(uri: &str) {
+    let _ = gio::AppInfo::launch_default_for_uri(uri, None::<&gio::AppLaunchContext>);
+}
+
+fn handle_new_window_policy(decision: &PolicyDecision) -> Option<bool> {
+    let uri = navigation_uri(decision);
+    match classify_popup_target(uri.as_deref()) {
+        PopupTarget::InApp => None,
+        PopupTarget::External => {
+            if let Some(uri) = uri {
+                launch_external_uri(uri.as_str());
+            }
+            decision.ignore();
+            Some(true)
+        }
+        PopupTarget::Blocked => {
+            decision.ignore();
+            Some(true)
+        }
+    }
+}
+
+fn create_popup(
+    parent: &gtk::Window,
+    parent_view: &WebView,
+    action: &NavigationAction,
+) -> Option<gtk::Widget> {
+    let uri = action.request().and_then(|request| request.uri());
+    match classify_popup_target(uri.as_deref()) {
+        PopupTarget::InApp => {}
+        PopupTarget::External => {
+            if let Some(uri) = uri {
+                launch_external_uri(uri.as_str());
+            }
+            return None;
+        }
+        PopupTarget::Blocked => return None,
+    }
+
+    let application = parent.application()?;
+    let popup = adw::ApplicationWindow::new(&application);
+    popup.set_default_size(720, 640);
+    popup.set_title(Some(&gettext("Web App Window")));
+    popup.set_transient_for(Some(parent));
+    popup.set_destroy_with_parent(true);
+
+    let settings = webkit::prelude::WebViewExt::settings(parent_view)?;
+    let content_manager = parent_view.user_content_manager()?;
+    let toolbar = adw::ToolbarView::new();
+    toolbar.add_top_bar(&adw::HeaderBar::new());
+    let popup_view = WebView::builder()
+        .related_view(parent_view)
+        .settings(&settings)
+        .user_content_manager(&content_manager)
+        .build();
+    toolbar.set_content(Some(&popup_view));
+    popup.set_content(Some(&toolbar));
+
+    popup_view.connect_title_notify(clone!(
+        #[weak]
+        popup,
+        move |view| {
+            popup.set_title(view.title().as_deref().or(Some(&gettext("Web App Window"))));
+        }
+    ));
+    popup_view.connect_ready_to_show(clone!(
+        #[weak]
+        popup,
+        move |view| {
+            if let Some(properties) = view.window_properties() {
+                let geometry = properties.geometry();
+                if geometry.width() > 0 && geometry.height() > 0 {
+                    popup.set_default_size(
+                        geometry.width().clamp(320, 1600),
+                        geometry.height().clamp(240, 1200),
+                    );
+                }
+                popup.set_resizable(properties.is_resizable());
+                if properties.is_fullscreen() {
+                    popup.fullscreen();
+                }
+            }
+            popup.present();
+        }
+    ));
+    popup_view.connect_close(clone!(
+        #[weak]
+        popup,
+        move |_| popup.close()
+    ));
+    popup_view.connect_enter_fullscreen(clone!(
+        #[weak]
+        popup,
+        #[upgrade_or]
+        false,
+        move |_| {
+            popup.fullscreen();
+            true
+        }
+    ));
+    popup_view.connect_leave_fullscreen(clone!(
+        #[weak]
+        popup,
+        #[upgrade_or]
+        false,
+        move |_| {
+            popup.unfullscreen();
+            true
+        }
+    ));
+    popup_view.connect_decide_policy(|view, decision, kind| {
+        if kind == PolicyDecisionType::NewWindowAction {
+            return handle_new_window_policy(decision).unwrap_or(false);
+        }
+        if kind == PolicyDecisionType::Response && response_requires_download(view, decision) {
+            decision.download();
+            return true;
+        }
+        false
+    });
+    popup_view.connect_create(clone!(
+        #[weak]
+        popup,
+        #[upgrade_or]
+        None,
+        move |view, action| create_popup(popup.upcast_ref(), view, action)
+    ));
+
+    Some(popup_view.upcast())
+}
+
+fn response_requires_download(view: &WebView, decision: &PolicyDecision) -> bool {
+    decision
+        .clone()
+        .downcast::<webkit::ResponsePolicyDecision>()
+        .ok()
+        .and_then(|policy| policy.response())
+        .and_then(|response| response.http_headers())
+        .and_then(|headers| headers.one("Content-Type"))
+        .is_some_and(|mime| !view.can_show_mime_type(mime.as_str()))
 }
 
 mod imp {
@@ -202,42 +388,43 @@ mod imp {
         fn connect_webview(&self, view: &WebView) {
             view.connect_decide_policy(|view, decision, kind| {
                 if kind == PolicyDecisionType::NewWindowAction {
-                    let uri = decision
-                        .clone()
-                        .downcast::<webkit::NavigationPolicyDecision>()
-                        .ok()
-                        .and_then(|policy| policy.navigation_action())
-                        .and_then(|action| action.request())
-                        .and_then(|request| request.uri());
-                    if let Some(uri) = uri.filter(|uri| {
-                        url::Url::parse(uri)
-                            .ok()
-                            .is_some_and(|url| matches!(url.scheme(), "http" | "https"))
-                    }) {
-                        let _ = gio::AppInfo::launch_default_for_uri(
-                            &uri,
-                            None::<&gio::AppLaunchContext>,
-                        );
-                    }
-                    decision.ignore();
-                    return true;
+                    return handle_new_window_policy(decision).unwrap_or(false);
                 }
-                if kind == PolicyDecisionType::Response {
-                    let should_download = decision
-                        .clone()
-                        .downcast::<webkit::ResponsePolicyDecision>()
-                        .ok()
-                        .and_then(|policy| policy.response())
-                        .and_then(|response| response.http_headers())
-                        .and_then(|headers| headers.one("Content-Type"))
-                        .is_some_and(|mime| !view.can_show_mime_type(mime.as_str()));
-                    if should_download {
-                        decision.download();
-                        return true;
-                    }
+                if kind == PolicyDecisionType::Response
+                    && response_requires_download(view, decision)
+                {
+                    decision.download();
+                    return true;
                 }
                 false
             });
+            view.connect_create(clone!(
+                #[weak(rename_to = window)]
+                self.obj(),
+                #[upgrade_or]
+                None,
+                move |view, action| create_popup(window.upcast_ref(), view, action)
+            ));
+            view.connect_enter_fullscreen(clone!(
+                #[weak(rename_to = window)]
+                self.obj(),
+                #[upgrade_or]
+                false,
+                move |_| {
+                    window.fullscreen();
+                    true
+                }
+            ));
+            view.connect_leave_fullscreen(clone!(
+                #[weak(rename_to = window)]
+                self.obj(),
+                #[upgrade_or]
+                false,
+                move |_| {
+                    window.unfullscreen();
+                    true
+                }
+            ));
             view.connect_estimated_load_progress_notify(clone!(
                 #[weak(rename_to = window)]
                 self.obj(),
@@ -373,7 +560,67 @@ impl AppWindow {
             gio::ActionEntry::builder("back")
                 .activate(|window: &Self, _, _| window.imp().go_back())
                 .build(),
+            gio::ActionEntry::builder("reload")
+                .activate(|window: &Self, _, _| window.with_webview(|view| view.reload()))
+                .build(),
+            gio::ActionEntry::builder("reload-bypass-cache")
+                .activate(|window: &Self, _, _| {
+                    window.with_webview(|view| view.reload_bypass_cache())
+                })
+                .build(),
+            gio::ActionEntry::builder("stop")
+                .activate(|window: &Self, _, _| window.with_webview(|view| view.stop_loading()))
+                .build(),
+            gio::ActionEntry::builder("home")
+                .activate(|window: &Self, _, _| window.go_home())
+                .build(),
+            gio::ActionEntry::builder("zoom-in")
+                .activate(|window: &Self, _, _| window.adjust_zoom(ZOOM_STEP))
+                .build(),
+            gio::ActionEntry::builder("zoom-out")
+                .activate(|window: &Self, _, _| window.adjust_zoom(-ZOOM_STEP))
+                .build(),
+            gio::ActionEntry::builder("zoom-reset")
+                .activate(|window: &Self, _, _| {
+                    window.with_webview(|view| view.set_zoom_level(DEFAULT_ZOOM_LEVEL))
+                })
+                .build(),
+            gio::ActionEntry::builder("toggle-fullscreen")
+                .activate(|window: &Self, _, _| window.toggle_fullscreen())
+                .build(),
         ]);
+    }
+
+    fn with_webview(&self, operation: impl FnOnce(&WebView)) {
+        if let Some(view) = self.imp().webview.borrow().as_ref() {
+            operation(view);
+        }
+    }
+
+    fn go_home(&self) {
+        let start_url = self
+            .imp()
+            .config
+            .borrow()
+            .as_ref()
+            .map(|config| config.start_url.clone());
+        if let Some(start_url) = start_url {
+            self.with_webview(|view| view.load_uri(&start_url));
+        }
+    }
+
+    fn adjust_zoom(&self, delta: f64) {
+        self.with_webview(|view| {
+            view.set_zoom_level(adjusted_zoom_level(view.zoom_level(), delta));
+        });
+    }
+
+    fn toggle_fullscreen(&self) {
+        if self.is_fullscreen() {
+            self.unfullscreen();
+        } else {
+            self.fullscreen();
+        }
     }
 
     fn setup_gestures(&self) {
@@ -400,5 +647,43 @@ impl AppWindow {
 
     fn toast(&self, message: &str) {
         self.imp().toast_overlay.add_toast(adw::Toast::new(message));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn popup_targets_keep_web_content_in_app() {
+        assert_eq!(classify_popup_target(None), PopupTarget::InApp);
+        assert_eq!(
+            classify_popup_target(Some("https://login.example.org/oauth")),
+            PopupTarget::InApp
+        );
+        assert_eq!(
+            classify_popup_target(Some("about:blank")),
+            PopupTarget::InApp
+        );
+        assert_eq!(
+            classify_popup_target(Some("mailto:help@example.org")),
+            PopupTarget::External
+        );
+        assert_eq!(
+            classify_popup_target(Some("javascript:alert(1)")),
+            PopupTarget::Blocked
+        );
+        assert_eq!(
+            classify_popup_target(Some("not a uri")),
+            PopupTarget::Blocked
+        );
+    }
+
+    #[test]
+    fn zoom_levels_are_stepped_and_bounded() {
+        assert_eq!(adjusted_zoom_level(1.0, ZOOM_STEP), 1.1);
+        assert_eq!(adjusted_zoom_level(1.1, -ZOOM_STEP), 1.0);
+        assert_eq!(adjusted_zoom_level(MIN_ZOOM_LEVEL, -ZOOM_STEP), 0.5);
+        assert_eq!(adjusted_zoom_level(MAX_ZOOM_LEVEL, ZOOM_STEP), 3.0);
     }
 }

@@ -23,6 +23,13 @@ template $BastleAppWindow : Adw.ApplicationWindow {
             clicked => $on_forward_clicked() swapped;
           }
         }
+        [end]
+        MenuButton {
+          primary: true;
+          icon-name: "open-menu-symbolic";
+          tooltip-text: _("Menu");
+          menu-model: runtime_menu;
+        }
       }
       content: Overlay {
         can-target: true;
@@ -40,4 +47,16 @@ template $BastleAppWindow : Adw.ApplicationWindow {
       };
     }
   }
+}
+
+menu runtime_menu {
+  item (_("_Reload"), "win.reload")
+  item (_("Reload Without Cache"), "win.reload-bypass-cache")
+  item (_("_Stop Loading"), "win.stop")
+  item (_("_Home"), "win.home")
+  item (_("Zoom _In"), "win.zoom-in")
+  item (_("Zoom _Out"), "win.zoom-out")
+  item (_("_Reset Zoom"), "win.zoom-reset")
+  item (_("_Fullscreen"), "win.toggle-fullscreen")
+  item (_("_Keyboard Shortcuts"), "win.show-help-overlay")
 }
