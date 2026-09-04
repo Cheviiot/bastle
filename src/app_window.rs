@@ -1200,7 +1200,7 @@ impl AppWindow {
             }
             .await;
             match result {
-                Ok(()) => window.close(),
+                Ok(()) => window.stop_background(),
                 Err(error) => {
                     window.imp().compatibility_prompt_shown.set(false);
                     window.toast(&format!(

@@ -241,7 +241,12 @@ impl AppRepository {
             }
 
             let config_path = path.join(CONFIG_FILE);
-            match self.load_from_path(&config_path) {
+            let directory_id = entry.file_name().to_string_lossy().parse::<AppId>();
+            let loaded = directory_id
+                .as_ref()
+                .map_err(|error| anyhow!(error.to_string()))
+                .and_then(|id| self.load(id));
+            match loaded {
                 Ok(app) if app.id.as_str() == entry.file_name().to_string_lossy() => {
                     let policy_path = path.join(POLICY_FILE);
                     if policy_path.exists() {
@@ -274,7 +279,8 @@ impl AppRepository {
     }
 
     pub fn load(&self, id: &AppId) -> Result<AppConfigV3> {
-        self.load_from_path(&self.app_dir(id).join(CONFIG_FILE))
+        let _metadata_lock = self.lock_app_file(id, METADATA_LOCK_FILE)?;
+        self.load_from_path_locked(&self.app_dir(id).join(CONFIG_FILE))
     }
 
     pub fn snapshot(&self, id: &AppId) -> Result<AppSnapshot> {
@@ -287,13 +293,13 @@ impl AppRepository {
             AppPolicyV2::default()
         };
         Ok(AppSnapshot {
-            config: self.load(id)?,
+            config: self.load_from_path_locked(&self.app_dir(id).join(CONFIG_FILE))?,
             icon: self.read_icon(id)?,
             policy,
         })
     }
 
-    fn load_from_path(&self, path: &Path) -> Result<AppConfigV3> {
+    fn load_from_path_locked(&self, path: &Path) -> Result<AppConfigV3> {
         let contents =
             fs::read(path).with_context(|| format!("failed to read {}", path.display()))?;
         let (app, migrated) = decode_app_config(&contents)
@@ -338,6 +344,22 @@ impl AppRepository {
         persist_staged(temporary, &path)?;
         sync_parent(&path)?;
         Ok(token)
+    }
+
+    pub fn companion_token_if_exists(&self, id: &AppId) -> Result<Option<String>> {
+        let app_dir = self.app_dir(id);
+        if !app_dir.is_dir() {
+            return Ok(None);
+        }
+        let _metadata_lock = self.lock_app_file(id, METADATA_LOCK_FILE)?;
+        let path = app_dir.join(COMPANION_TOKEN_FILE);
+        if !path.exists() {
+            return Ok(None);
+        }
+        let token = fs::read_to_string(&path)
+            .with_context(|| format!("failed to read {}", path.display()))?;
+        validate_companion_token(&token)?;
+        Ok(Some(token))
     }
 
     pub fn pending_companion_deletions(&self) -> Result<Vec<PendingCompanionDeletion>> {
@@ -826,6 +848,7 @@ mod tests {
         policy::{Origin, PermissionDecision, PermissionKind, POLICY_SCHEMA_VERSION},
     };
     use std::str::FromStr;
+    use std::{sync::mpsc, thread, time::Duration};
 
     fn repository() -> (tempfile::TempDir, AppRepository) {
         let temp = tempfile::tempdir().unwrap();
@@ -930,6 +953,48 @@ mod tests {
         );
         assert_eq!(fs::read(cache_dir.join("cache-state")).unwrap(), b"cache");
         assert_eq!(repository.load_policy(&id).unwrap(), AppPolicyV2::default());
+    }
+
+    #[test]
+    fn config_migration_is_serialized_with_metadata_updates() {
+        let (_temp, repository) = repository();
+        let id = AppId::from_str("abcdefghijkl").unwrap();
+        let app_dir = repository.app_dir(&id);
+        fs::create_dir_all(&app_dir).unwrap();
+        fs::write(
+            app_dir.join(CONFIG_FILE),
+            r#"{
+  "schema_version": 2,
+  "id": "abcdefghijkl",
+  "title": "Legacy",
+  "start_url": "https://example.org/",
+  "user_agent": null,
+  "use_theme_color": true,
+  "window": {"width": 1200, "height": 800, "maximized": false},
+  "sort_order": 0
+}"#,
+        )
+        .unwrap();
+        fs::write(app_dir.join(ICON_FILE), b"icon").unwrap();
+
+        let metadata_lock = repository.lock_app_file(&id, METADATA_LOCK_FILE).unwrap();
+        let concurrent_repository = repository.clone();
+        let concurrent_id = id.clone();
+        let (started_sender, started_receiver) = mpsc::channel();
+        let reader = thread::spawn(move || {
+            started_sender.send(()).unwrap();
+            concurrent_repository.load(&concurrent_id).unwrap()
+        });
+        started_receiver.recv().unwrap();
+        thread::sleep(Duration::from_millis(50));
+        assert!(!reader.is_finished());
+
+        let mut updated = AppConfigV3::new("Updated", "https://example.org/", 0).unwrap();
+        updated.id = id;
+        replace_json(&app_dir.join(CONFIG_FILE), &updated).unwrap();
+        drop(metadata_lock);
+
+        assert_eq!(reader.join().unwrap(), updated);
     }
 
     #[test]
