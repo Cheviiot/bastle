@@ -1,17 +1,19 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 using Gtk 4.0;
 using Adw 1;
 
-template $HomePage: Adw.NavigationPage {
-  title: "Spider";
+template $BastleHomePage: Adw.NavigationPage {
+  title: _("Bastle");
 
   Adw.ToolbarView {
     [top]
     Adw.HeaderBar {}
 
     Adw.StatusPage {
-      icon-name: "go-home";
-      title: "Welcome to Spider";
-      description: "Create a new app or navigate to one you already made!";
+      icon-name: "io.github.cheviiot.bastle-symbolic";
+      title: _("Welcome to Bastle");
+      description: _("Give each website its own isolated space.");
     }
   }
 }

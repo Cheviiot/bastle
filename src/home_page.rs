@@ -1,17 +1,18 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 use adw::subclass::prelude::*;
-use glib::Object;
 use gtk::glib;
 
 mod imp {
     use super::*;
 
     #[derive(Default, Debug, gtk::CompositeTemplate)]
-    #[template(resource = "/io/github/zaedus/spider/home_page.ui")]
+    #[template(resource = "/io/github/cheviiot/bastle/home_page.ui")]
     pub struct HomePage;
 
     #[glib::object_subclass]
     impl ObjectSubclass for HomePage {
-        const NAME: &'static str = "HomePage";
+        const NAME: &'static str = "BastleHomePage";
         type Type = super::HomePage;
         type ParentType = adw::NavigationPage;
 
@@ -36,7 +37,7 @@ glib::wrapper! {
 
 impl HomePage {
     pub fn new() -> Self {
-        Object::builder().build()
+        glib::Object::builder().build()
     }
 }
 

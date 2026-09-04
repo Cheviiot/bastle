@@ -1,0 +1,272 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the bastle package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: bastle\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-09-04 21:52+1000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: data/io.github.cheviiot.bastle.desktop.in:2
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:5 src/home_page.blp:5
+msgid "Bastle"
+msgstr ""
+
+#: data/io.github.cheviiot.bastle.desktop.in:3
+msgid "Create isolated web applications"
+msgstr ""
+
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:6
+msgid "Create isolated web applications for GNOME"
+msgstr ""
+
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:8
+msgid "Cheviiot and Bastle contributors"
+msgstr ""
+
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:28
+msgid ""
+"Bastle is a GNOME-native manager for isolated web applications powered by "
+"the system WebKitGTK engine. Each website gets separate local data, cookies, "
+"cache, settings, and its own desktop launcher."
+msgstr ""
+
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:33
+msgid ""
+"Bastle is an independent successor to Spider. The original work and Git "
+"history by Zaedus remain credited."
+msgstr ""
+
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:38
+msgid "Create, edit, repair, and remove portal-installed launchers"
+msgstr ""
+
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:39
+msgid "Fetch and safely normalize website icons with an offline fallback"
+msgstr ""
+
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:40
+msgid "Optionally import Spider settings without importing browser sessions"
+msgstr ""
+
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:55
+msgid "Introduce the Bastle identity and isolated JSON-based storage"
+msgstr ""
+
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:56
+msgid "Add transactional launcher operations and repair support"
+msgstr ""
+
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:57
+msgid "Add an explicit, settings-only Spider importer"
+msgstr ""
+
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:58
+msgid "Harden URL, metadata, icon, download, and theme-color handling"
+msgstr ""
+
+#: data/io.github.cheviiot.bastle.gschema.xml:12
+msgid "Whether the first-run Spider import prompt was handled"
+msgstr ""
+
+#: src/app_page.blp:24 src/window.rs:155
+msgid "Cancel"
+msgstr ""
+
+#: src/app_page.blp:30 src/app_window.rs:142
+msgid "Save"
+msgstr ""
+
+#: src/app_page.blp:58
+msgid "General"
+msgstr ""
+
+#: src/app_page.blp:59
+msgid "Basic options"
+msgstr ""
+
+#: src/app_page.blp:62 src/create_app_dialog.blp:30
+msgid "URL"
+msgstr ""
+
+#: src/app_page.blp:68 src/create_app_dialog.blp:42
+msgid "Title"
+msgstr ""
+
+#: src/app_page.blp:74 src/create_app_dialog.blp:53
+msgid "Icon"
+msgstr ""
+
+#: src/app_page.blp:75 src/create_app_dialog.blp:54
+msgid "Automatically normalized to 256×256"
+msgstr ""
+
+#: src/app_page.blp:88
+msgid "User Interface"
+msgstr ""
+
+#: src/app_page.blp:89
+msgid "Customize the application window"
+msgstr ""
+
+#: src/app_page.blp:92
+msgid "Titlebar Color"
+msgstr ""
+
+#: src/app_page.blp:93
+msgid "Use a valid theme color supplied by the website"
+msgstr ""
+
+#: src/app_page.blp:98
+msgid "Browser Behavior"
+msgstr ""
+
+#: src/app_page.blp:99
+msgid "WebKit settings for this application"
+msgstr ""
+
+#: src/app_page.blp:104
+msgid "Custom User Agent"
+msgstr ""
+
+#: src/app_page.blp:108
+msgid "User Agent"
+msgstr ""
+
+#: src/app_page.rs:167
+msgid "Repair Launcher"
+msgstr ""
+
+#: src/app_page.rs:172
+msgid "Delete Application"
+msgstr ""
+
+#: src/app_window.rs:143
+msgid "Download File"
+msgstr ""
+
+#: src/create_app_dialog.blp:7
+msgid "Add a New Application"
+msgstr ""
+
+#: src/create_app_dialog.blp:82
+msgid "Create"
+msgstr ""
+
+#: src/create_app_dialog.rs:93
+msgid ""
+"The website could not be reached. You can still create this application."
+msgstr ""
+
+#: src/home_page.blp:13
+msgid "Welcome to Bastle"
+msgstr ""
+
+#: src/home_page.blp:14
+msgid "Give each website its own isolated space."
+msgstr ""
+
+#: src/import_dialog.rs:32
+msgid ""
+"Bastle can import Spider settings without copying cookies, sessions, cache, "
+"or profiles."
+msgstr ""
+
+#: src/import_dialog.rs:34
+msgid "Choose the old Spider GSettings keyfile or its configuration directory."
+msgstr ""
+
+#: src/import_dialog.rs:36
+msgid "Import from Spider"
+msgstr ""
+
+#: src/import_dialog.rs:38
+msgid "Choose Keyfile"
+msgstr ""
+
+#: src/import_dialog.rs:39
+msgid "Choose Folder"
+msgstr ""
+
+#: src/import_dialog.rs:40
+msgid "Not Now"
+msgstr ""
+
+#: src/import_dialog.rs:53
+msgid "Select Spider Settings"
+msgstr ""
+
+#: src/import_dialog.rs:71
+msgid "Import Spider Applications"
+msgstr ""
+
+#: src/import_dialog.rs:108
+msgid "Invalid entries"
+msgstr ""
+
+#: src/import_dialog.rs:115
+msgid "Import Selected"
+msgstr ""
+
+#: src/util.rs:214
+msgid "Images"
+msgstr ""
+
+#: src/util.rs:219
+msgid "Select"
+msgstr ""
+
+#: src/util.rs:221
+msgid "App Icon"
+msgstr ""
+
+#: src/window.blp:24
+msgid "Applications"
+msgstr ""
+
+#: src/window.blp:66
+msgid "_Import from Spider"
+msgstr ""
+
+#: src/window.blp:67
+msgid "_Keyboard Shortcuts"
+msgstr ""
+
+#: src/window.blp:68
+msgid "_About Bastle"
+msgstr ""
+
+#: src/window.rs:149
+msgid "Delete this application?"
+msgstr ""
+
+#: src/window.rs:151
+msgid ""
+"Its launcher, settings, WebKit profile, cookies, and cache will be removed."
+msgstr ""
+
+#: src/window.rs:156
+msgid "Delete"
+msgstr ""
+
+#: src/window.rs:168
+msgid "Application deleted"
+msgstr ""
+
+#: src/window.rs:184
+msgid "Launcher repaired"
+msgstr ""
+
+#: src/window.rs:201
+msgid "Some application data could not be loaded"
+msgstr ""

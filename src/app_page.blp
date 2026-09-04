@@ -1,7 +1,9 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 using Gtk 4.0;
 using Adw 1;
 
-template $AppPage: Adw.NavigationPage {
+template $BastleAppPage: Adw.NavigationPage {
   Adw.ToolbarView {
     [top]
     Stack headerbar_stack {
@@ -10,8 +12,8 @@ template $AppPage: Adw.NavigationPage {
 
         [end]
         MenuButton {
-          icon-name: 'view-more-symbolic';
-          tooltip-text: _('Menu');
+          icon-name: "view-more-symbolic";
+          tooltip-text: _("Menu");
           menu-model: page_menu;
         }
       }
@@ -21,13 +23,13 @@ template $AppPage: Adw.NavigationPage {
 
         [start]
         Button {
-          label: "Cancel";
+          label: _("Cancel");
           clicked => $on_cancel_clicked() swapped;
         }
 
         [end]
         Button save_button {
-          label: "Save";
+          label: _("Save");
 
           styles [
             "suggested-action"
@@ -55,24 +57,24 @@ template $AppPage: Adw.NavigationPage {
           halign: fill;
 
           Adw.PreferencesGroup {
-            title: "General";
-            description: "Basic options";
+            title: _("General");
+            description: _("Basic options");
 
             Adw.EntryRow url_entry {
-              title: "URL";
+              title: _("URL");
               show-apply-button: true;
               apply => $update_unsaved_details_cb() swapped;
             }
 
             Adw.EntryRow title_entry {
-              title: "Title";
+              title: _("Title");
               show-apply-button: true;
               apply => $update_unsaved_details_cb() swapped;
             }
 
             Adw.ActionRow {
-              title: "Icon";
-              subtitle: "Icon MUST be square";
+              title: _("Icon");
+              subtitle: _("Automatically normalized to 256×256");
 
               Button {
                 icon-name: "image-symbolic";
@@ -85,27 +87,27 @@ template $AppPage: Adw.NavigationPage {
           }
 
           Adw.PreferencesGroup {
-            title: "User Interface";
-            description: "Customize the user interface of the window";
+            title: _("User Interface");
+            description: _("Customize the application window");
             
             Adw.SwitchRow titlebar_color {
-              title: "Titlebar Color";
-              subtitle: "Toggles the usage of the page's theme color in the titlebar";
+              title: _("Titlebar Color");
+              subtitle: _("Use a valid theme color supplied by the website");
               activated => $update_unsaved_details_cb() swapped;
             }
           }
           Adw.PreferencesGroup {
-            title: "Browser Behavior";
-            description: "Useful tweaks to the web browser";
+            title: _("Browser Behavior");
+            description: _("WebKit settings for this application");
 
             Adw.ExpanderRow user_agent_expander {
               show-enable-switch: true;
               expanded: bind user_agent_expander.enable-expansion;
-              title: "Custom User Agent";
+              title: _("Custom User Agent");
               notify => $update_unsaved_details_notify_cb() swapped;
 
               Adw.EntryRow user_agent_entry {
-                title: "User Agent";
+                title: _("User Agent");
                 show-apply-button: true;
                 apply => $update_unsaved_details_cb() swapped;
               }

@@ -1,10 +1,11 @@
 {
-  "id": "io.github.zaedus.spider",
+  "id": "io.github.cheviiot.bastle",
   "runtime": "org.gnome.Platform",
   "runtime-version": "50",
   "sdk": "org.gnome.Sdk",
   "sdk-extensions": ["org.freedesktop.Sdk.Extension.rust-stable"],
-  "command": "spider",
+  "command": "bastle",
+  "separate-locales": false,
   "finish-args": [
     "--share=network",
     "--share=ipc",
@@ -18,7 +19,7 @@
     "build-args": ["--share=network"],
     "env": {
       "RUST_BACKTRACE": "1",
-      "RUST_LOG": "spider=debug"
+      "RUST_LOG": "bastle=debug"
     }
   },
   "modules": [
@@ -30,18 +31,19 @@
         {
           "type": "git",
           "url": "https://gitlab.gnome.org/jwestman/blueprint-compiler",
-          "tag": "v0.18.0"
+          "tag": "v0.18.0",
+          "commit": "07c9c9df9cd1b6b4454ecba21ee58211e9144a4b"
         }
       ]
     },
     {
-      "name": "spider",
+      "name": "bastle",
       "builddir": true,
       "buildsystem": "meson",
       "sources": [
         {
-          "type": "git",
-          "url": "../.."
+          "type": "dir",
+          "path": ".."
         }
       ]
     }

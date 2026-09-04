@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  rust:
+    name: Rust checks
+    runs-on: ubuntu-24.04
+    container: fedora:44
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Install Fedora build dependencies
+        run: >-
+          dnf install -y rust cargo rustfmt clippy gcc pkgconf-pkg-config
+          gtk4-devel libadwaita-devel webkitgtk6.0-devel openssl-devel gettext
+      - run: cargo fmt --check
+      - run: cargo check --locked
+      - run: cargo clippy --locked --all-targets -- -D warnings
+      - run: cargo test --locked
+
+  metadata:
+    name: Metadata
+    runs-on: ubuntu-24.04
+    container: fedora:44
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Install validation dependencies
+        run: >-
+          dnf install -y rust cargo gcc pkgconf-pkg-config meson ninja-build
+          blueprint-compiler gtk4-devel libadwaita-devel webkitgtk6.0-devel
+          gettext openssl-devel appstream desktop-file-utils glib2-devel
+      - run: meson setup build --fatal-meson-warnings
+      - run: meson compile -C build
+      - run: meson test -C build --print-errorlogs
+
+  security:
+    name: Security and licenses
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: EmbarkStudios/cargo-deny-action@c3bbe7e4e3f7baeee1a3dd9aec0a3b2aded580fb
+        with:
+          command: check
+
+  flatpak:
+    name: Flatpak
+    runs-on: ubuntu-24.04
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
+      options: --privileged
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: flatpak/flatpak-github-actions/flatpak-builder@aa777012a985fe1b1fd3e66ea2173609cf0c9a70
+        with:
+          bundle: Bastle.flatpak
+          manifest-path: build-aux/io.github.cheviiot.bastle.Devel.json
+          arch: x86_64
+          run-tests: true
+          artifact-name: Bastle-x86_64.flatpak

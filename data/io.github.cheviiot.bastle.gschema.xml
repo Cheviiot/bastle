@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<schemalist gettext-domain="bastle">
+  <schema id="io.github.cheviiot.bastle" path="/io/github/cheviiot/bastle/">
+    <key name="window-width" type="i">
+      <default>800</default>
+    </key>
+    <key name="window-height" type="i">
+      <default>600</default>
+    </key>
+    <key name="legacy-import-completed" type="b">
+      <default>false</default>
+      <summary>Whether the first-run Spider import prompt was handled</summary>
+    </key>
+  </schema>
+</schemalist>

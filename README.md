@@ -1,67 +1,80 @@
-<br />
-<div align="center">
-  <a href="#">
-    <img src="data/icons/hicolor/scalable/apps/io.github.zaedus.spider.svg" alt="Logo" height="120" alt="Spider Icon">
-  </a>
+# Bastle
 
-  <h1 align="center">Spider</h1>
+![Bastle icon](data/icons/hicolor/scalable/apps/io.github.cheviiot.bastle.svg)
 
-  <h3 align="center">
-    Install web apps with ease
-  </h3>
+Bastle is a GNOME-native manager for isolated web applications powered by the
+system WebKitGTK engine. It creates desktop launchers through the Dynamic
+Launcher Portal and keeps each application's metadata, profile, cookies, and
+cache separate.
 
-  <img src="https://raw.githubusercontent.com/Zaedus/spider/refs/heads/assets/screenshots/screenshot-01.png" alt="Spider Screenshot">
-  <i>Special thanks to <a href="https://github.com/oiimrosabel">oiimrosabel</a> for the icon!</i>
-</div>
+The name *bastle* means a detached fortified house: each website gets its own
+small, self-contained space. The friendly shelter icon reflects that idea; the
+project is not positioned as a security product.
 
+## Status
 
+Version 0.1 targets x86_64, GNOME 50, and Flatpak. It supports application
+creation, editing, launching, deletion, launcher repair, offline creation, and
+an explicit settings-only import from Spider. Cookies, browser sessions,
+profiles, and cache are never imported.
 
-## Features ✨
+Flathub submission is intentionally deferred until Bastle has an independent
+release history and enough differentiation from Spider.
 
-- [x] **Sandboxed**: Each app has an entirely separate instance of the WebKit browser
-- [x] **Adaptive window styling**: Each app's titlebar adapts to it's [theme color](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/meta/name/theme-color)
-- [x] **High quality favicons**: Scrapes websites for a high quality favicon to use
-- [x] **Custom user agents**: Lets you set the app's [user agent](https://en.wikipedia.org/wiki/User_agent) if a website isn't behaving
+## Data layout
 
-## Planned ✔️
-
-- [ ] Website permissions
-- [ ] Get website data via webview
-- [ ] Option to autostart and run apps in background
-- [ ] Domain restriction
-- [ ] More keybinds in web app
-- [ ] HTTP Proxy settings
-- [ ] Handle pop ups
-
-> ✨ Please let me know if you'd like any more features! ✨
-
-> DO NOT BE AFRIAD TO SUBMIT BUGS!
-> I know there is lots of web functionality that you might be missing
-
-## Building 🛠️
-
-### GNOME Builder 🏗️
-
-This project is easily buildable with [GNOME Builder](https://apps.gnome.org/Builder/).
-
-### Meson 🖥️
-
-To setup meson, run
-
-```
-meson setup target -Dbuildtype=debug --prefix="$HOME/.local"
+```text
+$XDG_DATA_HOME/bastle/apps/<id>/app.json
+$XDG_DATA_HOME/bastle/apps/<id>/icon.png
+$XDG_DATA_HOME/bastle/profiles/<id>/
+$XDG_CACHE_HOME/bastle/<id>/
 ```
 
-Then to compile, run
+GSettings stores only the main-window size and whether the first-run legacy
+import prompt has been handled. Bastle reads Spider data only after the user
+selects a legacy keyfile or configuration directory.
 
+## Development environment
+
+Development is reproducible in the Fedora 44 Distrobox named `bastle-dev`:
+
+```sh
+distrobox create --name bastle-dev --image registry.fedoraproject.org/fedora:44 --yes
+distrobox enter bastle-dev -- sudo dnf install -y rust cargo rustfmt clippy gcc pkgconf-pkg-config meson ninja-build blueprint-compiler gtk4-devel libadwaita-devel webkitgtk6.0-devel openssl-devel appstream desktop-file-utils flatpak-builder gettext glib2-devel librsvg2-tools xorg-x11-server-Xvfb git
+distrobox enter bastle-dev -- meson setup build
+distrobox enter bastle-dev -- meson compile -C build
 ```
-ninja install -C target/
+
+To build the Flatpak from inside Distrobox (where FUSE mounts are intentionally
+restricted), use:
+
+```sh
+distrobox enter bastle-dev -- flatpak-builder --disable-rofiles-fuse --user --force-clean --install-deps-from=flathub .flatpak-build build-aux/io.github.cheviiot.bastle.Devel.json
 ```
 
-## Thanks to these awesome people and projects! ❤️
+GUI smoke tests must use a dedicated virtual display and explicitly disable
+the Wayland socket so Flatpak cannot fall back to the active desktop session:
 
-- [oiimrosabel](https://github.com/oiimrosabel) (the awesome icon!)
-- [jbenner-radham/rust-gtk4-css-styling](https://github.com/jbenner-radham/rust-gtk4-css-styling) (per-theme custom css)
-- [gtk-rs/gtk4-rs](https://github.com/gtk-rs/gtk4-rs) (obviously lol)
-- [eyekay/webapps](https://codeberg.org/eyekay/webapps) (the idea)
-- [bilelmoussaoui/ashpd](https://github.com/bilelmoussaoui/ashpd) (the library and the quality examples)
+```sh
+distrobox enter bastle-dev -- env -u WAYLAND_DISPLAY xvfb-run -a timeout 10s flatpak run --nosocket=wayland --socket=x11 --env=GDK_BACKEND=x11 io.github.cheviiot.bastle
+```
+
+Project-specific system packages are not installed on the ALT Workstation
+host. The Flatpak manifest uses GNOME runtime 50 and the Rust SDK extension.
+
+## Provenance and license
+
+Bastle is an independent successor to
+[Spider](https://github.com/Zaedus/spider). The complete Git history and the
+original authorship of Zaedus are preserved. New and updated project code is
+licensed under `GPL-3.0-or-later`; see [COPYING](COPYING).
+
+## Roadmap
+
+- v0.2 — runtime permissions, popup/OAuth windows, zoom, fullscreen,
+  notifications, and improved downloads.
+- v0.3 — Bastle backup/import, optional site-data transfer, aarch64, and KDE
+  portal compatibility.
+- v0.4 — privacy and power features after a dedicated threat model.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) before proposing changes.

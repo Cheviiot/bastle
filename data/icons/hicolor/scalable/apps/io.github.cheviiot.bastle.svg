@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#47606c"/>
+      <stop offset="1" stop-color="#344955"/>
+    </linearGradient>
+    <linearGradient id="roof" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4b9991"/>
+      <stop offset="1" stop-color="#3a7d78"/>
+    </linearGradient>
+    <filter id="shadow" x="-.2" y="-.2" width="1.4" height="1.5">
+      <feGaussianBlur stdDeviation="3"/>
+    </filter>
+  </defs>
+  <path d="M25 105h78c7 0 11-4 11-11V57L64 18 14 57v37c0 7 4 11 11 11z" fill="#17242b" opacity=".28" filter="url(#shadow)"/>
+  <path d="M22 101h84V55L64 22 22 55z" fill="url(#wall)"/>
+  <path d="M14 58 60 21c2-2 6-2 8 0l46 37-8 10-42-34-42 34z" fill="url(#roof)"/>
+  <path d="M39 55h50a8 8 0 0 1 8 8v38H31V63a8 8 0 0 1 8-8z" fill="#2b3e48"/>
+  <rect x="45" y="67" width="38" height="27" rx="7" fill="#f2b84b"/>
+  <rect x="50" y="72" width="28" height="17" rx="4" fill="#ffd878"/>
+  <path d="M64 72v17M50 80.5h28" fill="none" stroke="#d58b20" stroke-width="3" opacity=".72"/>
+  <path d="M25 101h78" fill="none" stroke="#243740" stroke-width="6" stroke-linecap="round"/>
+</svg>

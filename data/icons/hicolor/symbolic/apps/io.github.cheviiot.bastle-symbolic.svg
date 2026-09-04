@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <path d="M1 7.1 7.1 2.2a1.45 1.45 0 0 1 1.8 0L15 7.1 13.8 8.6 8 4 2.2 8.6z"/>
+  <path d="M3 7.6 8 3.7l5 3.9V14H3zm3 1.9v3h4v-3z"/>
+</svg>

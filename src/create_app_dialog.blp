@@ -1,10 +1,12 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 using Gtk 4.0;
 using Adw 1;
 
-template $CreateAppDialog: Adw.Dialog {
+template $BastleCreateAppDialog: Adw.Dialog {
   content-width: 400;
   content-height: 300;
-  title: "Add a New Application";
+  title: _("Add a New Application");
 
   Adw.ToastOverlay toast_overlay {
     Adw.ToolbarView {
@@ -27,7 +29,7 @@ template $CreateAppDialog: Adw.Dialog {
           selection-mode: none;
 
           Adw.EntryRow url_entry {
-            title: "URL";
+            title: _("URL");
             show-apply-button: true;
             sensitive: bind template.loading inverted;
             apply => $on_url_apply() swapped;
@@ -39,7 +41,7 @@ template $CreateAppDialog: Adw.Dialog {
           }
 
           Adw.EntryRow title_entry {
-            title: "Title";
+            title: _("Title");
             sensitive: bind template.loading inverted;
             changed => $validate_input_cb() swapped;
 
@@ -50,8 +52,8 @@ template $CreateAppDialog: Adw.Dialog {
           }
 
           Adw.ActionRow {
-            title: "Icon";
-            subtitle: "Icon MUST be square";
+            title: _("Icon");
+            subtitle: _("Automatically normalized to 256×256");
             sensitive: bind template.loading inverted;
 
             Button {
@@ -79,7 +81,7 @@ template $CreateAppDialog: Adw.Dialog {
 
           Stack button_stack {
             Label button_label {
-              label: "Create";
+              label: _("Create");
             }
 
             Adw.Spinner button_spinner {}
