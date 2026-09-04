@@ -326,15 +326,18 @@ impl<L: LauncherBackend + Clone> BackupService<L> {
             .await
             .context("failed to install the restored launcher")?;
 
-        let after_create = (|| -> Result<()> {
+        let after_create: Result<()> = async {
             let changes = explicit_policy_decisions(&archived.policy);
             self.service.apply_policy_decisions(&created.id, &changes)?;
             if includes_site_data {
                 let profile = extracted.join("profiles").join(preview.source_id.as_str());
-                self.service.install_profile_from(&created.id, &profile)?;
+                self.service
+                    .install_profile_from(&created.id, &profile)
+                    .await?;
             }
             Ok(())
-        })();
+        }
+        .await;
         if let Err(error) = after_create {
             return match self.service.delete(&created.id).await {
                 Ok(_) => Err(error).context("the partial restore was rolled back"),

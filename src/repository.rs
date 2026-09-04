@@ -455,6 +455,10 @@ fn copy_regular_tree(source: &Path, destination: &Path) -> Result<()> {
         } else if file_type.is_file() {
             fs::copy(entry.path(), &target)
                 .with_context(|| format!("failed to copy {}", entry.path().display()))?;
+            fs::File::open(&target)
+                .with_context(|| format!("failed to open {} for syncing", target.display()))?
+                .sync_all()
+                .with_context(|| format!("failed to sync {}", target.display()))?;
         } else {
             bail!(
                 "profile contains an unsupported file: {}",
@@ -462,7 +466,10 @@ fn copy_regular_tree(source: &Path, destination: &Path) -> Result<()> {
             );
         }
     }
-    Ok(())
+    fs::File::open(destination)
+        .with_context(|| format!("failed to open {} for syncing", destination.display()))?
+        .sync_all()
+        .with_context(|| format!("failed to sync {}", destination.display()))
 }
 
 fn serialize_json(value: &impl Serialize) -> Result<Vec<u8>> {

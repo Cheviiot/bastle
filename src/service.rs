@@ -2,8 +2,9 @@
 
 use std::path::PathBuf;
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use ashpd::WindowIdentifier;
+use futures::channel::oneshot;
 
 use crate::{
     launcher::{LauncherBackend, PortalLauncher, UninstallOutcome},
@@ -67,8 +68,20 @@ impl<L: LauncherBackend> AppService<L> {
         self.repository.try_acquire_profile_snapshot_lock(id)
     }
 
-    pub fn install_profile_from(&self, id: &AppId, source: &std::path::Path) -> Result<()> {
-        self.repository.install_profile_from(id, source)
+    pub async fn install_profile_from(&self, id: &AppId, source: &std::path::Path) -> Result<()> {
+        let repository = self.repository.clone();
+        let id = id.clone();
+        let source = source.to_path_buf();
+        let (sender, receiver) = oneshot::channel();
+        std::thread::Builder::new()
+            .name("bastle-profile-restore".to_owned())
+            .spawn(move || {
+                let _ = sender.send(repository.install_profile_from(&id, &source));
+            })
+            .context("failed to start the profile restore worker")?;
+        receiver
+            .await
+            .map_err(|_| anyhow!("the profile restore worker stopped unexpectedly"))?
     }
 
     pub fn save_runtime_state(&self, id: &AppId, window: WindowState) -> Result<()> {
