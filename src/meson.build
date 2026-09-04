@@ -17,7 +17,7 @@ blueprints = custom_target('blueprints',
   command: [find_program('blueprint-compiler'), 'batch-compile', '@OUTPUT@', '@CURRENT_SOURCE_DIR@', '@INPUT@'],
 )
 
-gnome.compile_resources('bastle',
+resources = gnome.compile_resources('bastle',
   'bastle.gresource.xml',
   gresource_bundle: true,
   install: true,
@@ -30,6 +30,10 @@ cargo_env  = [
   'BASTLE_LOCALEDIR=' + get_option('prefix') / get_option('localedir'),
   'BASTLE_PKGDATADIR=' + pkgdatadir,
 ]
+cargo_features = ''
+if get_option('ui_tests')
+  cargo_features = 'ui-tests'
+endif
 
 if get_option('flatpak')
   cargo_offline = 'true'
@@ -59,6 +63,22 @@ cargo_build = custom_target(
     'env', cargo_env,
     find_program('sh'), meson.project_source_root() / 'build-aux/cargo-build.sh',
     cargo_bin, meson.project_source_root(), meson.project_build_root() / 'src',
-    rust_target, cargo_offline, '@OUTPUT@',
+    rust_target, cargo_offline, cargo_features, '@OUTPUT@',
   ]
 )
+
+if get_option('ui_tests')
+  xvfb_run = find_program('xvfb-run')
+  ui_test_env = environment()
+  ui_test_env.set('WAYLAND_DISPLAY', '')
+  ui_test_env.set('GDK_BACKEND', 'x11')
+  ui_test_env.set('BASTLE_TEST_RESOURCE', resources.full_path())
+  test(
+    'App page UI smoke',
+    xvfb_run,
+    args: ['-a', cargo_build.full_path(), '--ui-test-app-page'],
+    env: ui_test_env,
+    depends: [cargo_build, resources],
+    timeout: 30,
+  )
+endif
