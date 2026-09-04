@@ -118,6 +118,9 @@ impl<L: LauncherBackend, B: BackgroundBackend, C: ChromiumBackend> AppService<L,
 
     fn retry_pending_companion_deletions(&self) -> Result<()> {
         for pending in self.repository.pending_companion_deletions()? {
+            let Ok(id_lock) = self.repository.lock_app_id(&pending.id) else {
+                continue;
+            };
             if self.repository.contains(&pending.id) {
                 continue;
             }
@@ -126,7 +129,8 @@ impl<L: LauncherBackend, B: BackgroundBackend, C: ChromiumBackend> AppService<L,
                 .delete_profile(&pending.id, &pending.token)
                 .is_ok()
             {
-                self.repository.complete_companion_deletion(&pending.id)?;
+                self.repository
+                    .complete_companion_deletion(&id_lock, &pending.token)?;
             }
         }
         Ok(())
@@ -471,7 +475,8 @@ impl<L: LauncherBackend, B: BackgroundBackend, C: ChromiumBackend> AppService<L,
                 .context("launcher was removed but local data cleanup failed")?;
             if let Some(token) = chromium_token.as_deref() {
                 if self.chromium.delete_profile(id, token).is_ok() {
-                    self.repository.complete_companion_deletion(id)?;
+                    self.repository
+                        .complete_companion_deletion(&id_lock, token)?;
                 }
             }
             Ok(outcome)
@@ -809,6 +814,41 @@ mod tests {
                 .len(),
             1
         );
+    }
+
+    #[test]
+    fn pending_companion_retry_waits_for_the_app_id_lifecycle_lock() {
+        let (_temp, service, _launcher, chromium) = service_with_chromium();
+        let app = AppConfigV3::new("Queued", "example.org", 0).unwrap();
+        block_on(service.create(app.clone(), b"icon", None)).unwrap();
+        let token = service.repository().companion_token(&app.id).unwrap();
+        let id_lock = service.repository().lock_app_id(&app.id).unwrap();
+        service
+            .repository()
+            .enqueue_companion_deletion(&id_lock, &token)
+            .unwrap();
+        service.repository().delete(&app.id).unwrap();
+        chromium.available.set(true);
+
+        service.chromium_capabilities().unwrap();
+        assert!(chromium.deleted.borrow().is_empty());
+        assert_eq!(
+            service
+                .repository()
+                .pending_companion_deletions()
+                .unwrap()
+                .len(),
+            1
+        );
+
+        drop(id_lock);
+        service.chromium_capabilities().unwrap();
+        assert_eq!(*chromium.deleted.borrow(), vec![app.id]);
+        assert!(service
+            .repository()
+            .pending_companion_deletions()
+            .unwrap()
+            .is_empty());
     }
 
     #[test]

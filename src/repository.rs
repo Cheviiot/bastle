@@ -432,12 +432,15 @@ impl AppRepository {
         replace_json(&self.data_root.join(COMPANION_QUEUE_FILE), &queue)
     }
 
-    pub fn complete_companion_deletion(&self, id: &AppId) -> Result<()> {
+    pub fn complete_companion_deletion(&self, id_lock: &AppIdLock, token: &str) -> Result<()> {
+        validate_companion_token(token)?;
         fs::create_dir_all(&self.data_root)
             .with_context(|| format!("failed to create {}", self.data_root.display()))?;
         let _lock = self.lock_companion_queue()?;
         let mut queue = self.load_companion_queue()?;
-        queue.entries.retain(|entry| entry.id != *id);
+        queue
+            .entries
+            .retain(|entry| entry.id != id_lock.id || entry.token != token);
         replace_json(&self.data_root.join(COMPANION_QUEUE_FILE), &queue)
     }
 
@@ -931,6 +934,37 @@ mod tests {
         assert!(repository.lock_app_id(&id).is_err());
         drop(first_lock);
         assert!(repository.lock_app_id(&id).is_ok());
+    }
+
+    #[test]
+    fn companion_deletion_completion_is_token_matched() {
+        let (_temp, repository) = repository();
+        let id = AppId::from_str("abcdefghijkl").unwrap();
+        let id_lock = repository.lock_app_id(&id).unwrap();
+        let old_token = "a".repeat(64);
+        let new_token = "b".repeat(64);
+
+        repository
+            .enqueue_companion_deletion(&id_lock, &old_token)
+            .unwrap();
+        repository
+            .enqueue_companion_deletion(&id_lock, &new_token)
+            .unwrap();
+        repository
+            .complete_companion_deletion(&id_lock, &old_token)
+            .unwrap();
+        assert_eq!(
+            repository.pending_companion_deletions().unwrap(),
+            vec![PendingCompanionDeletion {
+                id: id.clone(),
+                token: new_token.clone(),
+            }]
+        );
+
+        repository
+            .complete_companion_deletion(&id_lock, &new_token)
+            .unwrap();
+        assert!(repository.pending_companion_deletions().unwrap().is_empty());
     }
 
     #[test]
