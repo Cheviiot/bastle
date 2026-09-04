@@ -27,6 +27,7 @@ const MANIFEST_PATH: &str = "manifest.json";
 const AGE_HEADER: &[u8] = b"age-encryption.org/v1";
 const MAX_ARCHIVE_FILES: usize = 100_000;
 const MAX_UNCOMPRESSED_SIZE: u64 = 16 * 1024 * 1024 * 1024;
+const MAX_ICON_SIZE: u64 = 10 * 1024 * 1024;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BackupManifestAppV1 {
@@ -373,7 +374,7 @@ fn read_archived_app(root: &Path, id: &AppId) -> Result<ArchivedApp> {
     let mut config: AppConfigV2 = read_json(&directory.join("app.json"))?;
     config.normalize_and_validate()?;
     ensure!(config.id == *id, "archive app id does not match its path");
-    let icon = fs::read(directory.join("icon.png"))?;
+    let icon = read_limited_file(&directory.join("icon.png"), MAX_ICON_SIZE)?;
     ensure!(!icon.is_empty(), "archive icon is empty");
     let policy: AppPolicyV1 = read_json(&directory.join("policy.json"))?;
     policy.validate()?;
@@ -589,6 +590,26 @@ fn read_json<T: for<'de> Deserialize<'de>>(path: &Path) -> Result<T> {
     serde_json::from_reader(file).with_context(|| format!("invalid JSON in {}", path.display()))
 }
 
+fn read_limited_file(path: &Path, limit: u64) -> Result<Vec<u8>> {
+    let file = File::open(path).with_context(|| format!("failed to open {}", path.display()))?;
+    let size = file.metadata()?.len();
+    ensure!(
+        size <= limit,
+        "{} exceeds the {} byte size limit",
+        path.display(),
+        limit
+    );
+    let mut bytes = Vec::with_capacity(size as usize);
+    file.take(limit + 1).read_to_end(&mut bytes)?;
+    ensure!(
+        bytes.len() as u64 <= limit,
+        "{} grew beyond the {} byte size limit while being read",
+        path.display(),
+        limit
+    );
+    Ok(bytes)
+}
+
 fn sync_parent(path: &Path) -> Result<()> {
     let parent = path.parent().context("path has no parent directory")?;
     File::open(parent)?.sync_all()?;
@@ -784,6 +805,19 @@ mod tests {
         assert!(!safe_archive_path(Path::new("../app.json")));
         assert!(!safe_archive_path(Path::new("/tmp/app.json")));
         assert!(!safe_archive_path(Path::new("apps/./../app.json")));
+    }
+
+    #[test]
+    fn limited_file_reads_reject_oversized_input() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("icon.png");
+        fs::write(&path, b"12345").unwrap();
+
+        assert_eq!(read_limited_file(&path, 5).unwrap(), b"12345");
+        assert!(read_limited_file(&path, 4)
+            .unwrap_err()
+            .to_string()
+            .contains("size limit"));
     }
 
     #[test]
