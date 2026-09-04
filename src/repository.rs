@@ -21,6 +21,7 @@ use crate::{
 const CONFIG_FILE: &str = "app.json";
 const ICON_FILE: &str = "icon.png";
 const POLICY_FILE: &str = "policy.json";
+const METADATA_LOCK_FILE: &str = ".metadata.lock";
 const POLICY_LOCK_FILE: &str = ".policy.lock";
 pub const RUNTIME_LOCK_FILE: &str = ".runtime.lock";
 
@@ -41,6 +42,13 @@ pub struct LoadReport {
     pub warnings: Vec<RepositoryWarning>,
 }
 
+#[derive(Debug)]
+pub struct AppSnapshot {
+    pub config: AppConfigV2,
+    pub icon: Vec<u8>,
+    pub policy: AppPolicyV1,
+}
+
 #[derive(Debug, Clone)]
 pub struct AppRepository {
     data_root: PathBuf,
@@ -49,6 +57,12 @@ pub struct AppRepository {
 
 #[derive(Debug)]
 pub struct StagedApp {
+    directory: TempDir,
+    final_path: PathBuf,
+}
+
+#[derive(Debug)]
+pub struct StagedProfile {
     directory: TempDir,
     final_path: PathBuf,
 }
@@ -67,6 +81,22 @@ impl StagedApp {
         }
         sync_parent(&self.final_path)?;
         Ok(())
+    }
+}
+
+impl StagedProfile {
+    pub fn commit(self) -> Result<()> {
+        let staging_path = self.directory.keep();
+        if let Err(error) = fs::rename(&staging_path, &self.final_path) {
+            let _ = fs::remove_dir_all(&staging_path);
+            return Err(error).with_context(|| {
+                format!(
+                    "failed to commit profile directory {}",
+                    self.final_path.display()
+                )
+            });
+        }
+        sync_parent(&self.final_path)
     }
 }
 
@@ -199,6 +229,16 @@ impl AppRepository {
         self.load_from_path(&self.app_dir(id).join(CONFIG_FILE))
     }
 
+    pub fn snapshot(&self, id: &AppId) -> Result<AppSnapshot> {
+        let _metadata_lock = self.lock_app_file(id, METADATA_LOCK_FILE)?;
+        let _policy_lock = self.lock_app_file(id, POLICY_LOCK_FILE)?;
+        Ok(AppSnapshot {
+            config: self.load(id)?,
+            icon: self.read_icon(id)?,
+            policy: self.load_policy(id)?,
+        })
+    }
+
     fn load_from_path(&self, path: &Path) -> Result<AppConfigV2> {
         let contents = fs::read_to_string(path)
             .with_context(|| format!("failed to read {}", path.display()))?;
@@ -327,16 +367,8 @@ impl AppRepository {
         if !app_dir.is_dir() {
             bail!("app {id} is not stored locally");
         }
-        let lock_path = app_dir.join(POLICY_LOCK_FILE);
-        let lock = OpenOptions::new()
-            .create(true)
-            .read(true)
-            .write(true)
-            .truncate(false)
-            .open(&lock_path)
-            .with_context(|| format!("failed to open {}", lock_path.display()))?;
-        rustix::fs::flock(&lock, rustix::fs::FlockOperation::LockExclusive)
-            .with_context(|| format!("failed to lock {}", lock_path.display()))?;
+        let _metadata_lock = self.lock_app_file(id, METADATA_LOCK_FILE)?;
+        let _policy_lock = self.lock_app_file(id, POLICY_LOCK_FILE)?;
 
         let mut policy = self.load_policy(id)?;
         mutate(&mut policy);
@@ -351,10 +383,20 @@ impl AppRepository {
     }
 
     pub fn stage_create(&self, app: &AppConfigV2, icon: &[u8]) -> Result<StagedApp> {
+        self.stage_create_with_policy(app, icon, &AppPolicyV1::default())
+    }
+
+    pub fn stage_create_with_policy(
+        &self,
+        app: &AppConfigV2,
+        icon: &[u8],
+        policy: &AppPolicyV1,
+    ) -> Result<StagedApp> {
         let final_dir = self.app_dir(&app.id);
         if final_dir.exists() {
             bail!("an app with id {} already exists", app.id);
         }
+        policy.validate()?;
 
         let apps_root = self.apps_root();
         fs::create_dir_all(&apps_root)
@@ -365,7 +407,7 @@ impl AppRepository {
             .context("failed to create app staging directory")?;
         write_json(&staging.path().join(CONFIG_FILE), app)?;
         write_bytes(&staging.path().join(ICON_FILE), icon)?;
-        write_json(&staging.path().join(POLICY_FILE), &AppPolicyV1::default())?;
+        write_json(&staging.path().join(POLICY_FILE), policy)?;
         Ok(StagedApp {
             directory: staging,
             final_path: final_dir,
@@ -377,6 +419,7 @@ impl AppRepository {
         if !app_dir.is_dir() {
             bail!("app {} is not stored locally", app.id);
         }
+        let _metadata_lock = self.lock_app_file(&app.id, METADATA_LOCK_FILE)?;
 
         let config_path = app_dir.join(CONFIG_FILE);
         let staged_config = stage_bytes(&config_path, &serialize_json(app)?)?;
@@ -398,6 +441,21 @@ impl AppRepository {
     }
 
     pub fn delete(&self, id: &AppId) -> Result<()> {
+        let _profile_lock = self
+            .profile_dir(id)
+            .exists()
+            .then(|| self.try_acquire_profile_snapshot_lock(id))
+            .transpose()?;
+        let _metadata_lock = self
+            .app_dir(id)
+            .is_dir()
+            .then(|| self.lock_app_file(id, METADATA_LOCK_FILE))
+            .transpose()?;
+        let _policy_lock = self
+            .app_dir(id)
+            .is_dir()
+            .then(|| self.lock_app_file(id, POLICY_LOCK_FILE))
+            .transpose()?;
         let targets = [self.app_dir(id), self.profile_dir(id), self.cache_dir(id)];
         for target in targets {
             if target.exists() {
@@ -408,10 +466,8 @@ impl AppRepository {
         Ok(())
     }
 
-    pub fn install_profile_from(&self, id: &AppId, source: &Path) -> Result<()> {
-        if !source.is_dir() {
-            return Ok(());
-        }
+    pub fn stage_profile_from(&self, id: &AppId, source: &Path) -> Result<StagedProfile> {
+        ensure_profile_source(source)?;
         let destination = self.profile_dir(id);
         if destination.exists() {
             bail!("profile target {} already exists", destination.display());
@@ -425,15 +481,47 @@ impl AppRepository {
             .prefix(".tmp-profile-")
             .tempdir_in(profiles_root)
             .context("failed to create profile staging directory")?;
-        copy_regular_tree(source, staging.path())?;
-        let staging_path = staging.keep();
-        if let Err(error) = fs::rename(&staging_path, &destination) {
-            let _ = fs::remove_dir_all(&staging_path);
-            return Err(error)
-                .with_context(|| format!("failed to install {}", destination.display()));
+        if source.is_dir() {
+            copy_regular_tree(source, staging.path())?;
+        } else {
+            fs::File::open(staging.path())?.sync_all()?;
         }
-        sync_parent(&destination)
+        Ok(StagedProfile {
+            directory: staging,
+            final_path: destination,
+        })
     }
+
+    pub fn remove_profile(&self, id: &AppId) -> Result<()> {
+        let profile = self.profile_dir(id);
+        if profile.exists() {
+            fs::remove_dir_all(&profile)
+                .with_context(|| format!("failed to remove {}", profile.display()))?;
+            sync_parent(&profile)?;
+        }
+        Ok(())
+    }
+
+    fn lock_app_file(&self, id: &AppId, name: &str) -> Result<fs::File> {
+        let path = self.app_dir(id).join(name);
+        let file = OpenOptions::new()
+            .create(true)
+            .read(true)
+            .write(true)
+            .truncate(false)
+            .open(&path)
+            .with_context(|| format!("failed to open {}", path.display()))?;
+        rustix::fs::flock(&file, rustix::fs::FlockOperation::LockExclusive)
+            .with_context(|| format!("failed to lock {}", path.display()))?;
+        Ok(file)
+    }
+}
+
+fn ensure_profile_source(source: &Path) -> Result<()> {
+    if source.exists() && !source.is_dir() {
+        bail!("profile source {} is not a directory", source.display());
+    }
+    Ok(())
 }
 
 fn copy_regular_tree(source: &Path, destination: &Path) -> Result<()> {
@@ -703,6 +791,36 @@ mod tests {
             PermissionDecision::Allow
         );
         assert!(repository.app_dir(&app.id).join(POLICY_LOCK_FILE).is_file());
+    }
+
+    #[test]
+    fn metadata_snapshot_captures_config_icon_and_policy_together() {
+        let (_temp, repository) = repository();
+        let app = AppConfigV2::new("Snapshot", "example.org", 0).unwrap();
+        repository.create(&app, b"snapshot-icon").unwrap();
+        let origin = Origin::from_str("https://example.org").unwrap();
+        repository
+            .apply_policy_decisions(
+                &app.id,
+                &[(
+                    origin.clone(),
+                    PermissionKind::Camera,
+                    PermissionDecision::Block,
+                )],
+            )
+            .unwrap();
+
+        let snapshot = repository.snapshot(&app.id).unwrap();
+        assert_eq!(snapshot.config, app);
+        assert_eq!(snapshot.icon, b"snapshot-icon");
+        assert_eq!(
+            snapshot.policy.decision(&origin, PermissionKind::Camera),
+            PermissionDecision::Block
+        );
+        assert!(repository
+            .app_dir(&app.id)
+            .join(METADATA_LOCK_FILE)
+            .is_file());
     }
 
     #[test]

@@ -17,7 +17,7 @@ use tempfile::{Builder as TempBuilder, NamedTempFile, TempDir};
 use crate::{
     launcher::{LauncherBackend, PortalLauncher},
     model::{AppConfigV2, AppId},
-    policy::{AppPolicyV1, Origin, PermissionDecision, PermissionKind},
+    policy::AppPolicyV1,
     repository::{ProfileLock, RUNTIME_LOCK_FILE},
     service::AppService,
 };
@@ -118,6 +118,13 @@ pub struct RestorePlan {
     pub entries: Vec<RestorePreviewEntry>,
 }
 
+#[derive(Debug)]
+struct PreparedBackup {
+    directory: TempDir,
+    manifest: BackupManifestV1,
+    _profile_locks: Vec<ProfileLock>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RestoreFailure {
     pub source_id: AppId,
@@ -163,28 +170,7 @@ impl<L: LauncherBackend + Clone> BackupService<L> {
             );
         }
 
-        let mut apps = Vec::new();
-        let mut locks: Vec<ProfileLock> = Vec::new();
-        for id in ids {
-            let config = self.service.load(id)?;
-            if options.include_site_data {
-                locks.push(self.service.try_acquire_profile_snapshot_lock(id)?);
-            }
-            apps.push(config);
-        }
-        apps.sort_by(|left, right| left.id.as_str().cmp(right.id.as_str()));
-        let manifest = BackupManifestV1 {
-            schema_version: BACKUP_SCHEMA_VERSION,
-            includes_site_data: options.include_site_data,
-            apps: apps
-                .iter()
-                .map(|app| BackupManifestAppV1 {
-                    id: app.id.clone(),
-                    title: app.title.clone(),
-                })
-                .collect(),
-        };
-        manifest.validate()?;
+        let snapshot = self.prepare_backup(ids, options.include_site_data)?;
 
         let parent = destination
             .parent()
@@ -198,12 +184,12 @@ impl<L: LauncherBackend + Clone> BackupService<L> {
             let encryptor = age::Encryptor::with_user_passphrase(passphrase);
             let age_writer = encryptor.wrap_output(temporary.as_file_mut())?;
             let mut zstd_writer = zstd::stream::Encoder::new(age_writer, 9)?;
-            self.write_tar(&mut zstd_writer, &manifest, &apps)?;
+            self.write_tar(&mut zstd_writer, &snapshot)?;
             let age_writer = zstd_writer.finish()?;
             age_writer.finish()?;
         } else {
             let mut zstd_writer = zstd::stream::Encoder::new(temporary.as_file_mut(), 9)?;
-            self.write_tar(&mut zstd_writer, &manifest, &apps)?;
+            self.write_tar(&mut zstd_writer, &snapshot)?;
             zstd_writer.finish()?;
         }
         temporary.as_file().sync_all()?;
@@ -212,50 +198,99 @@ impl<L: LauncherBackend + Clone> BackupService<L> {
             .map_err(|error| error.error)
             .with_context(|| format!("failed to atomically write {}", destination.display()))?;
         sync_parent(destination)?;
-        drop(locks);
         Ok(())
     }
 
-    fn write_tar<W: Write>(
-        &self,
-        writer: W,
-        manifest: &BackupManifestV1,
-        apps: &[AppConfigV2],
-    ) -> Result<()> {
+    fn prepare_backup(&self, ids: &[AppId], include_site_data: bool) -> Result<PreparedBackup> {
+        let directory = TempBuilder::new()
+            .prefix("bastle-backup-snapshot-")
+            .tempdir()
+            .context("failed to create a backup snapshot directory")?;
+        let mut manifest_apps = Vec::new();
+        let mut profile_locks = Vec::new();
+        for id in ids {
+            if include_site_data {
+                profile_locks.push(self.service.try_acquire_profile_snapshot_lock(id)?);
+            }
+            let snapshot = self.service.snapshot(id)?;
+            ensure!(
+                snapshot.config.id == *id,
+                "stored app id does not match its path"
+            );
+            let app_dir = directory.path().join("apps").join(id.as_str());
+            fs::create_dir_all(&app_dir)
+                .with_context(|| format!("failed to create {}", app_dir.display()))?;
+            write_limited_json(
+                &app_dir.join("app.json"),
+                &snapshot.config,
+                MAX_APP_CONFIG_SIZE,
+            )?;
+            write_limited_file(&app_dir.join("icon.png"), &snapshot.icon, MAX_ICON_SIZE)?;
+            write_limited_json(
+                &app_dir.join("policy.json"),
+                &snapshot.policy,
+                MAX_POLICY_SIZE,
+            )?;
+            fs::File::open(&app_dir)?.sync_all()?;
+            manifest_apps.push(BackupManifestAppV1 {
+                id: snapshot.config.id,
+                title: snapshot.config.title,
+            });
+        }
+        manifest_apps.sort_by(|left, right| left.id.as_str().cmp(right.id.as_str()));
+        let manifest = BackupManifestV1 {
+            schema_version: BACKUP_SCHEMA_VERSION,
+            includes_site_data: include_site_data,
+            apps: manifest_apps,
+        };
+        manifest.validate()?;
+        ensure!(
+            (serde_json::to_vec_pretty(&manifest)?.len() as u64) < MAX_MANIFEST_SIZE,
+            "backup manifest exceeds the size limit"
+        );
+        Ok(PreparedBackup {
+            directory,
+            manifest,
+            _profile_locks: profile_locks,
+        })
+    }
+
+    fn write_tar<W: Write>(&self, writer: W, snapshot: &PreparedBackup) -> Result<()> {
         let mut archive = tar::Builder::new(writer);
         archive.mode(tar::HeaderMode::Deterministic);
         let mut budget = ArchiveBudget::default();
         append_json(
             &mut archive,
             Path::new(MANIFEST_PATH),
-            manifest,
+            &snapshot.manifest,
             MAX_MANIFEST_SIZE,
             &mut budget,
         )?;
-        for app in apps {
+        for app in &snapshot.manifest.apps {
             let prefix = PathBuf::from("apps").join(app.id.as_str());
-            append_json(
+            let snapshot_dir = snapshot.directory.path().join(&prefix);
+            append_regular_file(
                 &mut archive,
                 &prefix.join("app.json"),
-                app,
+                &snapshot_dir.join("app.json"),
                 MAX_APP_CONFIG_SIZE,
                 &mut budget,
             )?;
-            append_bytes(
+            append_regular_file(
                 &mut archive,
                 &prefix.join("icon.png"),
-                &self.service.read_icon(&app.id)?,
+                &snapshot_dir.join("icon.png"),
                 MAX_ICON_SIZE,
                 &mut budget,
             )?;
-            append_json(
+            append_regular_file(
                 &mut archive,
                 &prefix.join("policy.json"),
-                &self.service.load_policy(&app.id)?,
+                &snapshot_dir.join("policy.json"),
                 MAX_POLICY_SIZE,
                 &mut budget,
             )?;
-            if manifest.includes_site_data {
+            if snapshot.manifest.includes_site_data {
                 append_profile(
                     &mut archive,
                     &self.service.profile_dir(&app.id),
@@ -371,32 +406,18 @@ impl<L: LauncherBackend + Clone> BackupService<L> {
         let archived = read_archived_app(extracted, &preview.source_id)?;
         let mut config = archived.config;
         config.id = preview.target_id.clone();
-        let created = self
-            .service
-            .create(config, &archived.icon, parent)
+        let profile =
+            includes_site_data.then(|| extracted.join("profiles").join(preview.source_id.as_str()));
+        self.service
+            .create_from_backup(
+                config,
+                &archived.icon,
+                &archived.policy,
+                profile.as_deref(),
+                parent,
+            )
             .await
             .context("failed to install the restored launcher")?;
-
-        let after_create: Result<()> = async {
-            let changes = explicit_policy_decisions(&archived.policy);
-            self.service.apply_policy_decisions(&created.id, &changes)?;
-            if includes_site_data {
-                let profile = extracted.join("profiles").join(preview.source_id.as_str());
-                self.service
-                    .install_profile_from(&created.id, &profile)
-                    .await?;
-            }
-            Ok(())
-        }
-        .await;
-        if let Err(error) = after_create {
-            return match self.service.delete(&created.id).await {
-                Ok(_) => Err(error).context("the partial restore was rolled back"),
-                Err(rollback) => {
-                    Err(error).context(format!("restore rollback also failed: {rollback}"))
-                }
-            };
-        }
         Ok(())
     }
 }
@@ -436,20 +457,6 @@ fn read_archived_app(root: &Path, id: &AppId) -> Result<ArchivedApp> {
     })
 }
 
-fn explicit_policy_decisions(
-    policy: &AppPolicyV1,
-) -> Vec<(Origin, PermissionKind, PermissionDecision)> {
-    policy
-        .permissions
-        .iter()
-        .flat_map(|(origin, permissions)| {
-            permissions
-                .iter()
-                .map(move |(kind, decision)| (origin.clone(), *kind, *decision))
-        })
-        .collect()
-}
-
 fn append_json<W: Write>(
     archive: &mut tar::Builder<W>,
     path: &Path,
@@ -460,6 +467,35 @@ fn append_json<W: Write>(
     let mut bytes = serde_json::to_vec_pretty(value)?;
     bytes.push(b'\n');
     append_bytes(archive, path, &bytes, limit, budget)
+}
+
+fn append_regular_file<W: Write>(
+    archive: &mut tar::Builder<W>,
+    archive_path: &Path,
+    source: &Path,
+    limit: u64,
+    budget: &mut ArchiveBudget,
+) -> Result<()> {
+    let mut file = File::open(source)
+        .with_context(|| format!("failed to open backup snapshot {}", source.display()))?;
+    let size = file.metadata()?.len();
+    ensure!(
+        size <= limit,
+        "{} exceeds the {} byte size limit",
+        source.display(),
+        limit
+    );
+    budget.include(size)?;
+    let mut header = tar::Header::new_gnu();
+    header.set_entry_type(tar::EntryType::Regular);
+    header.set_mode(0o600);
+    header.set_uid(0);
+    header.set_gid(0);
+    header.set_mtime(0);
+    header.set_size(size);
+    header.set_cksum();
+    archive.append_data(&mut header, archive_path, &mut file)?;
+    Ok(())
 }
 
 fn append_bytes<W: Write>(
@@ -657,6 +693,26 @@ fn validate_archive_paths(manifest: &BackupManifestV1, paths: &[PathBuf]) -> Res
 fn read_limited_json<T: for<'de> Deserialize<'de>>(path: &Path, limit: u64) -> Result<T> {
     let bytes = read_limited_file(path, limit)?;
     serde_json::from_slice(&bytes).with_context(|| format!("invalid JSON in {}", path.display()))
+}
+
+fn write_limited_json(path: &Path, value: &impl Serialize, limit: u64) -> Result<()> {
+    let mut bytes = serde_json::to_vec_pretty(value)?;
+    bytes.push(b'\n');
+    write_limited_file(path, &bytes, limit)
+}
+
+fn write_limited_file(path: &Path, bytes: &[u8], limit: u64) -> Result<()> {
+    ensure!(
+        bytes.len() as u64 <= limit,
+        "{} exceeds the {} byte size limit",
+        path.display(),
+        limit
+    );
+    let mut file =
+        File::create(path).with_context(|| format!("failed to create {}", path.display()))?;
+    file.write_all(bytes)?;
+    file.sync_all()?;
+    Ok(())
 }
 
 fn read_limited_file(path: &Path, limit: u64) -> Result<Vec<u8>> {

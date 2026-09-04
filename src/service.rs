@@ -10,7 +10,7 @@ use crate::{
     launcher::{LauncherBackend, PortalLauncher, UninstallOutcome},
     model::{AppConfigV2, AppId, WindowState},
     policy::{AppPolicyV1, Origin, PermissionDecision, PermissionKind},
-    repository::{AppRepository, LoadReport, ProfileLock},
+    repository::{AppRepository, AppSnapshot, LoadReport, ProfileLock, StagedProfile},
 };
 
 #[derive(Debug, Clone)]
@@ -44,6 +44,10 @@ impl<L: LauncherBackend> AppService<L> {
         self.repository.read_icon(id)
     }
 
+    pub fn snapshot(&self, id: &AppId) -> Result<AppSnapshot> {
+        self.repository.snapshot(id)
+    }
+
     pub fn contains(&self, id: &AppId) -> bool {
         self.repository.contains(id)
     }
@@ -68,7 +72,11 @@ impl<L: LauncherBackend> AppService<L> {
         self.repository.try_acquire_profile_snapshot_lock(id)
     }
 
-    pub async fn install_profile_from(&self, id: &AppId, source: &std::path::Path) -> Result<()> {
+    async fn stage_profile_from(
+        &self,
+        id: &AppId,
+        source: &std::path::Path,
+    ) -> Result<StagedProfile> {
         let repository = self.repository.clone();
         let id = id.clone();
         let source = source.to_path_buf();
@@ -76,7 +84,7 @@ impl<L: LauncherBackend> AppService<L> {
         std::thread::Builder::new()
             .name("bastle-profile-restore".to_owned())
             .spawn(move || {
-                let _ = sender.send(repository.install_profile_from(&id, &source));
+                let _ = sender.send(repository.stage_profile_from(&id, &source));
             })
             .context("failed to start the profile restore worker")?;
         receiver
@@ -139,6 +147,63 @@ impl<L: LauncherBackend> AppService<L> {
         Ok(app)
     }
 
+    pub async fn create_from_backup(
+        &self,
+        mut app: AppConfigV2,
+        icon: &[u8],
+        policy: &AppPolicyV1,
+        profile_source: Option<&std::path::Path>,
+        parent: Option<&WindowIdentifier>,
+    ) -> Result<AppConfigV2> {
+        app.normalize_and_validate()?;
+        policy.validate()?;
+        let staged_app = self
+            .repository
+            .stage_create_with_policy(&app, icon, policy)?;
+        let staged_profile = match profile_source {
+            Some(source) => Some(self.stage_profile_from(&app.id, source).await?),
+            None => None,
+        };
+
+        let profile_committed = if let Some(profile) = staged_profile {
+            profile.commit()?;
+            true
+        } else {
+            false
+        };
+
+        if let Err(error) = self.launcher.install(&app, icon, parent).await {
+            return if profile_committed {
+                match self.repository.remove_profile(&app.id) {
+                    Ok(()) => Err(error).context("the staged profile was rolled back"),
+                    Err(cleanup) => {
+                        Err(error).context(format!("profile rollback also failed: {cleanup}"))
+                    }
+                }
+            } else {
+                Err(error)
+            };
+        }
+
+        if let Err(error) = staged_app.commit() {
+            let mut rollback_failures = Vec::new();
+            if let Err(rollback) = self.launcher.uninstall(&app.id).await {
+                rollback_failures.push(format!("launcher rollback failed: {rollback}"));
+            }
+            if profile_committed {
+                if let Err(rollback) = self.repository.remove_profile(&app.id) {
+                    rollback_failures.push(format!("profile rollback failed: {rollback}"));
+                }
+            }
+            return if rollback_failures.is_empty() {
+                Err(error).context("the launcher and profile were rolled back")
+            } else {
+                Err(error).context(rollback_failures.join("; "))
+            };
+        }
+        Ok(app)
+    }
+
     pub async fn update(
         &self,
         mut app: AppConfigV2,
@@ -195,7 +260,12 @@ impl AppService<PortalLauncher> {
 
 #[cfg(test)]
 mod tests {
-    use std::{cell::RefCell, collections::HashSet, rc::Rc, str::FromStr};
+    use std::{
+        cell::RefCell,
+        collections::{HashMap, HashSet},
+        rc::Rc,
+        str::FromStr,
+    };
 
     use anyhow::{bail, Result};
     use async_trait::async_trait;
@@ -209,6 +279,7 @@ mod tests {
         installed: Rc<RefCell<HashSet<AppId>>>,
         deny_install: Rc<RefCell<bool>>,
         deny_uninstall: Rc<RefCell<bool>>,
+        required_profiles: Rc<RefCell<HashMap<AppId, PathBuf>>>,
     }
 
     #[async_trait(?Send)]
@@ -221,6 +292,11 @@ mod tests {
         ) -> Result<()> {
             if *self.deny_install.borrow() {
                 bail!("portal denied installation");
+            }
+            if let Some(profile) = self.required_profiles.borrow().get(&app.id) {
+                if !profile.join("profile-state").is_file() {
+                    bail!("profile was not committed before launcher installation");
+                }
             }
             self.installed.borrow_mut().insert(app.id.clone());
             Ok(())
@@ -330,5 +406,51 @@ mod tests {
                 .decision(&origin, PermissionKind::Notifications),
             PermissionDecision::Allow
         );
+    }
+
+    #[test]
+    fn backup_restore_commits_profile_before_launcher_and_rolls_back_denial() {
+        let (_temp, service, launcher) = service();
+        let source = tempfile::tempdir().unwrap();
+        std::fs::write(source.path().join("profile-state"), b"session").unwrap();
+        let app = AppConfigV2::new("Example", "example.org", 0).unwrap();
+        let origin = Origin::from_str("https://example.org").unwrap();
+        let mut policy = AppPolicyV1::default();
+        policy.set_decision(
+            origin,
+            PermissionKind::Notifications,
+            PermissionDecision::Allow,
+        );
+        launcher
+            .required_profiles
+            .borrow_mut()
+            .insert(app.id.clone(), service.profile_dir(&app.id));
+
+        block_on(service.create_from_backup(
+            app.clone(),
+            b"icon",
+            &policy,
+            Some(source.path()),
+            None,
+        ))
+        .unwrap();
+        assert_eq!(service.load_policy(&app.id).unwrap(), policy);
+        assert_eq!(
+            std::fs::read(service.profile_dir(&app.id).join("profile-state")).unwrap(),
+            b"session"
+        );
+
+        let denied = AppConfigV2::new("Denied", "denied.example", 1).unwrap();
+        *launcher.deny_install.borrow_mut() = true;
+        assert!(block_on(service.create_from_backup(
+            denied.clone(),
+            b"icon",
+            &AppPolicyV1::default(),
+            Some(source.path()),
+            None,
+        ))
+        .is_err());
+        assert!(!service.contains(&denied.id));
+        assert!(!service.profile_dir(&denied.id).exists());
     }
 }
