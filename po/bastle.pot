@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: bastle\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-05 01:58+1000\n"
+"POT-Creation-Date: 2026-09-05 02:11+1000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -61,26 +61,44 @@ msgid ""
 msgstr ""
 
 #: data/io.github.cheviiot.bastle.metainfo.xml.in:55
-msgid "Prevent a crash when opening an application card for editing"
+msgid "Add per-origin website permissions with session and persistent choices"
 msgstr ""
 
 #: data/io.github.cheviiot.bastle.metainfo.xml.in:56
-msgid "Add a headless regression test for editor state changes"
+msgid ""
+"Add popup and OAuth windows, native notifications, and managed downloads"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:64
-msgid "Introduce the Bastle identity and isolated JSON-based storage"
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:57
+msgid "Add navigation, zoom, and fullscreen runtime controls"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:65
-msgid "Add transactional launcher operations and repair support"
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:58
+msgid ""
+"Migrate Bastle data to schema v2 and remove Spider runtime compatibility"
 msgstr ""
 
 #: data/io.github.cheviiot.bastle.metainfo.xml.in:66
-msgid "Add an explicit, settings-only Spider importer"
+msgid "Prevent a crash when opening an application card for editing"
 msgstr ""
 
 #: data/io.github.cheviiot.bastle.metainfo.xml.in:67
+msgid "Add a headless regression test for editor state changes"
+msgstr ""
+
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:75
+msgid "Introduce the Bastle identity and isolated JSON-based storage"
+msgstr ""
+
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:76
+msgid "Add transactional launcher operations and repair support"
+msgstr ""
+
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:77
+msgid "Add an explicit, settings-only Spider importer"
+msgstr ""
+
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:78
 msgid "Harden URL, metadata, icon, download, and theme-color handling"
 msgstr ""
 

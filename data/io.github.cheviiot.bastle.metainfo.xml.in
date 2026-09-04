@@ -49,6 +49,17 @@
   </categories>
   <launchable type="desktop-id">io.github.cheviiot.bastle.desktop</launchable>
   <releases>
+    <release version="0.2.0" date="2026-09-05">
+      <description>
+        <ul>
+          <li>Add per-origin website permissions with session and persistent choices</li>
+          <li>Add popup and OAuth windows, native notifications, and managed downloads</li>
+          <li>Add navigation, zoom, and fullscreen runtime controls</li>
+          <li>Migrate Bastle data to schema v2 and remove Spider runtime compatibility</li>
+        </ul>
+      </description>
+      <url>https://github.com/Cheviiot/bastle/releases/tag/v0.2.0</url>
+    </release>
     <release version="0.1.1" date="2026-09-05">
       <description>
         <ul>
