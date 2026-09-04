@@ -605,7 +605,11 @@ fn extract_backup(
     );
     validate_archive_paths(&manifest, &paths)?;
     for app in &manifest.apps {
-        read_archived_app(extracted.path(), &app.id)?;
+        let archived = read_archived_app(extracted.path(), &app.id)?;
+        ensure!(
+            !manifest.includes_site_data || archived.config.engine == Engine::WebKit,
+            "site data in a Bastle backup must belong to a WebKit application"
+        );
     }
     Ok((extracted, manifest, encrypted))
 }
@@ -926,6 +930,81 @@ mod tests {
             )
             .unwrap_err();
         assert!(error.to_string().contains("optional companion"));
+    }
+
+    #[test]
+    fn restore_rejects_chromium_archives_that_claim_webkit_site_data() {
+        let temp = tempfile::tempdir().unwrap();
+        let backup = temp.path().join("forged-chromium.bastle-backup");
+        let id: AppId = "abcdefghijkl".parse().unwrap();
+        let mut app = AppConfigV3::new("Chromium", "https://example.org", 0).unwrap();
+        app.id = id.clone();
+        app.engine = Engine::Chromium;
+        let manifest = BackupManifestV1 {
+            schema_version: BACKUP_SCHEMA_VERSION,
+            includes_site_data: true,
+            apps: vec![BackupManifestAppV1 {
+                id: id.clone(),
+                title: app.title.clone(),
+            }],
+        };
+        let passphrase = SecretString::from("test passphrase".to_owned());
+        let file = File::create(&backup).unwrap();
+        let encryptor = age::Encryptor::with_user_passphrase(passphrase.clone());
+        let age_writer = encryptor.wrap_output(file).unwrap();
+        let zstd_writer = zstd::stream::Encoder::new(age_writer, 1).unwrap();
+        let mut archive = tar::Builder::new(zstd_writer);
+        let mut budget = ArchiveBudget::default();
+        append_json(
+            &mut archive,
+            Path::new(MANIFEST_PATH),
+            &manifest,
+            MAX_MANIFEST_SIZE,
+            &mut budget,
+        )
+        .unwrap();
+        let app_prefix = PathBuf::from("apps").join(id.as_str());
+        append_json(
+            &mut archive,
+            &app_prefix.join("app.json"),
+            &app,
+            MAX_APP_CONFIG_SIZE,
+            &mut budget,
+        )
+        .unwrap();
+        append_bytes(
+            &mut archive,
+            &app_prefix.join("icon.png"),
+            b"icon",
+            MAX_ICON_SIZE,
+            &mut budget,
+        )
+        .unwrap();
+        append_json(
+            &mut archive,
+            &app_prefix.join("policy.json"),
+            &AppPolicyV2::default(),
+            MAX_POLICY_SIZE,
+            &mut budget,
+        )
+        .unwrap();
+        append_bytes(
+            &mut archive,
+            &PathBuf::from("profiles").join(id.as_str()).join("Cookies"),
+            b"site data",
+            MAX_UNCOMPRESSED_SIZE,
+            &mut budget,
+        )
+        .unwrap();
+        let zstd_writer = archive.into_inner().unwrap();
+        let age_writer = zstd_writer.finish().unwrap();
+        age_writer.finish().unwrap();
+
+        let service = backup_service(temp.path());
+        let error = service
+            .prepare_restore(&backup, Some(&passphrase))
+            .unwrap_err();
+        assert!(error.to_string().contains("must belong to a WebKit"));
     }
 
     #[test]

@@ -96,7 +96,12 @@ impl<L: LauncherBackend, B: BackgroundBackend, C: ChromiumBackend> AppService<L,
     }
 
     pub fn open_chromium(&self, app: &AppConfigV3, start_in_background: bool) -> Result<()> {
-        self.chromium_capabilities()?.require("open-app")?;
+        let capabilities = self.chromium_capabilities()?;
+        capabilities.require("open-app")?;
+        capabilities.require("policy-v2")?;
+        if start_in_background {
+            capabilities.require("background")?;
+        }
         let token = self.repository.companion_token(&app.id)?;
         let policy = self.repository.load_policy(&app.id)?;
         self.chromium

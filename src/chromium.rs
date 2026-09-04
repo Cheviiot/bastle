@@ -66,6 +66,7 @@ impl ChromiumBackend for ChromiumClient {
             app.id.as_str(),
             app.start_url.as_str(),
             app.title.as_str(),
+            app.user_agent.as_deref().unwrap_or_default(),
             app.window.width,
             app.window.height,
             app.window.maximized,
