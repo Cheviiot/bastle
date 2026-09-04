@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: bastle 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-05 06:06+1000\n"
+"POT-Creation-Date: 2026-09-05 06:25+1000\n"
 "PO-Revision-Date: 2026-09-04 00:00+1000\n"
 "Last-Translator: Bastle contributors\n"
 "Language-Team: Russian\n"
@@ -211,7 +211,7 @@ msgstr "User-Agent"
 msgid "Permissions"
 msgstr "Разрешения"
 
-#: src/app_page.rs:174 src/privacy_dialog.rs:50 src/privacy_dialog.rs:479
+#: src/app_page.rs:174 src/privacy_dialog.rs:50 src/privacy_dialog.rs:470
 msgid "Privacy & Power"
 msgstr "Конфиденциальность и фоновые функции"
 
@@ -534,7 +534,8 @@ msgstr "Выберите приложения для восстановлени�
 
 #: src/backup_dialog.rs:214
 msgid "Background activity and autostart must be enabled again after restore."
-msgstr "Фоновую работу и автозапуск после восстановления нужно включить заново."
+msgstr ""
+"Фоновую работу и автозапуск после восстановления нужно включить заново."
 
 #: src/backup_dialog.rs:216
 msgid "Restore Preview"
@@ -917,31 +918,27 @@ msgstr ""
 "Настройки конфиденциальности сохранены; перезапустите веб-приложение, чтобы "
 "применить изменения"
 
-#: src/privacy_dialog.rs:238
-msgid "Autostart could not be updated by the portal"
-msgstr "Порталу не удалось изменить автозапуск"
-
-#: src/privacy_dialog.rs:385
+#: src/privacy_dialog.rs:376
 msgid "WebKit content-extension rules"
 msgstr "Правила расширений содержимого WebKit"
 
-#: src/privacy_dialog.rs:390
+#: src/privacy_dialog.rs:381
 msgid "Remove Filter"
 msgstr "Удалить фильтр"
 
-#: src/privacy_dialog.rs:423
+#: src/privacy_dialog.rs:414
 msgid "WebKit Content Filters"
 msgstr "Фильтры содержимого WebKit"
 
-#: src/privacy_dialog.rs:429
+#: src/privacy_dialog.rs:420
 msgid "Import Content Filter"
 msgstr "Импорт фильтра содержимого"
 
-#: src/privacy_dialog.rs:430
+#: src/privacy_dialog.rs:421
 msgid "Import"
 msgstr "Импортировать"
 
-#: src/privacy_dialog.rs:444
+#: src/privacy_dialog.rs:435
 msgid "Imported Filter"
 msgstr "Импортированный фильтр"
 
@@ -1052,6 +1049,9 @@ msgstr "Ярлык восстановлен"
 #: src/window.rs:255
 msgid "Some application data could not be loaded"
 msgstr "Не удалось загрузить часть данных приложений"
+
+#~ msgid "Autostart could not be updated by the portal"
+#~ msgstr "Порталу не удалось изменить автозапуск"
 
 #~ msgid "Permission settings could not be loaded"
 #~ msgstr "Не удалось загрузить настройки разрешений"

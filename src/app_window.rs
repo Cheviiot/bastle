@@ -624,7 +624,7 @@ impl AppWindow {
             }
             Err(error) => {
                 self.imp().policy.replace(AppPolicyV2::default());
-                self.toast(&format!(
+                self.show_startup_error(&format!(
                     "{}: {error}",
                     gettext("Privacy policy could not be loaded; web content was not started")
                 ));
@@ -682,7 +682,7 @@ impl AppWindow {
                     view.load_uri(&start_url);
                 }
             }
-            Err(error) => self.toast(&error.to_string()),
+            Err(error) => self.show_startup_error(&error.to_string()),
         }
         self.load_colors(None);
     }
@@ -1213,6 +1213,17 @@ pub(crate) fn run_background_ui_smoke_test<P: IsA<gtk::Application>>(
     anyhow::ensure!(
         window.imp().background_hold.borrow().is_some(),
         "background mode did not hold the application"
+    );
+    window.show_from_background();
+    anyhow::ensure!(window.is_visible(), "background window was not revealed");
+    anyhow::ensure!(
+        window.imp().background_hold.borrow().is_none(),
+        "revealing the background window retained the application hold"
+    );
+    window.start_in_background();
+    anyhow::ensure!(
+        window.imp().background_hold.borrow().is_some(),
+        "background mode could not be entered again"
     );
     window.stop_background();
     anyhow::ensure!(

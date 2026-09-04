@@ -372,11 +372,13 @@ impl BastleApplication {
             self.withdraw_notification(&notification_id);
             notification.clicked();
         }
-        if let Some(window) = self.active_window() {
-            window.present();
-            return;
-        }
         if let Some((id, _)) = token.split_once(':') {
+            if let Ok(id) = AppId::from_str(id) {
+                if let Some(window) = self.app_window(&id) {
+                    window.show_from_background();
+                    return;
+                }
+            }
             if let Err(error) = self.open_app(id) {
                 eprintln!("Failed to open app from notification: {error:#}");
             }

@@ -235,7 +235,6 @@ fn present_editor(
     let background_denied_message = gettext("Background access was not enabled");
     let privacy_saved_message =
         gettext("Privacy settings saved; restart the web application to apply runtime changes");
-    let autostart_failed_message = gettext("Autostart could not be updated by the portal");
     save.connect_clicked(glib::clone!(
         #[weak]
         dialog,
@@ -251,8 +250,6 @@ fn present_editor(
         background_denied_message,
         #[strong]
         privacy_saved_message,
-        #[strong]
-        autostart_failed_message,
         move |_| {
             let origins_text = origins.text();
             let proxy_uri_text = proxy_uri.text();
@@ -285,8 +282,6 @@ fn present_editor(
                 background_denied_message,
                 #[strong]
                 privacy_saved_message,
-                #[strong]
-                autostart_failed_message,
                 async move {
                     let identifier = WindowIdentifier::from_native(&parent_window).await;
                     match AppService::portal()
@@ -299,13 +294,9 @@ fn present_editor(
                         )
                         .await
                     {
-                        Ok(update) => {
+                        Ok(()) => {
                             dialog.close();
                             parent_window.toast(&privacy_saved_message);
-                            if let Some(warning) = update.portal_warning {
-                                parent_window
-                                    .toast(&format!("{}: {warning}", autostart_failed_message));
-                            }
                         }
                         Err(error) => parent_window
                             .toast(&format!("{}: {error:#}", background_denied_message)),

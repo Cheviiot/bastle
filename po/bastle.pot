@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: bastle\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-05 06:06+1000\n"
+"POT-Creation-Date: 2026-09-05 06:25+1000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -199,7 +199,7 @@ msgstr ""
 msgid "Permissions"
 msgstr ""
 
-#: src/app_page.rs:174 src/privacy_dialog.rs:50 src/privacy_dialog.rs:479
+#: src/app_page.rs:174 src/privacy_dialog.rs:50 src/privacy_dialog.rs:470
 msgid "Privacy & Power"
 msgstr ""
 
@@ -890,31 +890,27 @@ msgid ""
 "Privacy settings saved; restart the web application to apply runtime changes"
 msgstr ""
 
-#: src/privacy_dialog.rs:238
-msgid "Autostart could not be updated by the portal"
-msgstr ""
-
-#: src/privacy_dialog.rs:385
+#: src/privacy_dialog.rs:376
 msgid "WebKit content-extension rules"
 msgstr ""
 
-#: src/privacy_dialog.rs:390
+#: src/privacy_dialog.rs:381
 msgid "Remove Filter"
 msgstr ""
 
-#: src/privacy_dialog.rs:423
+#: src/privacy_dialog.rs:414
 msgid "WebKit Content Filters"
 msgstr ""
 
-#: src/privacy_dialog.rs:429
+#: src/privacy_dialog.rs:420
 msgid "Import Content Filter"
 msgstr ""
 
-#: src/privacy_dialog.rs:430
+#: src/privacy_dialog.rs:421
 msgid "Import"
 msgstr ""
 
-#: src/privacy_dialog.rs:444
+#: src/privacy_dialog.rs:435
 msgid "Imported Filter"
 msgstr ""
 

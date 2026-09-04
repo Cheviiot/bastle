@@ -23,10 +23,16 @@ const ICON_FILE: &str = "icon.png";
 const POLICY_FILE: &str = "policy.json";
 const METADATA_LOCK_FILE: &str = ".metadata.lock";
 const POLICY_LOCK_FILE: &str = ".policy.lock";
+const BACKGROUND_LOCK_FILE: &str = ".background.lock";
 pub const RUNTIME_LOCK_FILE: &str = ".runtime.lock";
 
 #[derive(Debug)]
 pub struct ProfileLock {
+    _file: fs::File,
+}
+
+#[derive(Debug)]
+pub struct BackgroundLock {
     _file: fs::File,
 }
 
@@ -117,6 +123,22 @@ impl AppRepository {
 
     pub fn apps_root(&self) -> PathBuf {
         self.data_root.join("apps")
+    }
+
+    pub fn lock_background(&self) -> Result<BackgroundLock> {
+        fs::create_dir_all(&self.data_root)
+            .with_context(|| format!("failed to create {}", self.data_root.display()))?;
+        let path = self.data_root.join(BACKGROUND_LOCK_FILE);
+        let file = OpenOptions::new()
+            .create(true)
+            .read(true)
+            .write(true)
+            .truncate(false)
+            .open(&path)
+            .with_context(|| format!("failed to open {}", path.display()))?;
+        rustix::fs::flock(&file, rustix::fs::FlockOperation::LockExclusive)
+            .with_context(|| format!("failed to lock {}", path.display()))?;
+        Ok(BackgroundLock { _file: file })
     }
 
     pub fn profile_dir(&self, id: &AppId) -> PathBuf {
@@ -891,6 +913,27 @@ mod tests {
             .unwrap();
         thread.join().unwrap();
         assert_eq!(migrated.schema_version, POLICY_SCHEMA_VERSION);
+    }
+
+    #[test]
+    fn background_reconciliation_lock_serializes_processes() {
+        let (_temp, repository) = repository();
+        let first_lock = repository.lock_background().unwrap();
+        let repository_for_thread = repository.clone();
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let thread = std::thread::spawn(move || {
+            let _ = sender.send(repository_for_thread.lock_background());
+        });
+        assert!(matches!(
+            receiver.recv_timeout(std::time::Duration::from_millis(100)),
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout)
+        ));
+        drop(first_lock);
+        receiver
+            .recv_timeout(std::time::Duration::from_secs(2))
+            .unwrap()
+            .unwrap();
+        thread.join().unwrap();
     }
 
     #[test]
