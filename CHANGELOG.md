@@ -5,6 +5,29 @@ Changelog and versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+
+- `AppPolicyV2` with an atomic migration from v1 that preserves saved website
+  permission decisions while leaving every new feature disabled by default.
+- Optional top-level navigation allowlists with one-time, persistent,
+  external-browser, and block actions for origins outside the list.
+- Per-application WebKit proxy modes for system settings, direct connections,
+  and normalized HTTP(S)/SOCKS endpoints without stored credentials.
+- Per-application background and autostart choices authorized by the Background
+  Portal, with system status notifications and an explicit Stop action.
+- User-imported, WebKit-validated content-extension filters scoped to one web
+  application and included in metadata backups.
+- A documented threat model covering websites, profiles, portals, backups, and
+  the future Chromium companion boundary.
+
+### Security
+
+- Reject proxy URIs containing credentials, paths, queries, fragments, or
+  unsupported schemes, and bound imported content-filter source data.
+- Apply origin restrictions only to confirmed top-level response resources;
+  subframes and ordinary third-party resources remain unaffected unless the
+  user explicitly enables content filters.
+
 ## [0.3.0] - 2026-09-05
 
 ### Added

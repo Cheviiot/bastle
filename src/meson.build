@@ -75,10 +75,20 @@ if get_option('ui_tests')
   ui_test_env.set('GDK_BACKEND', 'x11')
   ui_test_env.set('BASTLE_TEST_RESOURCE', resources.full_path())
   ui_test_env.set('GSETTINGS_SCHEMA_DIR', meson.project_build_root() / 'data')
+  ui_test_env.set('XDG_DATA_HOME', meson.project_build_root() / 'ui-test-data')
+  ui_test_env.set('XDG_CACHE_HOME', meson.project_build_root() / 'ui-test-cache')
+  ui_test_env.set('XDG_CONFIG_HOME', meson.project_build_root() / 'ui-test-config')
+  # GitHub's Fedora container cannot create WebKit's nested bubblewrap
+  # namespace. This applies only to the test-only binary invocation; release
+  # and Flatpak builds keep the WebKit process sandbox enabled.
+  ui_test_env.set('WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS', '1')
   test(
     'UI smoke',
-    dbus_run_session,
-    args: ['--', xvfb_run.full_path(), '-a', cargo_build.full_path(), '--ui-test-app-page'],
+    xvfb_run,
+    args: [
+      '-a', dbus_run_session.full_path(), '--',
+      cargo_build.full_path(), '--ui-test-app-page',
+    ],
     env: ui_test_env,
     depends: [cargo_build, resources, test_schema],
     timeout: 30,

@@ -14,3 +14,15 @@ pub const PKGDATADIR: &str = match option_env!("BASTLE_PKGDATADIR") {
     Some(path) => path,
     None => "/usr/share/bastle",
 };
+
+pub fn managed_app_id(id: &crate::model::AppId) -> String {
+    let component = if id
+        .as_str()
+        .starts_with(|character: char| character.is_ascii_digit())
+    {
+        format!("app{id}")
+    } else {
+        id.to_string()
+    };
+    format!("{APP_ID}.{component}")
+}

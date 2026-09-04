@@ -171,6 +171,11 @@ impl AppPage {
             id.as_str(),
         ));
         page.imp().page_menu.append_item(&menu_item(
+            &gettext("Privacy & Power"),
+            "win.privacy",
+            id.as_str(),
+        ));
+        page.imp().page_menu.append_item(&menu_item(
             &gettext("Repair Launcher"),
             "win.repair",
             id.as_str(),

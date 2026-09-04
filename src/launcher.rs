@@ -44,7 +44,7 @@ pub struct LauncherCapabilities {
 
 impl PortalLauncher {
     pub fn desktop_id(id: &AppId) -> String {
-        format!("{}.{}.desktop", config::APP_ID, id)
+        format!("{}.desktop", config::managed_app_id(id))
     }
 
     fn desktop_entry(app: &AppConfigV2) -> Result<String> {
@@ -175,5 +175,19 @@ mod tests {
         assert_eq!(desktop_name(None), "unknown");
         assert_eq!(desktop_name(Some("KDE".into())), "KDE");
         assert_eq!(desktop_name(Some("  ".into())), "unknown");
+    }
+
+    #[test]
+    fn desktop_and_application_ids_share_the_same_valid_component() {
+        let ordinary: AppId = "abcdefghijkl".parse().unwrap();
+        assert_eq!(
+            PortalLauncher::desktop_id(&ordinary),
+            "io.github.cheviiot.bastle.abcdefghijkl.desktop"
+        );
+        let leading_digit: AppId = "1bcdefghijkl".parse().unwrap();
+        assert_eq!(
+            PortalLauncher::desktop_id(&leading_digit),
+            "io.github.cheviiot.bastle.app1bcdefghijkl.desktop"
+        );
     }
 }

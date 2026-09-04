@@ -15,7 +15,7 @@ use tempfile::{Builder, NamedTempFile, TempDir};
 use crate::{
     config::DATA_DIR_NAME,
     model::{AppConfigV2, AppId, SCHEMA_VERSION},
-    policy::{AppPolicyV1, Origin, PermissionDecision, PermissionKind},
+    policy::{decode_policy, AppPolicyV2, Origin, PermissionDecision, PermissionKind},
 };
 
 const CONFIG_FILE: &str = "app.json";
@@ -23,10 +23,16 @@ const ICON_FILE: &str = "icon.png";
 const POLICY_FILE: &str = "policy.json";
 const METADATA_LOCK_FILE: &str = ".metadata.lock";
 const POLICY_LOCK_FILE: &str = ".policy.lock";
+const BACKGROUND_LOCK_FILE: &str = ".background.lock";
 pub const RUNTIME_LOCK_FILE: &str = ".runtime.lock";
 
 #[derive(Debug)]
 pub struct ProfileLock {
+    _file: fs::File,
+}
+
+#[derive(Debug)]
+pub struct BackgroundLock {
     _file: fs::File,
 }
 
@@ -46,7 +52,7 @@ pub struct LoadReport {
 pub struct AppSnapshot {
     pub config: AppConfigV2,
     pub icon: Vec<u8>,
-    pub policy: AppPolicyV1,
+    pub policy: AppPolicyV2,
 }
 
 #[derive(Debug, Clone)]
@@ -117,6 +123,22 @@ impl AppRepository {
 
     pub fn apps_root(&self) -> PathBuf {
         self.data_root.join("apps")
+    }
+
+    pub fn lock_background(&self) -> Result<BackgroundLock> {
+        fs::create_dir_all(&self.data_root)
+            .with_context(|| format!("failed to create {}", self.data_root.display()))?;
+        let path = self.data_root.join(BACKGROUND_LOCK_FILE);
+        let file = OpenOptions::new()
+            .create(true)
+            .read(true)
+            .write(true)
+            .truncate(false)
+            .open(&path)
+            .with_context(|| format!("failed to open {}", path.display()))?;
+        rustix::fs::flock(&file, rustix::fs::FlockOperation::LockExclusive)
+            .with_context(|| format!("failed to lock {}", path.display()))?;
+        Ok(BackgroundLock { _file: file })
     }
 
     pub fn profile_dir(&self, id: &AppId) -> PathBuf {
@@ -198,7 +220,7 @@ impl AppRepository {
                 Ok(app) if app.id.as_str() == entry.file_name().to_string_lossy() => {
                     let policy_path = path.join(POLICY_FILE);
                     if policy_path.exists() {
-                        if let Err(error) = self.load_policy_from_path(&policy_path) {
+                        if let Err(error) = self.load_policy(&app.id) {
                             report.warnings.push(RepositoryWarning {
                                 path: policy_path,
                                 message: error.to_string(),
@@ -233,10 +255,16 @@ impl AppRepository {
     pub fn snapshot(&self, id: &AppId) -> Result<AppSnapshot> {
         let _metadata_lock = self.lock_app_file(id, METADATA_LOCK_FILE)?;
         let _policy_lock = self.lock_app_file(id, POLICY_LOCK_FILE)?;
+        let policy_path = self.app_dir(id).join(POLICY_FILE);
+        let policy = if policy_path.exists() {
+            self.load_policy_from_locked_path(&policy_path)?
+        } else {
+            AppPolicyV2::default()
+        };
         Ok(AppSnapshot {
             config: self.load(id)?,
             icon: self.read_icon(id)?,
-            policy: self.load_policy(id)?,
+            policy,
         })
     }
 
@@ -283,27 +311,33 @@ impl AppRepository {
         self.app_dir(id).join(CONFIG_FILE).is_file()
     }
 
-    pub fn load_policy(&self, id: &AppId) -> Result<AppPolicyV1> {
+    pub fn load_policy(&self, id: &AppId) -> Result<AppPolicyV2> {
         let path = self.app_dir(id).join(POLICY_FILE);
         if !path.exists() {
-            return Ok(AppPolicyV1::default());
+            return Ok(AppPolicyV2::default());
         }
-        self.load_policy_from_path(&path)
+        let _policy_lock = self.lock_app_file(id, POLICY_LOCK_FILE)?;
+        if !path.exists() {
+            return Ok(AppPolicyV2::default());
+        }
+        self.load_policy_from_locked_path(&path)
     }
 
-    fn load_policy_from_path(&self, path: &Path) -> Result<AppPolicyV1> {
-        let contents = fs::read_to_string(path)
-            .with_context(|| format!("failed to read {}", path.display()))?;
-        let policy: AppPolicyV1 = serde_json::from_str(&contents)
-            .with_context(|| format!("invalid JSON in {}", path.display()))?;
-        policy
-            .validate()
+    fn load_policy_from_locked_path(&self, path: &Path) -> Result<AppPolicyV2> {
+        let contents =
+            fs::read(path).with_context(|| format!("failed to read {}", path.display()))?;
+        let (policy, migrated) = decode_policy(&contents)
             .with_context(|| format!("invalid policy in {}", path.display()))?;
+        if migrated {
+            replace_json(path, &policy).with_context(|| {
+                format!("failed to migrate {} to policy schema v2", path.display())
+            })?;
+        }
         Ok(policy)
     }
 
     #[cfg(test)]
-    pub fn save_policy(&self, id: &AppId, policy: &AppPolicyV1) -> Result<()> {
+    pub fn save_policy(&self, id: &AppId, policy: &AppPolicyV2) -> Result<()> {
         if !self.app_dir(id).is_dir() {
             bail!("app {id} is not stored locally");
         }
@@ -315,7 +349,7 @@ impl AppRepository {
         &self,
         id: &AppId,
         decisions: &[(Origin, PermissionKind, PermissionDecision)],
-    ) -> Result<AppPolicyV1> {
+    ) -> Result<AppPolicyV2> {
         self.mutate_policy(id, |policy| {
             for (origin, kind, decision) in decisions {
                 policy.set_decision(origin.clone(), *kind, *decision);
@@ -323,12 +357,18 @@ impl AppRepository {
         })
     }
 
+    pub fn allow_navigation_origin(&self, id: &AppId, origin: Origin) -> Result<AppPolicyV2> {
+        self.mutate_policy(id, |policy| {
+            policy.navigation.allowed_origins.insert(origin);
+        })
+    }
+
     pub fn merge_policy(
         &self,
         id: &AppId,
-        original: &AppPolicyV1,
-        edited: &AppPolicyV1,
-    ) -> Result<AppPolicyV1> {
+        original: &AppPolicyV2,
+        edited: &AppPolicyV2,
+    ) -> Result<AppPolicyV2> {
         original.validate()?;
         edited.validate()?;
         let mut changes = Vec::new();
@@ -352,18 +392,57 @@ impl AppRepository {
                 }
             }
         }
-        self.apply_policy_decisions(id, &changes)
+        self.mutate_policy(id, |current| {
+            for (origin, kind, decision) in changes {
+                current.set_decision(origin, kind, decision);
+            }
+            if original.navigation.enabled != edited.navigation.enabled {
+                current.navigation.enabled = edited.navigation.enabled;
+            }
+            for origin in edited
+                .navigation
+                .allowed_origins
+                .difference(&original.navigation.allowed_origins)
+            {
+                current.navigation.allowed_origins.insert(origin.clone());
+            }
+            for origin in original
+                .navigation
+                .allowed_origins
+                .difference(&edited.navigation.allowed_origins)
+            {
+                current.navigation.allowed_origins.remove(origin);
+            }
+            if original.proxy != edited.proxy {
+                current.proxy = edited.proxy.clone();
+            }
+            if original.background != edited.background {
+                current.background = edited.background.clone();
+            }
+            for filter_id in original.content_filters.keys() {
+                if !edited.content_filters.contains_key(filter_id) {
+                    current.content_filters.remove(filter_id);
+                }
+            }
+            for (filter_id, filter) in &edited.content_filters {
+                if original.content_filters.get(filter_id) != Some(filter) {
+                    current
+                        .content_filters
+                        .insert(filter_id.clone(), filter.clone());
+                }
+            }
+        })
     }
 
-    pub fn reset_policy(&self, id: &AppId) -> Result<AppPolicyV1> {
-        self.mutate_policy(id, AppPolicyV1::reset)
+    pub fn reset_policy(&self, id: &AppId) -> Result<AppPolicyV2> {
+        self.mutate_policy(id, AppPolicyV2::reset_permissions)
     }
 
     fn mutate_policy(
         &self,
         id: &AppId,
-        mutate: impl FnOnce(&mut AppPolicyV1),
-    ) -> Result<AppPolicyV1> {
+        mutate: impl FnOnce(&mut AppPolicyV2),
+    ) -> Result<AppPolicyV2> {
         let app_dir = self.app_dir(id);
         if !app_dir.is_dir() {
             bail!("app {id} is not stored locally");
@@ -371,10 +450,15 @@ impl AppRepository {
         let _metadata_lock = self.lock_app_file(id, METADATA_LOCK_FILE)?;
         let _policy_lock = self.lock_app_file(id, POLICY_LOCK_FILE)?;
 
-        let mut policy = self.load_policy(id)?;
+        let policy_path = app_dir.join(POLICY_FILE);
+        let mut policy = if policy_path.exists() {
+            self.load_policy_from_locked_path(&policy_path)?
+        } else {
+            AppPolicyV2::default()
+        };
         mutate(&mut policy);
         policy.validate()?;
-        replace_json(&app_dir.join(POLICY_FILE), &policy)?;
+        replace_json(&policy_path, &policy)?;
         Ok(policy)
     }
 
@@ -384,14 +468,14 @@ impl AppRepository {
     }
 
     pub fn stage_create(&self, app: &AppConfigV2, icon: &[u8]) -> Result<StagedApp> {
-        self.stage_create_with_policy(app, icon, &AppPolicyV1::default())
+        self.stage_create_with_policy(app, icon, &AppPolicyV2::default())
     }
 
     pub fn stage_create_with_policy(
         &self,
         app: &AppConfigV2,
         icon: &[u8],
-        policy: &AppPolicyV1,
+        policy: &AppPolicyV2,
     ) -> Result<StagedApp> {
         let final_dir = self.app_dir(&app.id);
         if final_dir.exists() {
@@ -650,7 +734,7 @@ mod tests {
         assert_eq!(repository.read_icon(&app.id).unwrap(), b"icon");
         assert_eq!(
             repository.load_policy(&app.id).unwrap(),
-            AppPolicyV1::default()
+            AppPolicyV2::default()
         );
 
         app.title = "Updated".to_owned();
@@ -736,7 +820,7 @@ mod tests {
             b"profile"
         );
         assert_eq!(fs::read(cache_dir.join("cache-state")).unwrap(), b"cache");
-        assert_eq!(repository.load_policy(&id).unwrap(), AppPolicyV1::default());
+        assert_eq!(repository.load_policy(&id).unwrap(), AppPolicyV2::default());
     }
 
     #[test]
@@ -746,7 +830,7 @@ mod tests {
         repository.create(&app, b"icon").unwrap();
 
         let origin = Origin::from_str("https://example.org/path").unwrap();
-        let mut policy = AppPolicyV1::default();
+        let mut policy = AppPolicyV2::default();
         policy.set_decision(
             origin.clone(),
             PermissionKind::Camera,
@@ -768,11 +852,112 @@ mod tests {
     }
 
     #[test]
+    fn policy_v1_is_atomically_migrated_to_v2() {
+        let (_temp, repository) = repository();
+        let app = AppConfigV2::new("Example", "example.org", 0).unwrap();
+        repository.create(&app, b"icon").unwrap();
+        let policy_path = repository.app_dir(&app.id).join(POLICY_FILE);
+        fs::write(
+            &policy_path,
+            r#"{
+  "schema_version": 1,
+  "permissions": {
+    "https://example.org": { "camera": "block" }
+  }
+}"#,
+        )
+        .unwrap();
+
+        let policy = repository.load_policy(&app.id).unwrap();
+        assert_eq!(policy.schema_version, POLICY_SCHEMA_VERSION);
+        assert_eq!(
+            policy.decision(
+                &Origin::from_str("https://example.org").unwrap(),
+                PermissionKind::Camera
+            ),
+            PermissionDecision::Block
+        );
+        assert!(!policy.navigation.enabled);
+        assert!(!policy.background.enabled);
+        let migrated = fs::read_to_string(policy_path).unwrap();
+        assert!(migrated.contains("\"schema_version\": 2"));
+        assert!(!migrated.contains(".tmp-"));
+    }
+
+    #[test]
+    fn policy_migration_waits_for_the_policy_lock() {
+        let (_temp, repository) = repository();
+        let app = AppConfigV2::new("Example", "example.org", 0).unwrap();
+        repository.create(&app, b"icon").unwrap();
+        fs::write(
+            repository.app_dir(&app.id).join(POLICY_FILE),
+            r#"{"schema_version":1,"permissions":{}}"#,
+        )
+        .unwrap();
+
+        let policy_lock = repository.lock_app_file(&app.id, POLICY_LOCK_FILE).unwrap();
+        let repository_for_thread = repository.clone();
+        let id = app.id.clone();
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let thread = std::thread::spawn(move || {
+            let _ = sender.send(repository_for_thread.load_policy(&id));
+        });
+        assert!(matches!(
+            receiver.recv_timeout(std::time::Duration::from_millis(100)),
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout)
+        ));
+        drop(policy_lock);
+        let migrated = receiver
+            .recv_timeout(std::time::Duration::from_secs(2))
+            .unwrap()
+            .unwrap();
+        thread.join().unwrap();
+        assert_eq!(migrated.schema_version, POLICY_SCHEMA_VERSION);
+    }
+
+    #[test]
+    fn background_reconciliation_lock_serializes_processes() {
+        let (_temp, repository) = repository();
+        let first_lock = repository.lock_background().unwrap();
+        let repository_for_thread = repository.clone();
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let thread = std::thread::spawn(move || {
+            let _ = sender.send(repository_for_thread.lock_background());
+        });
+        assert!(matches!(
+            receiver.recv_timeout(std::time::Duration::from_millis(100)),
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout)
+        ));
+        drop(first_lock);
+        receiver
+            .recv_timeout(std::time::Duration::from_secs(2))
+            .unwrap()
+            .unwrap();
+        thread.join().unwrap();
+    }
+
+    #[test]
     fn policy_edits_merge_with_decisions_saved_by_another_process() {
         let (_temp, repository) = repository();
         let app = AppConfigV2::new("Example", "example.org", 0).unwrap();
         repository.create(&app, b"icon").unwrap();
         let origin = Origin::from_str("https://example.org").unwrap();
+        let removed_origin = Origin::from_str("https://removed.example").unwrap();
+        repository
+            .allow_navigation_origin(&app.id, removed_origin.clone())
+            .unwrap();
+        repository
+            .mutate_policy(&app.id, |policy| {
+                policy.content_filters.insert(
+                    "removed00000".to_owned(),
+                    crate::policy::ContentFilterRuleSet::new(
+                        "Removed by editor",
+                        serde_json::json!([]),
+                    )
+                    .unwrap(),
+                );
+            })
+            .unwrap();
         let editor_snapshot = repository.load_policy(&app.id).unwrap();
         let mut editor_changes = editor_snapshot.clone();
         editor_changes.set_decision(
@@ -780,6 +965,23 @@ mod tests {
             PermissionKind::Notifications,
             PermissionDecision::Allow,
         );
+        editor_changes.navigation.enabled = true;
+        editor_changes
+            .navigation
+            .allowed_origins
+            .insert(origin.clone());
+        editor_changes
+            .navigation
+            .allowed_origins
+            .remove(&removed_origin);
+        editor_changes.content_filters.remove("removed00000");
+        editor_changes.content_filters.insert(
+            "editor000000".to_owned(),
+            crate::policy::ContentFilterRuleSet::new("Added by editor", serde_json::json!([]))
+                .unwrap(),
+        );
+
+        let concurrent_origin = Origin::from_str("https://concurrent.example").unwrap();
 
         repository
             .apply_policy_decisions(
@@ -790,6 +992,21 @@ mod tests {
                     PermissionDecision::Block,
                 )],
             )
+            .unwrap();
+        repository
+            .allow_navigation_origin(&app.id, concurrent_origin.clone())
+            .unwrap();
+        repository
+            .mutate_policy(&app.id, |policy| {
+                policy.content_filters.insert(
+                    "parallel0000".to_owned(),
+                    crate::policy::ContentFilterRuleSet::new(
+                        "Added concurrently",
+                        serde_json::json!([]),
+                    )
+                    .unwrap(),
+                );
+            })
             .unwrap();
         let merged = repository
             .merge_policy(&app.id, &editor_snapshot, &editor_changes)
@@ -803,6 +1020,16 @@ mod tests {
             merged.decision(&origin, PermissionKind::Notifications),
             PermissionDecision::Allow
         );
+        assert!(merged.navigation.enabled);
+        assert!(merged.navigation.allowed_origins.contains(&origin));
+        assert!(merged
+            .navigation
+            .allowed_origins
+            .contains(&concurrent_origin));
+        assert!(!merged.navigation.allowed_origins.contains(&removed_origin));
+        assert!(!merged.content_filters.contains_key("removed00000"));
+        assert!(merged.content_filters.contains_key("editor000000"));
+        assert!(merged.content_filters.contains_key("parallel0000"));
         assert!(repository.app_dir(&app.id).join(POLICY_LOCK_FILE).is_file());
     }
 

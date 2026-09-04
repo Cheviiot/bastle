@@ -102,7 +102,7 @@ pub fn start(parent: &gtk::Window, id: AppId) {
         #[strong]
         reset_all,
         move |button| {
-            decisions.borrow_mut().reset();
+            decisions.borrow_mut().reset_permissions();
             for row in rows.borrow().iter() {
                 row.set_selected(0);
             }

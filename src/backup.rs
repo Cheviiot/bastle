@@ -17,7 +17,7 @@ use tempfile::{Builder as TempBuilder, NamedTempFile, TempDir};
 use crate::{
     launcher::{LauncherBackend, PortalLauncher},
     model::{AppConfigV2, AppId},
-    policy::AppPolicyV1,
+    policy::{decode_policy, AppPolicyV2, MAX_POLICY_SERIALIZED_SIZE},
     repository::{ProfileLock, RUNTIME_LOCK_FILE},
     service::AppService,
 };
@@ -29,7 +29,7 @@ const MAX_ARCHIVE_FILES: usize = 100_000;
 const MAX_UNCOMPRESSED_SIZE: u64 = 16 * 1024 * 1024 * 1024;
 const MAX_MANIFEST_SIZE: u64 = 16 * 1024 * 1024;
 const MAX_APP_CONFIG_SIZE: u64 = 1024 * 1024;
-const MAX_POLICY_SIZE: u64 = 16 * 1024 * 1024;
+const MAX_POLICY_SIZE: u64 = MAX_POLICY_SERIALIZED_SIZE as u64;
 const MAX_ICON_SIZE: u64 = 10 * 1024 * 1024;
 
 #[derive(Debug, Default)]
@@ -358,9 +358,11 @@ impl<L: LauncherBackend + Clone> BackupService<L> {
     }
 
     fn existing_matches(&self, id: &AppId, archived: &ArchivedApp) -> Result<bool> {
+        let existing_policy = self.service.load_policy(id)?;
         Ok(self.service.load(id)? == archived.config
             && self.service.read_icon(id)? == archived.icon
-            && self.service.load_policy(id)? == archived.policy)
+            && (existing_policy == archived.policy
+                || existing_policy == archived.policy.for_restore()))
     }
 
     pub async fn restore(
@@ -437,7 +439,7 @@ pub fn is_encrypted_backup(path: &Path) -> Result<bool> {
 struct ArchivedApp {
     config: AppConfigV2,
     icon: Vec<u8>,
-    policy: AppPolicyV1,
+    policy: AppPolicyV2,
 }
 
 fn read_archived_app(root: &Path, id: &AppId) -> Result<ArchivedApp> {
@@ -448,8 +450,8 @@ fn read_archived_app(root: &Path, id: &AppId) -> Result<ArchivedApp> {
     ensure!(config.id == *id, "archive app id does not match its path");
     let icon = read_limited_file(&directory.join("icon.png"), MAX_ICON_SIZE)?;
     ensure!(!icon.is_empty(), "archive icon is empty");
-    let policy: AppPolicyV1 = read_limited_json(&directory.join("policy.json"), MAX_POLICY_SIZE)?;
-    policy.validate()?;
+    let policy_bytes = read_limited_file(&directory.join("policy.json"), MAX_POLICY_SIZE)?;
+    let (policy, _) = decode_policy(&policy_bytes)?;
     Ok(ArchivedApp {
         config,
         icon,
@@ -928,6 +930,37 @@ mod tests {
             RestoreDisposition::RestoreWithNewId
         );
         assert_ne!(conflict.entries[0].target_id, app.id);
+    }
+
+    #[test]
+    fn identical_backup_with_background_settings_is_skipped() {
+        let source = tempfile::tempdir().unwrap();
+        let service = backup_service(source.path());
+        let app = AppConfigV2::new("Background", "example.org", 0).unwrap();
+        block_on(service.service.create(app.clone(), b"icon", None)).unwrap();
+        let mut policy = AppPolicyV2::default();
+        policy.background.enabled = true;
+        policy.background.autostart = true;
+        service
+            .service
+            .merge_policy(&app.id, &AppPolicyV2::default(), &policy)
+            .unwrap();
+
+        let backup = source.path().join("background.bastle-backup");
+        service
+            .create_backup(
+                &backup,
+                std::slice::from_ref(&app.id),
+                &BackupOptions::default(),
+            )
+            .unwrap();
+
+        let plan = service.prepare_restore(&backup, None).unwrap();
+        assert_eq!(
+            plan.entries[0].disposition,
+            RestoreDisposition::SkipIdentical
+        );
+        assert_eq!(plan.entries[0].target_id, app.id);
     }
 
     #[test]

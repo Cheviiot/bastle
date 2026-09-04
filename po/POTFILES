@@ -6,6 +6,7 @@ src/app_page.rs
 src/app_window.blp
 src/app_window.rs
 src/backup_dialog.rs
+src/background.rs
 src/application.rs
 src/create_app_dialog.blp
 src/create_app_dialog.rs
@@ -13,6 +14,7 @@ src/download_manager.rs
 src/gtk/help-overlay.blp
 src/home_page.blp
 src/permissions_dialog.rs
+src/privacy_dialog.rs
 src/util.rs
 src/window.blp
 src/window.rs
