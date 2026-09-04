@@ -30,9 +30,22 @@ install_data('io.github.cheviiot.bastle.gschema.xml',
   install_dir: get_option('datadir') / 'glib-2.0' / 'schemas'
 )
 
-compile_schemas = find_program('glib-compile-schemas', required: false, disabler: true)
+compile_schemas = find_program('glib-compile-schemas')
 test('Validate schema file',
      compile_schemas,
      args: ['--strict', '--dry-run', meson.current_source_dir()])
+
+test_schema = custom_target(
+  'compile test schema',
+  input: 'io.github.cheviiot.bastle.gschema.xml',
+  output: 'gschemas.compiled',
+  command: [
+    compile_schemas,
+    '--strict',
+    '--targetdir', meson.current_build_dir(),
+    meson.current_source_dir(),
+  ],
+  build_by_default: get_option('ui_tests'),
+)
 
 subdir('icons')

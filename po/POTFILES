@@ -5,6 +5,7 @@ src/app_page.blp
 src/app_page.rs
 src/app_window.blp
 src/app_window.rs
+src/backup_dialog.rs
 src/application.rs
 src/create_app_dialog.blp
 src/create_app_dialog.rs

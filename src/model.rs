@@ -10,9 +10,16 @@ use url::Url;
 pub const SCHEMA_VERSION: u32 = 2;
 pub const APP_ID_LENGTH: usize = 12;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
 #[serde(transparent)]
 pub struct AppId(String);
+
+impl<'de> Deserialize<'de> for AppId {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let value = String::deserialize(deserializer)?;
+        Self::from_str(&value).map_err(serde::de::Error::custom)
+    }
+}
 
 impl AppId {
     pub fn generate() -> Self {
@@ -181,6 +188,7 @@ mod tests {
         assert!("abc-defghijk".parse::<AppId>().is_err());
         assert!("ABCDEFGHIJKL".parse::<AppId>().is_err());
         assert!("short".parse::<AppId>().is_err());
+        assert!(serde_json::from_str::<AppId>(r#""../bad-id""#).is_err());
     }
 
     #[test]

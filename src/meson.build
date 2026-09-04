@@ -69,16 +69,18 @@ cargo_build = custom_target(
 
 if get_option('ui_tests')
   xvfb_run = find_program('xvfb-run')
+  dbus_run_session = find_program('dbus-run-session')
   ui_test_env = environment()
   ui_test_env.set('WAYLAND_DISPLAY', '')
   ui_test_env.set('GDK_BACKEND', 'x11')
   ui_test_env.set('BASTLE_TEST_RESOURCE', resources.full_path())
+  ui_test_env.set('GSETTINGS_SCHEMA_DIR', meson.project_build_root() / 'data')
   test(
-    'App page UI smoke',
-    xvfb_run,
-    args: ['-a', cargo_build.full_path(), '--ui-test-app-page'],
+    'UI smoke',
+    dbus_run_session,
+    args: ['--', xvfb_run.full_path(), '-a', cargo_build.full_path(), '--ui-test-app-page'],
     env: ui_test_env,
-    depends: [cargo_build, resources],
+    depends: [cargo_build, resources, test_schema],
     timeout: 30,
   )
 endif

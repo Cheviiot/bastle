@@ -9,8 +9,16 @@ permissions:
 
 jobs:
   flatpak-release:
-    name: Release Flatpak
-    runs-on: ubuntu-24.04
+    name: Release Flatpak (${{ matrix.variant.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        variant:
+          - arch: x86_64
+            runner: ubuntu-24.04
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.variant.runner }}
     container:
       image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
       options: --privileged
@@ -18,13 +26,24 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: flatpak/flatpak-github-actions/flatpak-builder@aa777012a985fe1b1fd3e66ea2173609cf0c9a70
         with:
-          bundle: Bastle-x86_64.flatpak
+          bundle: Bastle-${{ matrix.variant.arch }}.flatpak
           manifest-path: build-aux/io.github.cheviiot.bastle.json
-          arch: x86_64
-          upload-artifact: false
+          arch: ${{ matrix.variant.arch }}
+          artifact-name: Bastle-${{ matrix.variant.arch }}
+
+  publish-release:
+    name: Publish GitHub release
+    needs: flatpak-release
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: Bastle-*
+          merge-multiple: true
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: >-
-          gh release create "$GITHUB_REF_NAME" Bastle-x86_64.flatpak
+          gh release create "$GITHUB_REF_NAME"
+          Bastle-x86_64.flatpak Bastle-aarch64.flatpak
           --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes
