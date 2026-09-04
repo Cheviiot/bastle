@@ -78,6 +78,10 @@ if get_option('ui_tests')
   ui_test_env.set('XDG_DATA_HOME', meson.project_build_root() / 'ui-test-data')
   ui_test_env.set('XDG_CACHE_HOME', meson.project_build_root() / 'ui-test-cache')
   ui_test_env.set('XDG_CONFIG_HOME', meson.project_build_root() / 'ui-test-config')
+  # GitHub's Fedora container cannot create WebKit's nested bubblewrap
+  # namespace. This applies only to the test-only binary invocation; release
+  # and Flatpak builds keep the WebKit process sandbox enabled.
+  ui_test_env.set('WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS', '1')
   test(
     'UI smoke',
     xvfb_run,
