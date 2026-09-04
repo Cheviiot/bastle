@@ -656,6 +656,7 @@ fn safe_archive_path(path: &Path) -> bool {
 }
 
 fn validate_archive_paths(manifest: &BackupManifestV1, paths: &[PathBuf]) -> Result<()> {
+    let path_set = paths.iter().map(PathBuf::as_path).collect::<HashSet<_>>();
     let ids = manifest
         .apps
         .iter()
@@ -682,7 +683,7 @@ fn validate_archive_paths(manifest: &BackupManifestV1, paths: &[PathBuf]) -> Res
     }
     for path in required {
         ensure!(
-            paths.contains(&path),
+            path_set.contains(path.as_path()),
             "required backup entry is missing: {}",
             path.display()
         );

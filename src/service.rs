@@ -238,9 +238,25 @@ impl<L: LauncherBackend> AppService<L> {
     }
 
     pub async fn delete(&self, id: &AppId) -> Result<UninstallOutcome> {
-        let outcome = self.launcher.uninstall(id).await?;
+        let profile_existed = self.repository.profile_dir(id).exists();
+        let profile_lock = self.repository.acquire_delete_profile_lock(id)?;
+        let outcome = match self.launcher.uninstall(id).await {
+            Ok(outcome) => outcome,
+            Err(error) => {
+                if !profile_existed {
+                    return match self.repository.remove_profile_with_lock(id, profile_lock) {
+                        Ok(()) => Err(error),
+                        Err(cleanup) => Err(error).context(format!(
+                            "temporary profile-lock cleanup also failed: {cleanup}"
+                        )),
+                    };
+                }
+                drop(profile_lock);
+                return Err(error);
+            }
+        };
         self.repository
-            .delete(id)
+            .delete_with_profile_lock(id, profile_lock)
             .context("launcher was removed but local data cleanup failed")?;
         Ok(outcome)
     }
@@ -359,6 +375,22 @@ mod tests {
         *launcher.deny_uninstall.borrow_mut() = true;
         assert!(block_on(service.delete(&app.id)).is_err());
         assert!(service.repository().contains(&app.id));
+    }
+
+    #[test]
+    fn active_profile_blocks_delete_before_launcher_removal() {
+        let (_temp, service, launcher) = service();
+        let app = AppConfigV2::new("Running", "example.org", 0).unwrap();
+        block_on(service.create(app.clone(), b"icon", None)).unwrap();
+        let runtime_lock = service.acquire_runtime_lock(&app.id).unwrap();
+
+        assert!(block_on(service.delete(&app.id)).is_err());
+        assert!(launcher.installed.borrow().contains(&app.id));
+        assert!(service.contains(&app.id));
+
+        drop(runtime_lock);
+        assert!(block_on(service.delete(&app.id)).is_ok());
+        assert!(!launcher.installed.borrow().contains(&app.id));
     }
 
     #[test]

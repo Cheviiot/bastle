@@ -440,12 +440,17 @@ impl AppRepository {
         sync_parent(&config_path)
     }
 
+    #[cfg(test)]
     pub fn delete(&self, id: &AppId) -> Result<()> {
-        let _profile_lock = self
-            .profile_dir(id)
-            .exists()
-            .then(|| self.try_acquire_profile_snapshot_lock(id))
-            .transpose()?;
+        let profile_lock = self.acquire_delete_profile_lock(id)?;
+        self.delete_with_profile_lock(id, profile_lock)
+    }
+
+    pub fn acquire_delete_profile_lock(&self, id: &AppId) -> Result<ProfileLock> {
+        self.try_acquire_profile_snapshot_lock(id)
+    }
+
+    pub fn delete_with_profile_lock(&self, id: &AppId, profile_lock: ProfileLock) -> Result<()> {
         let _metadata_lock = self
             .app_dir(id)
             .is_dir()
@@ -463,6 +468,7 @@ impl AppRepository {
                     .with_context(|| format!("failed to remove {}", target.display()))?;
             }
         }
+        drop(profile_lock);
         Ok(())
     }
 
@@ -500,6 +506,12 @@ impl AppRepository {
             sync_parent(&profile)?;
         }
         Ok(())
+    }
+
+    pub fn remove_profile_with_lock(&self, id: &AppId, profile_lock: ProfileLock) -> Result<()> {
+        let result = self.remove_profile(id);
+        drop(profile_lock);
+        result
     }
 
     fn lock_app_file(&self, id: &AppId, name: &str) -> Result<fs::File> {
