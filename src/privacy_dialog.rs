@@ -273,13 +273,6 @@ fn present_editor(
                     return;
                 }
             };
-            let other_autostart = match another_app_uses_autostart(&id) {
-                Ok(enabled) => enabled,
-                Err(error) => {
-                    parent.toast(&error.to_string());
-                    return;
-                }
-            };
             let parent_window = parent.clone();
             let app_id = id.clone();
             let original = original.clone();
@@ -295,6 +288,17 @@ fn present_editor(
                 #[strong]
                 autostart_failed_message,
                 async move {
+                    let other_autostart = if needs_other_autostart(&original, &policy) {
+                        match another_app_uses_autostart(&app_id) {
+                            Ok(enabled) => enabled,
+                            Err(error) => {
+                                parent_window.toast(&error.to_string());
+                                return;
+                            }
+                        }
+                    } else {
+                        false
+                    };
                     let identifier = WindowIdentifier::from_native(&parent_window).await;
                     let mut portal_warning = None;
                     if policy.background.enabled && policy.background != original.background {
@@ -358,6 +362,13 @@ fn another_app_uses_autostart(excluded: &AppId) -> Result<bool> {
         }
     }
     Ok(false)
+}
+
+fn needs_other_autostart(original: &AppPolicyV2, edited: &AppPolicyV2) -> bool {
+    (edited.background.enabled
+        && edited.background != original.background
+        && !edited.background.autostart)
+        || (!edited.background.enabled && original.background.autostart)
 }
 
 struct PolicyEditorInput<'a> {
@@ -557,5 +568,13 @@ mod tests {
         assert!(!policy.navigation.enabled);
         assert!(!policy.background.enabled);
         assert!(policy.content_filters.is_empty());
+        assert!(!needs_other_autostart(&policy, &policy));
+
+        let mut enabling_background = policy.clone();
+        enabling_background.background.enabled = true;
+        assert!(needs_other_autostart(&policy, &enabling_background));
+
+        enabling_background.background.autostart = true;
+        assert!(!needs_other_autostart(&policy, &enabling_background));
     }
 }

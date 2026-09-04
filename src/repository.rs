@@ -397,8 +397,17 @@ impl AppRepository {
             if original.background != edited.background {
                 current.background = edited.background.clone();
             }
-            if original.content_filters != edited.content_filters {
-                current.content_filters = edited.content_filters.clone();
+            for filter_id in original.content_filters.keys() {
+                if !edited.content_filters.contains_key(filter_id) {
+                    current.content_filters.remove(filter_id);
+                }
+            }
+            for (filter_id, filter) in &edited.content_filters {
+                if original.content_filters.get(filter_id) != Some(filter) {
+                    current
+                        .content_filters
+                        .insert(filter_id.clone(), filter.clone());
+                }
             }
         })
     }
@@ -894,6 +903,18 @@ mod tests {
         repository
             .allow_navigation_origin(&app.id, removed_origin.clone())
             .unwrap();
+        repository
+            .mutate_policy(&app.id, |policy| {
+                policy.content_filters.insert(
+                    "removed00000".to_owned(),
+                    crate::policy::ContentFilterRuleSet::new(
+                        "Removed by editor",
+                        serde_json::json!([]),
+                    )
+                    .unwrap(),
+                );
+            })
+            .unwrap();
         let editor_snapshot = repository.load_policy(&app.id).unwrap();
         let mut editor_changes = editor_snapshot.clone();
         editor_changes.set_decision(
@@ -910,6 +931,12 @@ mod tests {
             .navigation
             .allowed_origins
             .remove(&removed_origin);
+        editor_changes.content_filters.remove("removed00000");
+        editor_changes.content_filters.insert(
+            "editor000000".to_owned(),
+            crate::policy::ContentFilterRuleSet::new("Added by editor", serde_json::json!([]))
+                .unwrap(),
+        );
 
         let concurrent_origin = Origin::from_str("https://concurrent.example").unwrap();
 
@@ -925,6 +952,18 @@ mod tests {
             .unwrap();
         repository
             .allow_navigation_origin(&app.id, concurrent_origin.clone())
+            .unwrap();
+        repository
+            .mutate_policy(&app.id, |policy| {
+                policy.content_filters.insert(
+                    "parallel0000".to_owned(),
+                    crate::policy::ContentFilterRuleSet::new(
+                        "Added concurrently",
+                        serde_json::json!([]),
+                    )
+                    .unwrap(),
+                );
+            })
             .unwrap();
         let merged = repository
             .merge_policy(&app.id, &editor_snapshot, &editor_changes)
@@ -945,6 +984,9 @@ mod tests {
             .allowed_origins
             .contains(&concurrent_origin));
         assert!(!merged.navigation.allowed_origins.contains(&removed_origin));
+        assert!(!merged.content_filters.contains_key("removed00000"));
+        assert!(merged.content_filters.contains_key("editor000000"));
+        assert!(merged.content_filters.contains_key("parallel0000"));
         assert!(repository.app_dir(&app.id).join(POLICY_LOCK_FILE).is_file());
     }
 

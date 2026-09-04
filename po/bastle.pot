@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: bastle\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-05 05:30+1000\n"
+"POT-Creation-Date: 2026-09-05 05:50+1000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,7 +18,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 
 #: data/io.github.cheviiot.bastle.desktop.in:3
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:5 src/app_window.rs:1061
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:5 src/app_window.rs:1069
 #: src/home_page.blp:7
 msgid "Bastle"
 msgstr ""
@@ -199,7 +199,7 @@ msgstr ""
 msgid "Permissions"
 msgstr ""
 
-#: src/app_page.rs:174 src/privacy_dialog.rs:50 src/privacy_dialog.rs:520
+#: src/app_page.rs:174 src/privacy_dialog.rs:50 src/privacy_dialog.rs:531
 msgid "Privacy & Power"
 msgstr ""
 
@@ -303,107 +303,111 @@ msgstr ""
 msgid "This WebKit permission type is not supported"
 msgstr ""
 
-#: src/app_window.rs:627
+#: src/app_window.rs:628
 msgid "Privacy policy could not be loaded; web content was not started"
 msgstr ""
 
-#: src/app_window.rs:649
+#: src/app_window.rs:651
+msgid "Content filters could not be initialized"
+msgstr ""
+
+#: src/app_window.rs:654
 msgid "Some content filters could not be enabled"
 msgstr ""
 
-#: src/app_window.rs:825
+#: src/app_window.rs:832
 msgid "This origin is outside the application's navigation allowlist."
 msgstr ""
 
-#: src/app_window.rs:826
+#: src/app_window.rs:833
 msgid "Destination"
 msgstr ""
 
-#: src/app_window.rs:829
+#: src/app_window.rs:836
 msgid "Open Another Origin?"
 msgstr ""
 
-#: src/app_window.rs:831 src/permissions_dialog.rs:53
+#: src/app_window.rs:838 src/permissions_dialog.rs:53
 msgid "Block"
 msgstr ""
 
-#: src/app_window.rs:832
+#: src/app_window.rs:839
 msgid "Open Externally"
 msgstr ""
 
-#: src/app_window.rs:833
+#: src/app_window.rs:840
 msgid "Open Once"
 msgstr ""
 
-#: src/app_window.rs:834
+#: src/app_window.rs:841
 msgid "Always Allow Origin"
 msgstr ""
 
-#: src/app_window.rs:848
+#: src/app_window.rs:855
 msgid "The origin could not be saved"
 msgstr ""
 
-#: src/app_window.rs:858
+#: src/app_window.rs:865
 msgid "Navigation blocked"
 msgstr ""
 
-#: src/app_window.rs:872
+#: src/app_window.rs:879
 msgid "Unsupported website permission request"
 msgstr ""
 
-#: src/app_window.rs:883
+#: src/app_window.rs:890
 msgid "Website permission origin is unavailable"
 msgstr ""
 
-#: src/app_window.rs:911
+#: src/app_window.rs:918
 msgid "Website"
 msgstr ""
 
-#: src/app_window.rs:912
+#: src/app_window.rs:919
 msgid "Website Permission"
 msgstr ""
 
-#: src/app_window.rs:914
+#: src/app_window.rs:921
 msgid "Not Now"
 msgstr ""
 
-#: src/app_window.rs:915
+#: src/app_window.rs:922
 msgid "Always Block"
 msgstr ""
 
-#: src/app_window.rs:916
+#: src/app_window.rs:923
 msgid "Allow for This Session"
 msgstr ""
 
-#: src/app_window.rs:917
+#: src/app_window.rs:924
 msgid "Always Allow"
 msgstr ""
 
-#: src/app_window.rs:944
+#: src/app_window.rs:951
 msgid "Permission was allowed only for this session"
 msgstr ""
 
-#: src/app_window.rs:957
+#: src/app_window.rs:964
 msgid "Permission block could not be saved"
 msgstr ""
 
-#: src/app_window.rs:981
+#: src/app_window.rs:988
 msgid "System notifications are unavailable"
 msgstr ""
 
-#: src/app_window.rs:1062
+#: src/app_window.rs:1070
 msgid "Web App Running in Background"
 msgstr ""
 
-#: src/app_window.rs:1066
+#: src/app_window.rs:1074
 msgid "is still active. Use Stop to end its process."
 msgstr ""
 
-#: src/app_window.rs:1073
+#: src/app_window.rs:1081
 msgid "Stop"
 msgstr ""
 
-#: src/app_window.rs:1080
+#: src/app_window.rs:1088
 msgid "Bastle web apps are running"
 msgstr ""
 
@@ -886,27 +890,27 @@ msgstr ""
 msgid "Autostart could not be updated by the portal"
 msgstr ""
 
-#: src/privacy_dialog.rs:426
+#: src/privacy_dialog.rs:437
 msgid "WebKit content-extension rules"
 msgstr ""
 
-#: src/privacy_dialog.rs:431
+#: src/privacy_dialog.rs:442
 msgid "Remove Filter"
 msgstr ""
 
-#: src/privacy_dialog.rs:464
+#: src/privacy_dialog.rs:475
 msgid "WebKit Content Filters"
 msgstr ""
 
-#: src/privacy_dialog.rs:470
+#: src/privacy_dialog.rs:481
 msgid "Import Content Filter"
 msgstr ""
 
-#: src/privacy_dialog.rs:471
+#: src/privacy_dialog.rs:482
 msgid "Import"
 msgstr ""
 
-#: src/privacy_dialog.rs:485
+#: src/privacy_dialog.rs:496
 msgid "Imported Filter"
 msgstr ""
 

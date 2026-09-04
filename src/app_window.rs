@@ -333,6 +333,7 @@ mod imp {
         pub provider: RefCell<Option<gtk::CssProvider>>,
         pub runtime_lock: RefCell<Option<ProfileLock>>,
         pub background_hold: RefCell<Option<gio::ApplicationHoldGuard>>,
+        pub background_start_pending: Cell<bool>,
         pub stop_requested: Cell<bool>,
     }
 
@@ -640,12 +641,16 @@ impl AppWindow {
         }
         match self.imp().create_webview(config) {
             Ok(view) => {
-                self.imp().webview_container.set_child(Some(&view));
-                self.imp().webview.replace(Some(view.clone()));
                 let start_url = config.start_url.clone();
                 let profile = AppService::portal().profile_dir(&config.id);
                 let policy = self.imp().policy.borrow().clone();
-                if let Some(manager) = view.user_content_manager() {
+                let has_enabled_filters =
+                    policy.content_filters.values().any(|filter| filter.enabled);
+                if has_enabled_filters {
+                    let Some(manager) = view.user_content_manager() else {
+                        self.toast(&gettext("Content filters could not be initialized"));
+                        return;
+                    };
                     let filter_error_message = gettext("Some content filters could not be enabled");
                     glib::spawn_future_local(glib::clone!(
                         #[weak(rename_to = window)]
@@ -664,11 +669,13 @@ impl AppWindow {
                                     failures.join("; ")
                                 ));
                             } else {
+                                window.publish_webview(&view);
                                 view.load_uri(&start_url);
                             }
                         }
                     ));
                 } else {
+                    self.publish_webview(&view);
                     view.load_uri(&start_url);
                 }
             }
@@ -1032,18 +1039,19 @@ impl AppWindow {
         if self.imp().webview.borrow().is_some() {
             self.enter_background();
         } else {
-            self.imp().stop_requested.set(true);
-            self.close();
+            self.imp().background_start_pending.set(true);
         }
     }
 
     pub(crate) fn show_from_background(&self) {
+        self.imp().background_start_pending.set(false);
         self.leave_background();
         self.present();
     }
 
     pub(crate) fn stop_background(&self) {
         self.imp().stop_requested.set(true);
+        self.imp().background_start_pending.set(false);
         self.leave_background();
         self.close();
     }
@@ -1099,6 +1107,14 @@ impl AppWindow {
     fn with_webview(&self, operation: impl FnOnce(&WebView)) {
         if let Some(view) = self.imp().webview.borrow().as_ref() {
             operation(view);
+        }
+    }
+
+    fn publish_webview(&self, view: &WebView) {
+        self.imp().webview_container.set_child(Some(view));
+        self.imp().webview.replace(Some(view.clone()));
+        if self.imp().background_start_pending.replace(false) {
+            self.enter_background();
         }
     }
 
