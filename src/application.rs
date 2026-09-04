@@ -43,6 +43,13 @@ mod imp {
             app.set_accels_for_action("app.quit", &["<primary>q"]);
             app.set_accels_for_action("win.back", &["<alt>Left", "Back"]);
             app.set_accels_for_action("win.forward", &["<alt>Right", "Forward"]);
+            app.set_accels_for_action("win.reload", &["<primary>r", "F5"]);
+            app.set_accels_for_action("win.reload-bypass-cache", &["<primary><shift>r"]);
+            app.set_accels_for_action("win.home", &["<alt>Home"]);
+            app.set_accels_for_action("win.zoom-in", &["<primary>plus", "<primary>equal"]);
+            app.set_accels_for_action("win.zoom-out", &["<primary>minus"]);
+            app.set_accels_for_action("win.zoom-reset", &["<primary>0"]);
+            app.set_accels_for_action("win.toggle-fullscreen", &["F11"]);
         }
     }
 

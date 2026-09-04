@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: bastle\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-04 21:52+1000\n"
+"POT-Creation-Date: 2026-09-04 23:47+1000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,12 +17,12 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: data/io.github.cheviiot.bastle.desktop.in:2
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:5 src/home_page.blp:5
+#: data/io.github.cheviiot.bastle.desktop.in:3
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:5 src/home_page.blp:7
 msgid "Bastle"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.desktop.in:3
+#: data/io.github.cheviiot.bastle.desktop.in:4
 msgid "Create isolated web applications"
 msgstr ""
 
@@ -75,187 +75,297 @@ msgstr ""
 msgid "Harden URL, metadata, icon, download, and theme-color handling"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.gschema.xml:12
+#: data/io.github.cheviiot.bastle.gschema.xml:13
 msgid "Whether the first-run Spider import prompt was handled"
 msgstr ""
 
-#: src/app_page.blp:24 src/window.rs:155
+#: src/app_page.blp:16 src/app_window.blp:30 src/window.blp:41
+msgid "Menu"
+msgstr ""
+
+#: src/app_page.blp:26 src/window.rs:157
 msgid "Cancel"
 msgstr ""
 
-#: src/app_page.blp:30 src/app_window.rs:142
+#: src/app_page.blp:32 src/app_window.rs:334
 msgid "Save"
 msgstr ""
 
-#: src/app_page.blp:58
+#: src/app_page.blp:60
 msgid "General"
 msgstr ""
 
-#: src/app_page.blp:59
+#: src/app_page.blp:61
 msgid "Basic options"
 msgstr ""
 
-#: src/app_page.blp:62 src/create_app_dialog.blp:30
+#: src/app_page.blp:64 src/create_app_dialog.blp:32
 msgid "URL"
 msgstr ""
 
-#: src/app_page.blp:68 src/create_app_dialog.blp:42
+#: src/app_page.blp:70 src/create_app_dialog.blp:44
 msgid "Title"
 msgstr ""
 
-#: src/app_page.blp:74 src/create_app_dialog.blp:53
+#: src/app_page.blp:76 src/create_app_dialog.blp:55
 msgid "Icon"
 msgstr ""
 
-#: src/app_page.blp:75 src/create_app_dialog.blp:54
+#: src/app_page.blp:77 src/create_app_dialog.blp:56
 msgid "Automatically normalized to 256×256"
 msgstr ""
 
-#: src/app_page.blp:88
+#: src/app_page.blp:90
 msgid "User Interface"
 msgstr ""
 
-#: src/app_page.blp:89
+#: src/app_page.blp:91
 msgid "Customize the application window"
 msgstr ""
 
-#: src/app_page.blp:92
+#: src/app_page.blp:94
 msgid "Titlebar Color"
 msgstr ""
 
-#: src/app_page.blp:93
+#: src/app_page.blp:95
 msgid "Use a valid theme color supplied by the website"
 msgstr ""
 
-#: src/app_page.blp:98
+#: src/app_page.blp:100
 msgid "Browser Behavior"
 msgstr ""
 
-#: src/app_page.blp:99
+#: src/app_page.blp:101
 msgid "WebKit settings for this application"
 msgstr ""
 
-#: src/app_page.blp:104
+#: src/app_page.blp:106
 msgid "Custom User Agent"
 msgstr ""
 
-#: src/app_page.blp:108
+#: src/app_page.blp:110
 msgid "User Agent"
 msgstr ""
 
-#: src/app_page.rs:167
+#: src/app_page.rs:164
 msgid "Repair Launcher"
 msgstr ""
 
-#: src/app_page.rs:172
+#: src/app_page.rs:169
 msgid "Delete Application"
 msgstr ""
 
-#: src/app_window.rs:143
+#: src/app_window.blp:53
+msgid "_Reload"
+msgstr ""
+
+#: src/app_window.blp:54
+msgid "Reload Without Cache"
+msgstr ""
+
+#: src/app_window.blp:55
+msgid "_Stop Loading"
+msgstr ""
+
+#: src/app_window.blp:56
+msgid "_Home"
+msgstr ""
+
+#: src/app_window.blp:57
+msgid "Zoom _In"
+msgstr ""
+
+#: src/app_window.blp:58
+msgid "Zoom _Out"
+msgstr ""
+
+#: src/app_window.blp:59
+msgid "_Reset Zoom"
+msgstr ""
+
+#: src/app_window.blp:60
+msgid "_Fullscreen"
+msgstr ""
+
+#: src/app_window.blp:61 src/window.blp:69
+msgid "_Keyboard Shortcuts"
+msgstr ""
+
+#: src/app_window.rs:108 src/app_window.rs:128
+msgid "Web App Window"
+msgstr ""
+
+#: src/app_window.rs:335
 msgid "Download File"
 msgstr ""
 
-#: src/create_app_dialog.blp:7
+#: src/create_app_dialog.blp:9
 msgid "Add a New Application"
 msgstr ""
 
-#: src/create_app_dialog.blp:82
+#: src/create_app_dialog.blp:84
 msgid "Create"
 msgstr ""
 
-#: src/create_app_dialog.rs:93
+#: src/create_app_dialog.rs:91
 msgid ""
 "The website could not be reached. You can still create this application."
 msgstr ""
 
-#: src/home_page.blp:13
+#: src/gtk/help-overlay.blp:13
+msgctxt "shortcut window"
+msgid "General"
+msgstr ""
+
+#: src/gtk/help-overlay.blp:16
+msgctxt "shortcut window"
+msgid "Show Shortcuts"
+msgstr ""
+
+#: src/gtk/help-overlay.blp:21
+msgctxt "shortcut window"
+msgid "Quit"
+msgstr ""
+
+#: src/gtk/help-overlay.blp:27
+msgctxt "shortcut window"
+msgid "Navigation"
+msgstr ""
+
+#: src/gtk/help-overlay.blp:30
+msgctxt "shortcut window"
+msgid "Back"
+msgstr ""
+
+#: src/gtk/help-overlay.blp:35
+msgctxt "shortcut window"
+msgid "Forward"
+msgstr ""
+
+#: src/gtk/help-overlay.blp:40
+msgctxt "shortcut window"
+msgid "Reload"
+msgstr ""
+
+#: src/gtk/help-overlay.blp:45
+msgctxt "shortcut window"
+msgid "Reload Without Cache"
+msgstr ""
+
+#: src/gtk/help-overlay.blp:50
+msgctxt "shortcut window"
+msgid "Home"
+msgstr ""
+
+#: src/gtk/help-overlay.blp:56
+msgctxt "shortcut window"
+msgid "View"
+msgstr ""
+
+#: src/gtk/help-overlay.blp:59
+msgctxt "shortcut window"
+msgid "Zoom In"
+msgstr ""
+
+#: src/gtk/help-overlay.blp:64
+msgctxt "shortcut window"
+msgid "Zoom Out"
+msgstr ""
+
+#: src/gtk/help-overlay.blp:69
+msgctxt "shortcut window"
+msgid "Reset Zoom"
+msgstr ""
+
+#: src/gtk/help-overlay.blp:74
+msgctxt "shortcut window"
+msgid "Toggle Fullscreen"
+msgstr ""
+
+#: src/home_page.blp:15
 msgid "Welcome to Bastle"
 msgstr ""
 
-#: src/home_page.blp:14
+#: src/home_page.blp:16
 msgid "Give each website its own isolated space."
 msgstr ""
 
-#: src/import_dialog.rs:32
+#: src/import_dialog.rs:34
 msgid ""
 "Bastle can import Spider settings without copying cookies, sessions, cache, "
 "or profiles."
 msgstr ""
 
-#: src/import_dialog.rs:34
+#: src/import_dialog.rs:36
 msgid "Choose the old Spider GSettings keyfile or its configuration directory."
 msgstr ""
 
-#: src/import_dialog.rs:36
+#: src/import_dialog.rs:38
 msgid "Import from Spider"
 msgstr ""
 
-#: src/import_dialog.rs:38
+#: src/import_dialog.rs:40
 msgid "Choose Keyfile"
 msgstr ""
 
-#: src/import_dialog.rs:39
+#: src/import_dialog.rs:41
 msgid "Choose Folder"
 msgstr ""
 
-#: src/import_dialog.rs:40
+#: src/import_dialog.rs:42
 msgid "Not Now"
 msgstr ""
 
-#: src/import_dialog.rs:53
+#: src/import_dialog.rs:52
 msgid "Select Spider Settings"
 msgstr ""
 
-#: src/import_dialog.rs:71
+#: src/import_dialog.rs:70
 msgid "Import Spider Applications"
 msgstr ""
 
-#: src/import_dialog.rs:108
+#: src/import_dialog.rs:107
 msgid "Invalid entries"
 msgstr ""
 
-#: src/import_dialog.rs:115
+#: src/import_dialog.rs:114
 msgid "Import Selected"
 msgstr ""
 
-#: src/util.rs:214
+#: src/util.rs:216
 msgid "Images"
 msgstr ""
 
-#: src/util.rs:219
+#: src/util.rs:221
 msgid "Select"
 msgstr ""
 
-#: src/util.rs:221
+#: src/util.rs:223
 msgid "App Icon"
 msgstr ""
 
-#: src/window.blp:24
+#: src/window.blp:26
 msgid "Applications"
 msgstr ""
 
-#: src/window.blp:66
+#: src/window.blp:68
 msgid "_Import from Spider"
 msgstr ""
 
-#: src/window.blp:67
-msgid "_Keyboard Shortcuts"
-msgstr ""
-
-#: src/window.blp:68
+#: src/window.blp:70
 msgid "_About Bastle"
 msgstr ""
 
-#: src/window.rs:149
+#: src/window.rs:151
 msgid "Delete this application?"
 msgstr ""
 
-#: src/window.rs:151
+#: src/window.rs:153
 msgid ""
 "Its launcher, settings, WebKit profile, cookies, and cache will be removed."
 msgstr ""
 
-#: src/window.rs:156
+#: src/window.rs:158
 msgid "Delete"
 msgstr ""
 
@@ -263,10 +373,10 @@ msgstr ""
 msgid "Application deleted"
 msgstr ""
 
-#: src/window.rs:184
+#: src/window.rs:181
 msgid "Launcher repaired"
 msgstr ""
 
-#: src/window.rs:201
+#: src/window.rs:198
 msgid "Some application data could not be loaded"
 msgstr ""

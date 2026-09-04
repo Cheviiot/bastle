@@ -3,6 +3,7 @@ data/io.github.cheviiot.bastle.metainfo.xml.in
 data/io.github.cheviiot.bastle.gschema.xml
 src/app_page.blp
 src/app_page.rs
+src/app_window.blp
 src/app_window.rs
 src/create_app_dialog.blp
 src/create_app_dialog.rs

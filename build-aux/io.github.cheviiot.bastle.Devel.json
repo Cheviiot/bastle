@@ -16,7 +16,6 @@
   ],
   "build-options": {
     "append-path": "/usr/lib/sdk/rust-stable/bin",
-    "build-args": ["--share=network"],
     "env": {
       "RUST_BACKTRACE": "1",
       "RUST_LOG": "bastle=debug"
@@ -40,11 +39,18 @@
       "name": "bastle",
       "builddir": true,
       "buildsystem": "meson",
+      "config-opts": ["-Dflatpak=true"],
+      "build-options": {
+        "env": {
+          "CARGO_HOME": "/run/build/bastle/cargo"
+        }
+      },
       "sources": [
         {
           "type": "dir",
           "path": ".."
-        }
+        },
+        "generated-sources.json"
       ]
     }
   ]
