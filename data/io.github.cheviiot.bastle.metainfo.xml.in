@@ -37,7 +37,7 @@
     <ul>
       <li>Create, edit, repair, and remove portal-installed launchers</li>
       <li>Fetch and safely normalize website icons with an offline fallback</li>
-      <li>Optionally import Spider settings without importing browser sessions</li>
+      <li>Keep each application's configuration, policy, profile, and cache separate</li>
     </ul>
   </description>
   <url type="homepage">https://github.com/Cheviiot/bastle</url>

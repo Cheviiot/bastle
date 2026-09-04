@@ -7,7 +7,7 @@ use rand::{distributions::Uniform, Rng};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-pub const SCHEMA_VERSION: u32 = 1;
+pub const SCHEMA_VERSION: u32 = 2;
 pub const APP_ID_LENGTH: usize = 12;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -78,13 +78,7 @@ fn default_window_height() -> i32 {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct LegacySource {
-    pub app_id: String,
-    pub legacy_id: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct AppConfigV1 {
+pub struct AppConfigV2 {
     pub schema_version: u32,
     pub id: AppId,
     pub title: String,
@@ -97,15 +91,13 @@ pub struct AppConfigV1 {
     pub window: WindowState,
     #[serde(default)]
     pub sort_order: u32,
-    #[serde(default)]
-    pub imported_from: Option<LegacySource>,
 }
 
 fn default_true() -> bool {
     true
 }
 
-impl AppConfigV1 {
+impl AppConfigV2 {
     pub fn new(
         title: impl Into<String>,
         start_url: impl Into<String>,
@@ -120,7 +112,6 @@ impl AppConfigV1 {
             use_theme_color: true,
             window: WindowState::default(),
             sort_order,
-            imported_from: None,
         };
         config.normalize_and_validate()?;
         Ok(config)
@@ -211,12 +202,12 @@ mod tests {
     }
 
     #[test]
-    fn config_round_trips_as_version_one() {
-        let config = AppConfigV1::new("Example", "https://example.org", 2).unwrap();
+    fn config_round_trips_as_version_two() {
+        let config = AppConfigV2::new("Example", "https://example.org", 2).unwrap();
         let json = serde_json::to_string(&config).unwrap();
         assert!(json.contains("\"user_agent\":null"));
-        assert!(json.contains("\"imported_from\":null"));
-        let decoded: AppConfigV1 = serde_json::from_str(&json).unwrap();
+        assert!(!json.contains("imported_from"));
+        let decoded: AppConfigV2 = serde_json::from_str(&json).unwrap();
         assert_eq!(decoded, config);
     }
 }

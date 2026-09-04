@@ -8,9 +8,5 @@
     <key name="window-height" type="i">
       <default>600</default>
     </key>
-    <key name="legacy-import-completed" type="b">
-      <default>false</default>
-      <summary>Whether the first-run Spider import prompt was handled</summary>
-    </key>
   </schema>
 </schemalist>

@@ -1,19 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use std::cell::RefCell;
+use std::{cell::RefCell, collections::BTreeSet, str::FromStr};
 
 use adw::{prelude::*, subclass::prelude::*};
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use gettextrs::gettext;
 use glib::clone;
 use gtk::{gdk, gio, glib};
 use webkit::{
-    prelude::*, HardwareAccelerationPolicy, NavigationAction, PolicyDecision, PolicyDecisionType,
-    WebContext, WebView,
+    prelude::*, HardwareAccelerationPolicy, NavigationAction, PermissionRequest, PolicyDecision,
+    PolicyDecisionType, WebContext, WebView,
 };
 
 use crate::{
-    model::{AppConfigV1, WindowState},
+    application::BastleApplication,
+    download_manager::DownloadManager,
+    model::{AppConfigV2, WindowState},
+    policy::{AppPolicyV1, Origin, PermissionDecision, PermissionKind},
     service::AppService,
     util,
 };
@@ -86,6 +89,7 @@ fn handle_new_window_policy(decision: &PolicyDecision) -> Option<bool> {
 }
 
 fn create_popup(
+    owner: &AppWindow,
     parent: &gtk::Window,
     parent_view: &WebView,
     action: &NavigationAction,
@@ -153,6 +157,20 @@ fn create_popup(
         popup,
         move |_| popup.close()
     ));
+    popup_view.connect_permission_request(clone!(
+        #[weak]
+        owner,
+        #[upgrade_or]
+        false,
+        move |view, request| owner.handle_permission_request(view, request)
+    ));
+    popup_view.connect_show_notification(clone!(
+        #[weak]
+        owner,
+        #[upgrade_or]
+        false,
+        move |_, notification| owner.show_web_notification(notification)
+    ));
     popup_view.connect_enter_fullscreen(clone!(
         #[weak]
         popup,
@@ -185,10 +203,12 @@ fn create_popup(
     });
     popup_view.connect_create(clone!(
         #[weak]
+        owner,
+        #[weak]
         popup,
         #[upgrade_or]
         None,
-        move |view, action| create_popup(popup.upcast_ref(), view, action)
+        move |view, action| create_popup(&owner, popup.upcast_ref(), view, action)
     ));
 
     Some(popup_view.upcast())
@@ -203,6 +223,87 @@ fn response_requires_download(view: &WebView, decision: &PolicyDecision) -> bool
         .and_then(|response| response.http_headers())
         .and_then(|headers| headers.one("Content-Type"))
         .is_some_and(|mime| !view.can_show_mime_type(mime.as_str()))
+}
+
+fn permission_request_details(
+    request: &PermissionRequest,
+) -> Result<(Vec<PermissionKind>, String)> {
+    if let Ok(media) = request
+        .clone()
+        .downcast::<webkit::UserMediaPermissionRequest>()
+    {
+        if webkit::functions::user_media_permission_is_for_display_device(&media) {
+            bail!("{}", gettext("Screen sharing is not available"));
+        }
+        let mut kinds = Vec::new();
+        if media.is_for_video_device() {
+            kinds.push(PermissionKind::Camera);
+        }
+        if media.is_for_audio_device() {
+            kinds.push(PermissionKind::Microphone);
+        }
+        let description = match kinds.as_slice() {
+            [PermissionKind::Camera] => gettext("Allow this website to use the camera?"),
+            [PermissionKind::Microphone] => gettext("Allow this website to use the microphone?"),
+            [PermissionKind::Camera, PermissionKind::Microphone] => {
+                gettext("Allow this website to use the camera and microphone?")
+            }
+            _ => bail!("{}", gettext("Unknown media device request")),
+        };
+        return Ok((kinds, description));
+    }
+    if request.is::<webkit::GeolocationPermissionRequest>() {
+        return Ok((
+            vec![PermissionKind::Geolocation],
+            gettext("Allow this website to access your location?"),
+        ));
+    }
+    if request.is::<webkit::NotificationPermissionRequest>() {
+        return Ok((
+            vec![PermissionKind::Notifications],
+            gettext("Allow this website to send notifications?"),
+        ));
+    }
+    if request.is::<webkit::ClipboardPermissionRequest>() {
+        return Ok((
+            vec![PermissionKind::Clipboard],
+            gettext("Allow this website to read the clipboard?"),
+        ));
+    }
+    if request.is::<webkit::PointerLockPermissionRequest>() {
+        return Ok((
+            vec![PermissionKind::PointerLock],
+            gettext("Allow this website to lock the pointer?"),
+        ));
+    }
+    if request.is::<webkit::WebsiteDataAccessPermissionRequest>() {
+        return Ok((
+            vec![PermissionKind::ThirdPartyStorage],
+            gettext("Allow this website to access third-party storage?"),
+        ));
+    }
+    bail!(
+        "{}",
+        gettext("This WebKit permission type is not supported")
+    )
+}
+
+fn permission_origin(view: &WebView, request: &PermissionRequest) -> Result<Origin> {
+    let current_uri = view.uri().context("the web view has no current URL")?;
+    let current_url = url::Url::parse(current_uri.as_str())?;
+
+    if let Ok(storage) = request
+        .clone()
+        .downcast::<webkit::WebsiteDataAccessPermissionRequest>()
+    {
+        let domain = storage
+            .requesting_domain()
+            .context("the storage request has no requesting domain")?;
+        let origin = format!("{}://{}", current_url.scheme(), domain);
+        return Origin::from_str(&origin);
+    }
+
+    Origin::from_url(&current_url)
 }
 
 mod imp {
@@ -221,7 +322,10 @@ mod imp {
         pub forward_button: TemplateChild<gtk::Button>,
         #[template_child]
         pub toast_overlay: TemplateChild<adw::ToastOverlay>,
-        pub config: RefCell<Option<AppConfigV1>>,
+        pub config: RefCell<Option<AppConfigV2>>,
+        pub policy: RefCell<AppPolicyV1>,
+        pub session_permissions: RefCell<BTreeSet<(Origin, PermissionKind)>>,
+        pub download_manager: RefCell<Option<std::rc::Rc<DownloadManager>>>,
         pub webview: RefCell<Option<WebView>>,
         pub provider: RefCell<Option<gtk::CssProvider>>,
     }
@@ -271,7 +375,7 @@ mod imp {
 
     #[gtk::template_callbacks]
     impl AppWindow {
-        pub(super) fn create_webview(&self, config: &AppConfigV1) -> Result<WebView> {
+        pub(super) fn create_webview(&self, config: &AppConfigV2) -> Result<WebView> {
             let service = AppService::portal();
             let profile = service.profile_dir(&config.id);
             let cache = service.cache_dir(&config.id);
@@ -308,45 +412,11 @@ mod imp {
                 );
             }
 
-            network_session.connect_download_started(clone!(
-                #[weak(rename_to = window)]
-                self.obj(),
-                move |_, download| {
-                    download.connect_failed(clone!(
-                        #[weak]
-                        window,
-                        move |_, error| window.toast(&error.to_string())
-                    ));
-                    download.connect_decide_destination(clone!(
-                        #[weak]
-                        window,
-                        #[upgrade_or]
-                        true,
-                        move |download, suggested_name| {
-                            let suggested_name = suggested_name.to_owned();
-                            glib::spawn_future_local(clone!(
-                                #[weak]
-                                download,
-                                #[weak]
-                                window,
-                                async move {
-                                    let dialog = gtk::FileDialog::builder()
-                                        .accept_label(gettext("Save"))
-                                        .title(gettext("Download File"))
-                                        .modal(true)
-                                        .initial_name(&suggested_name)
-                                        .build();
-                                    match dialog.save_future(Some(&window)).await {
-                                        Ok(file) => download.set_destination(file.uri().as_str()),
-                                        Err(_) => download.cancel(),
-                                    }
-                                }
-                            ));
-                            true
-                        }
-                    ));
-                }
-            ));
+            let download_manager = self.obj().download_manager();
+            download_manager.set_session(&network_session);
+            network_session.connect_download_started(move |_, download| {
+                download_manager.track(download);
+            });
 
             let content_manager = webkit::UserContentManager::new();
             if config.use_theme_color {
@@ -386,6 +456,20 @@ mod imp {
         }
 
         fn connect_webview(&self, view: &WebView) {
+            view.connect_show_notification(clone!(
+                #[weak(rename_to = window)]
+                self.obj(),
+                #[upgrade_or]
+                false,
+                move |_, notification| window.show_web_notification(notification)
+            ));
+            view.connect_permission_request(clone!(
+                #[weak(rename_to = window)]
+                self.obj(),
+                #[upgrade_or]
+                false,
+                move |view, request| window.handle_permission_request(view, request)
+            ));
             view.connect_decide_policy(|view, decision, kind| {
                 if kind == PolicyDecisionType::NewWindowAction {
                     return handle_new_window_policy(decision).unwrap_or(false);
@@ -403,7 +487,7 @@ mod imp {
                 self.obj(),
                 #[upgrade_or]
                 None,
-                move |view, action| create_popup(window.upcast_ref(), view, action)
+                move |view, action| create_popup(&window, window.upcast_ref(), view, action)
             ));
             view.connect_enter_fullscreen(clone!(
                 #[weak(rename_to = window)]
@@ -487,7 +571,7 @@ glib::wrapper! {
 }
 
 impl AppWindow {
-    pub fn new<P: IsA<gtk::Application>>(application: &P, config: &AppConfigV1) -> Self {
+    pub fn new<P: IsA<gtk::Application>>(application: &P, config: &AppConfigV2) -> Self {
         let window: Self = glib::Object::builder()
             .property("application", application)
             .build();
@@ -495,12 +579,25 @@ impl AppWindow {
         window
     }
 
-    fn set_config(&self, config: &AppConfigV1) {
+    fn set_config(&self, config: &AppConfigV2) {
+        self.imp().config.replace(Some(config.clone()));
         self.set_widget_name(&format!("b{}", config.id));
         self.set_title(Some(&config.title));
         self.set_default_size(config.window.width, config.window.height);
         if config.window.maximized {
             self.maximize();
+        }
+        match AppService::portal().load_policy(&config.id) {
+            Ok(policy) => {
+                self.imp().policy.replace(policy);
+            }
+            Err(error) => {
+                self.imp().policy.replace(AppPolicyV1::default());
+                self.toast(&format!(
+                    "{}: {error}",
+                    gettext("Permission settings could not be loaded")
+                ));
+            }
         }
         match self.imp().create_webview(config) {
             Ok(view) => {
@@ -510,7 +607,6 @@ impl AppWindow {
             }
             Err(error) => self.toast(&error.to_string()),
         }
-        self.imp().config.replace(Some(config.clone()));
         self.load_colors(None);
     }
 
@@ -588,7 +684,164 @@ impl AppWindow {
             gio::ActionEntry::builder("toggle-fullscreen")
                 .activate(|window: &Self, _, _| window.toggle_fullscreen())
                 .build(),
+            gio::ActionEntry::builder("downloads")
+                .activate(|window: &Self, _, _| window.download_manager().show())
+                .build(),
         ]);
+    }
+
+    fn download_manager(&self) -> std::rc::Rc<DownloadManager> {
+        if let Some(manager) = self.imp().download_manager.borrow().as_ref() {
+            return manager.clone();
+        }
+        let manager = DownloadManager::new(self);
+        self.imp().download_manager.replace(Some(manager.clone()));
+        manager
+    }
+
+    fn handle_permission_request(&self, view: &WebView, request: &PermissionRequest) -> bool {
+        let (kinds, description) = match permission_request_details(request) {
+            Ok(details) => details,
+            Err(error) => {
+                request.deny();
+                self.toast(&format!(
+                    "{}: {error}",
+                    gettext("Unsupported website permission request")
+                ));
+                return true;
+            }
+        };
+        let origin = match permission_origin(view, request) {
+            Ok(origin) => origin,
+            Err(error) => {
+                request.deny();
+                self.toast(&format!(
+                    "{}: {error}",
+                    gettext("Website permission origin is unavailable")
+                ));
+                return true;
+            }
+        };
+
+        let policy = self.imp().policy.borrow();
+        if kinds
+            .iter()
+            .any(|kind| policy.decision(&origin, *kind) == PermissionDecision::Block)
+        {
+            request.deny();
+            return true;
+        }
+        let session_permissions = self.imp().session_permissions.borrow();
+        if kinds.iter().all(|kind| {
+            policy.decision(&origin, *kind) == PermissionDecision::Allow
+                || session_permissions.contains(&(origin.clone(), *kind))
+        }) {
+            request.allow();
+            return true;
+        }
+        drop(session_permissions);
+        drop(policy);
+
+        let window = self.clone();
+        let request = request.clone();
+        glib::spawn_future_local(async move {
+            let body = format!("{}\n\n{}: {}", description, gettext("Website"), origin);
+            let dialog = adw::AlertDialog::new(Some(&gettext("Website Permission")), Some(&body));
+            dialog.add_responses(&[
+                ("cancel", &gettext("Not Now")),
+                ("block", &gettext("Always Block")),
+                ("allow-session", &gettext("Allow for This Session")),
+                ("allow", &gettext("Always Allow")),
+            ]);
+            dialog.set_response_appearance("block", adw::ResponseAppearance::Destructive);
+            dialog.set_response_appearance("allow", adw::ResponseAppearance::Suggested);
+            dialog.set_default_response(Some("allow-session"));
+            dialog.set_close_response("cancel");
+
+            match dialog.choose_future(Some(&window)).await.as_str() {
+                "allow-session" => {
+                    let mut session = window.imp().session_permissions.borrow_mut();
+                    for kind in &kinds {
+                        session.insert((origin.clone(), *kind));
+                    }
+                    request.allow();
+                }
+                "allow" => {
+                    if let Err(error) = window.persist_permission_decision(
+                        &origin,
+                        &kinds,
+                        PermissionDecision::Allow,
+                    ) {
+                        let mut session = window.imp().session_permissions.borrow_mut();
+                        for kind in &kinds {
+                            session.insert((origin.clone(), *kind));
+                        }
+                        window.toast(&format!(
+                            "{}: {error}",
+                            gettext("Permission was allowed only for this session")
+                        ));
+                    }
+                    request.allow();
+                }
+                "block" => {
+                    if let Err(error) = window.persist_permission_decision(
+                        &origin,
+                        &kinds,
+                        PermissionDecision::Block,
+                    ) {
+                        window.toast(&format!(
+                            "{}: {error}",
+                            gettext("Permission block could not be saved")
+                        ));
+                    }
+                    request.deny();
+                }
+                _ => request.deny(),
+            }
+        });
+        true
+    }
+
+    fn show_web_notification(&self, notification: &webkit::Notification) -> bool {
+        let Some(id) = self
+            .imp()
+            .config
+            .borrow()
+            .as_ref()
+            .map(|config| config.id.clone())
+        else {
+            notification.close();
+            return true;
+        };
+        let Some(application) = self.application().and_downcast::<BastleApplication>() else {
+            notification.close();
+            self.toast(&gettext("System notifications are unavailable"));
+            return true;
+        };
+        application.send_web_notification(&id, notification);
+        true
+    }
+
+    fn persist_permission_decision(
+        &self,
+        origin: &Origin,
+        kinds: &[PermissionKind],
+        decision: PermissionDecision,
+    ) -> Result<()> {
+        let id = self
+            .imp()
+            .config
+            .borrow()
+            .as_ref()
+            .map(|config| config.id.clone())
+            .context("application configuration is unavailable")?;
+        let changes = kinds
+            .iter()
+            .map(|kind| (origin.clone(), *kind, decision))
+            .collect::<Vec<_>>();
+        let updated = AppService::portal().apply_policy_decisions(&id, &changes)?;
+        self.imp().policy.replace(updated);
+        Ok(())
     }
 
     fn with_webview(&self, operation: impl FnOnce(&WebView)) {
@@ -645,7 +898,7 @@ impl AppWindow {
         self.add_controller(gesture);
     }
 
-    fn toast(&self, message: &str) {
+    pub(crate) fn toast(&self, message: &str) {
         self.imp().toast_overlay.add_toast(adw::Toast::new(message));
     }
 }

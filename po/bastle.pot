@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: bastle\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-04 23:47+1000\n"
+"POT-Creation-Date: 2026-09-05 01:58+1000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -56,38 +56,43 @@ msgid "Fetch and safely normalize website icons with an offline fallback"
 msgstr ""
 
 #: data/io.github.cheviiot.bastle.metainfo.xml.in:40
-msgid "Optionally import Spider settings without importing browser sessions"
+msgid ""
+"Keep each application's configuration, policy, profile, and cache separate"
 msgstr ""
 
 #: data/io.github.cheviiot.bastle.metainfo.xml.in:55
-msgid "Introduce the Bastle identity and isolated JSON-based storage"
+msgid "Prevent a crash when opening an application card for editing"
 msgstr ""
 
 #: data/io.github.cheviiot.bastle.metainfo.xml.in:56
+msgid "Add a headless regression test for editor state changes"
+msgstr ""
+
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:64
+msgid "Introduce the Bastle identity and isolated JSON-based storage"
+msgstr ""
+
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:65
 msgid "Add transactional launcher operations and repair support"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:57
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:66
 msgid "Add an explicit, settings-only Spider importer"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:58
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:67
 msgid "Harden URL, metadata, icon, download, and theme-color handling"
-msgstr ""
-
-#: data/io.github.cheviiot.bastle.gschema.xml:13
-msgid "Whether the first-run Spider import prompt was handled"
 msgstr ""
 
 #: src/app_page.blp:16 src/app_window.blp:30 src/window.blp:41
 msgid "Menu"
 msgstr ""
 
-#: src/app_page.blp:26 src/window.rs:157
+#: src/app_page.blp:26 src/window.rs:155
 msgid "Cancel"
 msgstr ""
 
-#: src/app_page.blp:32 src/app_window.rs:334
+#: src/app_page.blp:32 src/permissions_dialog.rs:38
 msgid "Save"
 msgstr ""
 
@@ -143,60 +148,160 @@ msgstr ""
 msgid "Custom User Agent"
 msgstr ""
 
-#: src/app_page.blp:110
+#: src/app_page.blp:109
 msgid "User Agent"
 msgstr ""
 
-#: src/app_page.rs:164
+#: src/app_page.rs:169 src/permissions_dialog.rs:28
+msgid "Permissions"
+msgstr ""
+
+#: src/app_page.rs:174
 msgid "Repair Launcher"
 msgstr ""
 
-#: src/app_page.rs:169
+#: src/app_page.rs:179
 msgid "Delete Application"
 msgstr ""
 
 #: src/app_window.blp:53
-msgid "_Reload"
+msgid "_Downloads"
 msgstr ""
 
 #: src/app_window.blp:54
-msgid "Reload Without Cache"
+msgid "_Reload"
 msgstr ""
 
 #: src/app_window.blp:55
-msgid "_Stop Loading"
+msgid "Reload Without Cache"
 msgstr ""
 
 #: src/app_window.blp:56
-msgid "_Home"
+msgid "_Stop Loading"
 msgstr ""
 
 #: src/app_window.blp:57
-msgid "Zoom _In"
+msgid "_Home"
 msgstr ""
 
 #: src/app_window.blp:58
-msgid "Zoom _Out"
+msgid "Zoom _In"
 msgstr ""
 
 #: src/app_window.blp:59
-msgid "_Reset Zoom"
+msgid "Zoom _Out"
 msgstr ""
 
 #: src/app_window.blp:60
+msgid "_Reset Zoom"
+msgstr ""
+
+#: src/app_window.blp:61
 msgid "_Fullscreen"
 msgstr ""
 
-#: src/app_window.blp:61 src/window.blp:69
+#: src/app_window.blp:62 src/window.blp:68
 msgid "_Keyboard Shortcuts"
 msgstr ""
 
-#: src/app_window.rs:108 src/app_window.rs:128
+#: src/app_window.rs:112 src/app_window.rs:132
 msgid "Web App Window"
 msgstr ""
 
-#: src/app_window.rs:335
-msgid "Download File"
+#: src/app_window.rs:236
+msgid "Screen sharing is not available"
+msgstr ""
+
+#: src/app_window.rs:246
+msgid "Allow this website to use the camera?"
+msgstr ""
+
+#: src/app_window.rs:247
+msgid "Allow this website to use the microphone?"
+msgstr ""
+
+#: src/app_window.rs:249
+msgid "Allow this website to use the camera and microphone?"
+msgstr ""
+
+#: src/app_window.rs:251
+msgid "Unknown media device request"
+msgstr ""
+
+#: src/app_window.rs:258
+msgid "Allow this website to access your location?"
+msgstr ""
+
+#: src/app_window.rs:264
+msgid "Allow this website to send notifications?"
+msgstr ""
+
+#: src/app_window.rs:270
+msgid "Allow this website to read the clipboard?"
+msgstr ""
+
+#: src/app_window.rs:276
+msgid "Allow this website to lock the pointer?"
+msgstr ""
+
+#: src/app_window.rs:282
+msgid "Allow this website to access third-party storage?"
+msgstr ""
+
+#: src/app_window.rs:287
+msgid "This WebKit permission type is not supported"
+msgstr ""
+
+#: src/app_window.rs:598
+msgid "Permission settings could not be loaded"
+msgstr ""
+
+#: src/app_window.rs:709
+msgid "Unsupported website permission request"
+msgstr ""
+
+#: src/app_window.rs:720
+msgid "Website permission origin is unavailable"
+msgstr ""
+
+#: src/app_window.rs:748
+msgid "Website"
+msgstr ""
+
+#: src/app_window.rs:749
+msgid "Website Permission"
+msgstr ""
+
+#: src/app_window.rs:751
+msgid "Not Now"
+msgstr ""
+
+#: src/app_window.rs:752
+msgid "Always Block"
+msgstr ""
+
+#: src/app_window.rs:753
+msgid "Allow for This Session"
+msgstr ""
+
+#: src/app_window.rs:754
+msgid "Always Allow"
+msgstr ""
+
+#: src/app_window.rs:781
+msgid "Permission was allowed only for this session"
+msgstr ""
+
+#: src/app_window.rs:794
+msgid "Permission block could not be saved"
+msgstr ""
+
+#: src/app_window.rs:818
+msgid "System notifications are unavailable"
+msgstr ""
+
+#: src/application.rs:191
+msgid "Website Notification"
 msgstr ""
 
 #: src/create_app_dialog.blp:9
@@ -210,6 +315,78 @@ msgstr ""
 #: src/create_app_dialog.rs:91
 msgid ""
 "The website could not be reached. You can still create this application."
+msgstr ""
+
+#: src/download_manager.rs:41
+msgid "Waiting"
+msgstr ""
+
+#: src/download_manager.rs:45
+msgid "Cancel Download"
+msgstr ""
+
+#: src/download_manager.rs:50
+msgid "Retry Download"
+msgstr ""
+
+#: src/download_manager.rs:56
+msgid "Choose a destination"
+msgstr ""
+
+#: src/download_manager.rs:78
+msgid "Downloading to"
+msgstr ""
+
+#: src/download_manager.rs:98
+msgid "Completed"
+msgstr ""
+
+#: src/download_manager.rs:102
+msgid "Download completed"
+msgstr ""
+
+#: src/download_manager.rs:103
+msgid "Saved to"
+msgstr ""
+
+#: src/download_manager.rs:115
+msgid "Cancelled"
+msgstr ""
+
+#: src/download_manager.rs:116
+msgid "Download cancelled"
+msgstr ""
+
+#: src/download_manager.rs:129
+msgid "Failed"
+msgstr ""
+
+#: src/download_manager.rs:131
+msgid "Download failed"
+msgstr ""
+
+#: src/download_manager.rs:171
+msgid "Download"
+msgstr ""
+
+#: src/download_manager.rs:265
+msgid "Downloads"
+msgstr ""
+
+#: src/download_manager.rs:275
+msgid "No Downloads"
+msgstr ""
+
+#: src/download_manager.rs:276
+msgid "Downloads from this app will appear here."
+msgstr ""
+
+#: src/download_manager.rs:307
+msgid "The download session is unavailable"
+msgstr ""
+
+#: src/download_manager.rs:311
+msgid "The download could not be retried"
 msgstr ""
 
 #: src/gtk/help-overlay.blp:13
@@ -290,46 +467,56 @@ msgstr ""
 msgid "Give each website its own isolated space."
 msgstr ""
 
-#: src/import_dialog.rs:34
-msgid ""
-"Bastle can import Spider settings without copying cookies, sessions, cache, "
-"or profiles."
+#: src/permissions_dialog.rs:34
+msgid "Reset All"
 msgstr ""
 
-#: src/import_dialog.rs:36
-msgid "Choose the old Spider GSettings keyfile or its configuration directory."
+#: src/permissions_dialog.rs:53
+msgid "Ask"
 msgstr ""
 
-#: src/import_dialog.rs:38
-msgid "Import from Spider"
+#: src/permissions_dialog.rs:53
+msgid "Allow"
 msgstr ""
 
-#: src/import_dialog.rs:40
-msgid "Choose Keyfile"
+#: src/permissions_dialog.rs:53
+msgid "Block"
 msgstr ""
 
-#: src/import_dialog.rs:41
-msgid "Choose Folder"
+#: src/permissions_dialog.rs:86
+msgid "No Saved Permissions"
 msgstr ""
 
-#: src/import_dialog.rs:42
-msgid "Not Now"
+#: src/permissions_dialog.rs:88
+msgid "Websites will ask before using protected capabilities."
 msgstr ""
 
-#: src/import_dialog.rs:52
-msgid "Select Spider Settings"
+#: src/permissions_dialog.rs:158
+msgid "Camera"
 msgstr ""
 
-#: src/import_dialog.rs:70
-msgid "Import Spider Applications"
+#: src/permissions_dialog.rs:159
+msgid "Microphone"
 msgstr ""
 
-#: src/import_dialog.rs:107
-msgid "Invalid entries"
+#: src/permissions_dialog.rs:160
+msgid "Location"
 msgstr ""
 
-#: src/import_dialog.rs:114
-msgid "Import Selected"
+#: src/permissions_dialog.rs:161
+msgid "Notifications"
+msgstr ""
+
+#: src/permissions_dialog.rs:162
+msgid "Clipboard"
+msgstr ""
+
+#: src/permissions_dialog.rs:163
+msgid "Pointer Lock"
+msgstr ""
+
+#: src/permissions_dialog.rs:164
+msgid "Third-Party Storage"
 msgstr ""
 
 #: src/util.rs:216
@@ -348,35 +535,31 @@ msgstr ""
 msgid "Applications"
 msgstr ""
 
-#: src/window.blp:68
-msgid "_Import from Spider"
-msgstr ""
-
-#: src/window.blp:70
+#: src/window.blp:69
 msgid "_About Bastle"
 msgstr ""
 
-#: src/window.rs:151
+#: src/window.rs:149
 msgid "Delete this application?"
 msgstr ""
 
-#: src/window.rs:153
+#: src/window.rs:151
 msgid ""
 "Its launcher, settings, WebKit profile, cookies, and cache will be removed."
 msgstr ""
 
-#: src/window.rs:158
+#: src/window.rs:156
 msgid "Delete"
 msgstr ""
 
-#: src/window.rs:168
+#: src/window.rs:166
 msgid "Application deleted"
 msgstr ""
 
-#: src/window.rs:181
+#: src/window.rs:179
 msgid "Launcher repaired"
 msgstr ""
 
-#: src/window.rs:198
+#: src/window.rs:196
 msgid "Some application data could not be loaded"
 msgstr ""

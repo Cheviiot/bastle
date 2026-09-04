@@ -7,7 +7,7 @@ use ashpd::WindowIdentifier;
 use gettextrs::gettext;
 use gtk::{gio, glib};
 
-use crate::{model::AppConfigV1, service::AppService, util};
+use crate::{model::AppConfigV2, service::AppService, util};
 
 fn menu_item(label: &str, action: &str, target: &str) -> gio::MenuItem {
     let item = gio::MenuItem::new(Some(label), None);
@@ -21,7 +21,7 @@ mod imp {
     #[derive(Debug, Default, gtk::CompositeTemplate)]
     #[template(resource = "/io/github/cheviiot/bastle/app_page.ui")]
     pub struct AppPage {
-        pub config: RefCell<Option<AppConfigV1>>,
+        pub config: RefCell<Option<AppConfigV2>>,
         pub pending_icon: RefCell<Option<Vec<u8>>>,
         pub populating: Cell<bool>,
         #[template_child]
@@ -161,10 +161,15 @@ glib::wrapper! {
 }
 
 impl AppPage {
-    pub fn new(config: AppConfigV1) -> Self {
+    pub fn new(config: AppConfigV2) -> Self {
         let page: Self = glib::Object::builder().build();
         page.show_config(&config);
         let id = config.id.clone();
+        page.imp().page_menu.append_item(&menu_item(
+            &gettext("Permissions"),
+            "win.permissions",
+            id.as_str(),
+        ));
         page.imp().page_menu.append_item(&menu_item(
             &gettext("Repair Launcher"),
             "win.repair",
@@ -191,7 +196,7 @@ impl AppPage {
         page
     }
 
-    fn show_config(&self, config: &AppConfigV1) {
+    fn show_config(&self, config: &AppConfigV2) {
         let imp = self.imp();
         imp.populating.set(true);
         self.set_title(&config.title);
@@ -237,7 +242,7 @@ pub(crate) fn run_ui_smoke_test() -> anyhow::Result<()> {
     use anyhow::ensure;
 
     for user_agent in [None, Some("Bastle UI smoke test".to_owned())] {
-        let mut config = AppConfigV1::new("UI smoke test", "https://example.org", 0)?;
+        let mut config = AppConfigV2::new("UI smoke test", "https://example.org", 0)?;
         config.user_agent = user_agent;
         let page = AppPage::new(config);
         ensure!(!page.is_dirty(), "opening the editor marked it as dirty");

@@ -9,7 +9,7 @@ use gtk::{gio, glib};
 
 use crate::{
     app_page::AppPage, app_row::AppRow, application::settings, create_app_dialog::CreateAppDialog,
-    home_page::HomePage, import_dialog, model::AppId, service::AppService,
+    home_page::HomePage, model::AppId, permissions_dialog, service::AppService,
 };
 
 mod imp {
@@ -49,13 +49,6 @@ mod imp {
             window.setup_gactions();
             window.load_window_size();
             window.refresh();
-            if !settings().boolean("legacy-import-completed") {
-                glib::idle_add_local_once(glib::clone!(
-                    #[weak]
-                    window,
-                    move || import_dialog::start(window.upcast_ref(), true)
-                ));
-            }
         }
     }
     impl WidgetImpl for BastleWindow {}
@@ -138,8 +131,13 @@ impl BastleWindow {
                     }
                 })
                 .build(),
-            gio::ActionEntry::builder("import-spider")
-                .activate(|window: &Self, _, _| import_dialog::start(window.upcast_ref(), false))
+            gio::ActionEntry::builder("permissions")
+                .parameter_type(Some(&String::static_variant_type()))
+                .activate(|window: &Self, _, parameter| {
+                    if let Some(id) = parse_action_id(parameter) {
+                        permissions_dialog::start(window.upcast_ref(), id);
+                    }
+                })
                 .build(),
         ]);
     }

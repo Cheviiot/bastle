@@ -1,22 +1,27 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use std::{
-    fs,
+    fs::{self, OpenOptions},
     io::Write,
     path::{Path, PathBuf},
 };
 
 use anyhow::{anyhow, bail, Context, Result};
 use gtk::glib;
+use serde::Serialize;
+use serde_json::Value;
 use tempfile::{Builder, NamedTempFile, TempDir};
 
 use crate::{
     config::DATA_DIR_NAME,
-    model::{AppConfigV1, AppId, LegacySource},
+    model::{AppConfigV2, AppId, SCHEMA_VERSION},
+    policy::{AppPolicyV1, Origin, PermissionDecision, PermissionKind},
 };
 
 const CONFIG_FILE: &str = "app.json";
 const ICON_FILE: &str = "icon.png";
+const POLICY_FILE: &str = "policy.json";
+const POLICY_LOCK_FILE: &str = ".policy.lock";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RepositoryWarning {
@@ -26,7 +31,7 @@ pub struct RepositoryWarning {
 
 #[derive(Debug, Default)]
 pub struct LoadReport {
-    pub apps: Vec<AppConfigV1>,
+    pub apps: Vec<AppConfigV2>,
     pub warnings: Vec<RepositoryWarning>,
 }
 
@@ -117,16 +122,26 @@ impl AppRepository {
                 continue;
             }
 
-            match self.load_from_path(&path.join(CONFIG_FILE)) {
+            let config_path = path.join(CONFIG_FILE);
+            match self.load_from_path(&config_path) {
                 Ok(app) if app.id.as_str() == entry.file_name().to_string_lossy() => {
-                    report.apps.push(app)
+                    let policy_path = path.join(POLICY_FILE);
+                    if policy_path.exists() {
+                        if let Err(error) = self.load_policy_from_path(&policy_path) {
+                            report.warnings.push(RepositoryWarning {
+                                path: policy_path,
+                                message: error.to_string(),
+                            });
+                        }
+                    }
+                    report.apps.push(app);
                 }
                 Ok(_) => report.warnings.push(RepositoryWarning {
-                    path: path.join(CONFIG_FILE),
+                    path: config_path,
                     message: "directory name does not match the app id".to_owned(),
                 }),
                 Err(error) => report.warnings.push(RepositoryWarning {
-                    path: path.join(CONFIG_FILE),
+                    path: config_path,
                     message: error.to_string(),
                 }),
             }
@@ -140,17 +155,41 @@ impl AppRepository {
         Ok(report)
     }
 
-    pub fn load(&self, id: &AppId) -> Result<AppConfigV1> {
+    pub fn load(&self, id: &AppId) -> Result<AppConfigV2> {
         self.load_from_path(&self.app_dir(id).join(CONFIG_FILE))
     }
 
-    fn load_from_path(&self, path: &Path) -> Result<AppConfigV1> {
+    fn load_from_path(&self, path: &Path) -> Result<AppConfigV2> {
         let contents = fs::read_to_string(path)
             .with_context(|| format!("failed to read {}", path.display()))?;
-        let mut app: AppConfigV1 = serde_json::from_str(&contents)
+        let mut document: Value = serde_json::from_str(&contents)
             .with_context(|| format!("invalid JSON in {}", path.display()))?;
+        let schema_version = document
+            .get("schema_version")
+            .and_then(Value::as_u64)
+            .ok_or_else(|| anyhow!("missing or invalid schema_version in {}", path.display()))?;
+
+        let migrated = match schema_version {
+            1 => {
+                let object = document
+                    .as_object_mut()
+                    .ok_or_else(|| anyhow!("app configuration must be a JSON object"))?;
+                object.insert("schema_version".to_owned(), Value::from(SCHEMA_VERSION));
+                object.remove("imported_from");
+                true
+            }
+            version if version == u64::from(SCHEMA_VERSION) => false,
+            version => bail!("unsupported app configuration version {version}"),
+        };
+
+        let mut app: AppConfigV2 = serde_json::from_value(document)
+            .with_context(|| format!("invalid JSON fields in {}", path.display()))?;
         app.normalize_and_validate()
             .with_context(|| format!("invalid app configuration in {}", path.display()))?;
+        if migrated {
+            replace_json(path, &app)
+                .with_context(|| format!("failed to migrate {} to schema v2", path.display()))?;
+        }
         Ok(app)
     }
 
@@ -163,20 +202,115 @@ impl AppRepository {
         self.app_dir(id).join(CONFIG_FILE).is_file()
     }
 
-    pub fn contains_legacy_source(&self, source: &LegacySource) -> Result<bool> {
-        Ok(self.list()?.apps.iter().any(|app| {
-            app.imported_from
-                .as_ref()
-                .is_some_and(|existing| existing == source)
-        }))
+    pub fn load_policy(&self, id: &AppId) -> Result<AppPolicyV1> {
+        let path = self.app_dir(id).join(POLICY_FILE);
+        if !path.exists() {
+            return Ok(AppPolicyV1::default());
+        }
+        self.load_policy_from_path(&path)
+    }
+
+    fn load_policy_from_path(&self, path: &Path) -> Result<AppPolicyV1> {
+        let contents = fs::read_to_string(path)
+            .with_context(|| format!("failed to read {}", path.display()))?;
+        let policy: AppPolicyV1 = serde_json::from_str(&contents)
+            .with_context(|| format!("invalid JSON in {}", path.display()))?;
+        policy
+            .validate()
+            .with_context(|| format!("invalid policy in {}", path.display()))?;
+        Ok(policy)
     }
 
     #[cfg(test)]
-    pub fn create(&self, app: &AppConfigV1, icon: &[u8]) -> Result<()> {
+    pub fn save_policy(&self, id: &AppId, policy: &AppPolicyV1) -> Result<()> {
+        if !self.app_dir(id).is_dir() {
+            bail!("app {id} is not stored locally");
+        }
+        policy.validate()?;
+        replace_json(&self.app_dir(id).join(POLICY_FILE), policy)
+    }
+
+    pub fn apply_policy_decisions(
+        &self,
+        id: &AppId,
+        decisions: &[(Origin, PermissionKind, PermissionDecision)],
+    ) -> Result<AppPolicyV1> {
+        self.mutate_policy(id, |policy| {
+            for (origin, kind, decision) in decisions {
+                policy.set_decision(origin.clone(), *kind, *decision);
+            }
+        })
+    }
+
+    pub fn merge_policy(
+        &self,
+        id: &AppId,
+        original: &AppPolicyV1,
+        edited: &AppPolicyV1,
+    ) -> Result<AppPolicyV1> {
+        original.validate()?;
+        edited.validate()?;
+        let mut changes = Vec::new();
+        for (origin, permissions) in &original.permissions {
+            for kind in permissions.keys() {
+                let before = original.decision(origin, *kind);
+                let after = edited.decision(origin, *kind);
+                if before != after {
+                    changes.push((origin.clone(), *kind, after));
+                }
+            }
+        }
+        for (origin, permissions) in &edited.permissions {
+            for kind in permissions.keys() {
+                if !original
+                    .permissions
+                    .get(origin)
+                    .is_some_and(|original| original.contains_key(kind))
+                {
+                    changes.push((origin.clone(), *kind, edited.decision(origin, *kind)));
+                }
+            }
+        }
+        self.apply_policy_decisions(id, &changes)
+    }
+
+    pub fn reset_policy(&self, id: &AppId) -> Result<AppPolicyV1> {
+        self.mutate_policy(id, AppPolicyV1::reset)
+    }
+
+    fn mutate_policy(
+        &self,
+        id: &AppId,
+        mutate: impl FnOnce(&mut AppPolicyV1),
+    ) -> Result<AppPolicyV1> {
+        let app_dir = self.app_dir(id);
+        if !app_dir.is_dir() {
+            bail!("app {id} is not stored locally");
+        }
+        let lock_path = app_dir.join(POLICY_LOCK_FILE);
+        let lock = OpenOptions::new()
+            .create(true)
+            .read(true)
+            .write(true)
+            .truncate(false)
+            .open(&lock_path)
+            .with_context(|| format!("failed to open {}", lock_path.display()))?;
+        rustix::fs::flock(&lock, rustix::fs::FlockOperation::LockExclusive)
+            .with_context(|| format!("failed to lock {}", lock_path.display()))?;
+
+        let mut policy = self.load_policy(id)?;
+        mutate(&mut policy);
+        policy.validate()?;
+        replace_json(&app_dir.join(POLICY_FILE), &policy)?;
+        Ok(policy)
+    }
+
+    #[cfg(test)]
+    pub fn create(&self, app: &AppConfigV2, icon: &[u8]) -> Result<()> {
         self.stage_create(app, icon)?.commit()
     }
 
-    pub fn stage_create(&self, app: &AppConfigV1, icon: &[u8]) -> Result<StagedApp> {
+    pub fn stage_create(&self, app: &AppConfigV2, icon: &[u8]) -> Result<StagedApp> {
         let final_dir = self.app_dir(&app.id);
         if final_dir.exists() {
             bail!("an app with id {} already exists", app.id);
@@ -191,13 +325,14 @@ impl AppRepository {
             .context("failed to create app staging directory")?;
         write_json(&staging.path().join(CONFIG_FILE), app)?;
         write_bytes(&staging.path().join(ICON_FILE), icon)?;
+        write_json(&staging.path().join(POLICY_FILE), &AppPolicyV1::default())?;
         Ok(StagedApp {
             directory: staging,
             final_path: final_dir,
         })
     }
 
-    pub fn update(&self, app: &AppConfigV1, icon: Option<&[u8]>) -> Result<()> {
+    pub fn update(&self, app: &AppConfigV2, icon: Option<&[u8]>) -> Result<()> {
         let app_dir = self.app_dir(&app.id);
         if !app_dir.is_dir() {
             bail!("app {} is not stored locally", app.id);
@@ -234,14 +369,20 @@ impl AppRepository {
     }
 }
 
-fn serialize_json(app: &AppConfigV1) -> Result<Vec<u8>> {
-    let mut bytes = serde_json::to_vec_pretty(app)?;
+fn serialize_json(value: &impl Serialize) -> Result<Vec<u8>> {
+    let mut bytes = serde_json::to_vec_pretty(value)?;
     bytes.push(b'\n');
     Ok(bytes)
 }
 
-fn write_json(path: &Path, app: &AppConfigV1) -> Result<()> {
-    write_bytes(path, &serialize_json(app)?)
+fn write_json(path: &Path, value: &impl Serialize) -> Result<()> {
+    write_bytes(path, &serialize_json(value)?)
+}
+
+fn replace_json(path: &Path, value: &impl Serialize) -> Result<()> {
+    let temporary = stage_bytes(path, &serialize_json(value)?)?;
+    persist_staged(temporary, path)?;
+    sync_parent(path)
 }
 
 fn write_bytes(path: &Path, bytes: &[u8]) -> Result<()> {
@@ -284,7 +425,11 @@ fn sync_parent(path: &Path) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{LegacySource, SCHEMA_VERSION};
+    use crate::{
+        model::SCHEMA_VERSION,
+        policy::{Origin, PermissionDecision, PermissionKind, POLICY_SCHEMA_VERSION},
+    };
+    use std::str::FromStr;
 
     fn repository() -> (tempfile::TempDir, AppRepository) {
         let temp = tempfile::tempdir().unwrap();
@@ -295,10 +440,14 @@ mod tests {
     #[test]
     fn create_load_update_and_delete() {
         let (_temp, repository) = repository();
-        let mut app = AppConfigV1::new("Example", "example.org", 0).unwrap();
+        let mut app = AppConfigV2::new("Example", "example.org", 0).unwrap();
         repository.create(&app, b"icon").unwrap();
         assert_eq!(repository.load(&app.id).unwrap(), app);
         assert_eq!(repository.read_icon(&app.id).unwrap(), b"icon");
+        assert_eq!(
+            repository.load_policy(&app.id).unwrap(),
+            AppPolicyV1::default()
+        );
 
         app.title = "Updated".to_owned();
         repository.update(&app, Some(b"new-icon")).unwrap();
@@ -323,35 +472,140 @@ mod tests {
         let future_dir = repository.apps_root().join("mnopqrstuvwx");
         fs::create_dir_all(&future_dir).unwrap();
         let future = format!(
-            r#"{{"schema_version":{},"id":"mnopqrstuvwx","title":"Future","start_url":"https://example.org","user_agent":null,"use_theme_color":true,"window":{{"width":800,"height":600,"maximized":false}},"sort_order":0,"imported_from":null}}"#,
+            r#"{{"schema_version":{},"id":"mnopqrstuvwx","title":"Future","start_url":"https://example.org","user_agent":null,"use_theme_color":true,"window":{{"width":800,"height":600,"maximized":false}},"sort_order":0}}"#,
             SCHEMA_VERSION + 1
         );
-        fs::write(future_dir.join(CONFIG_FILE), future).unwrap();
+        fs::write(future_dir.join(CONFIG_FILE), &future).unwrap();
 
         let report = repository.list().unwrap();
         assert!(report.apps.is_empty());
         assert_eq!(report.warnings.len(), 2);
         assert!(bad_dir.exists());
         assert!(future_dir.exists());
+        assert_eq!(
+            fs::read_to_string(future_dir.join(CONFIG_FILE)).unwrap(),
+            future
+        );
     }
 
     #[test]
-    fn legacy_source_lookup_is_idempotent() {
+    fn version_one_migration_removes_provenance_and_preserves_app_data() {
         let (_temp, repository) = repository();
-        let source = LegacySource {
-            app_id: "io.github.zaedus.spider".to_owned(),
-            legacy_id: "old-app".to_owned(),
-        };
-        let mut app = AppConfigV1::new("Example", "example.org", 0).unwrap();
-        app.imported_from = Some(source.clone());
+        let id = AppId::from_str("abcdefghijkl").unwrap();
+        let app_dir = repository.app_dir(&id);
+        let profile_dir = repository.profile_dir(&id);
+        let cache_dir = repository.cache_dir(&id);
+        fs::create_dir_all(&app_dir).unwrap();
+        fs::create_dir_all(&profile_dir).unwrap();
+        fs::create_dir_all(&cache_dir).unwrap();
+        fs::write(app_dir.join(ICON_FILE), b"icon").unwrap();
+        fs::write(profile_dir.join("profile-state"), b"profile").unwrap();
+        fs::write(cache_dir.join("cache-state"), b"cache").unwrap();
+        fs::write(
+            app_dir.join(CONFIG_FILE),
+            r#"{
+  "schema_version": 1,
+  "id": "abcdefghijkl",
+  "title": "Imported before v0.2",
+  "start_url": "https://example.org/",
+  "user_agent": null,
+  "use_theme_color": true,
+  "window": { "width": 900, "height": 700, "maximized": false },
+  "sort_order": 1,
+  "imported_from": {
+    "app_id": "io.github.zaedus.spider",
+    "legacy_id": "old-app"
+  }
+}"#,
+        )
+        .unwrap();
+
+        let app = repository.load(&id).unwrap();
+        assert_eq!(app.schema_version, SCHEMA_VERSION);
+        assert_eq!(app.title, "Imported before v0.2");
+        let migrated = fs::read_to_string(app_dir.join(CONFIG_FILE)).unwrap();
+        assert!(!migrated.contains("imported_from"));
+        assert!(migrated.contains("\"schema_version\": 2"));
+        assert_eq!(fs::read(app_dir.join(ICON_FILE)).unwrap(), b"icon");
+        assert_eq!(
+            fs::read(profile_dir.join("profile-state")).unwrap(),
+            b"profile"
+        );
+        assert_eq!(fs::read(cache_dir.join("cache-state")).unwrap(), b"cache");
+        assert_eq!(repository.load_policy(&id).unwrap(), AppPolicyV1::default());
+    }
+
+    #[test]
+    fn policy_writes_are_atomic_and_invalid_policy_does_not_hide_app() {
+        let (_temp, repository) = repository();
+        let app = AppConfigV2::new("Example", "example.org", 0).unwrap();
         repository.create(&app, b"icon").unwrap();
-        assert!(repository.contains_legacy_source(&source).unwrap());
+
+        let origin = Origin::from_str("https://example.org/path").unwrap();
+        let mut policy = AppPolicyV1::default();
+        policy.set_decision(
+            origin.clone(),
+            PermissionKind::Camera,
+            PermissionDecision::Allow,
+        );
+        repository.save_policy(&app.id, &policy).unwrap();
+        assert_eq!(repository.load_policy(&app.id).unwrap(), policy);
+
+        let policy_path = repository.app_dir(&app.id).join(POLICY_FILE);
+        let future = format!(
+            r#"{{"schema_version":{},"permissions":{{}}}}"#,
+            POLICY_SCHEMA_VERSION + 1
+        );
+        fs::write(&policy_path, &future).unwrap();
+        let report = repository.list().unwrap();
+        assert_eq!(report.apps, vec![app]);
+        assert_eq!(report.warnings.len(), 1);
+        assert_eq!(fs::read_to_string(policy_path).unwrap(), future);
+    }
+
+    #[test]
+    fn policy_edits_merge_with_decisions_saved_by_another_process() {
+        let (_temp, repository) = repository();
+        let app = AppConfigV2::new("Example", "example.org", 0).unwrap();
+        repository.create(&app, b"icon").unwrap();
+        let origin = Origin::from_str("https://example.org").unwrap();
+        let editor_snapshot = repository.load_policy(&app.id).unwrap();
+        let mut editor_changes = editor_snapshot.clone();
+        editor_changes.set_decision(
+            origin.clone(),
+            PermissionKind::Notifications,
+            PermissionDecision::Allow,
+        );
+
+        repository
+            .apply_policy_decisions(
+                &app.id,
+                &[(
+                    origin.clone(),
+                    PermissionKind::Camera,
+                    PermissionDecision::Block,
+                )],
+            )
+            .unwrap();
+        let merged = repository
+            .merge_policy(&app.id, &editor_snapshot, &editor_changes)
+            .unwrap();
+
+        assert_eq!(
+            merged.decision(&origin, PermissionKind::Camera),
+            PermissionDecision::Block
+        );
+        assert_eq!(
+            merged.decision(&origin, PermissionKind::Notifications),
+            PermissionDecision::Allow
+        );
+        assert!(repository.app_dir(&app.id).join(POLICY_LOCK_FILE).is_file());
     }
 
     #[test]
     fn missing_icon_is_reported_without_removing_config() {
         let (_temp, repository) = repository();
-        let app = AppConfigV1::new("Example", "example.org", 0).unwrap();
+        let app = AppConfigV2::new("Example", "example.org", 0).unwrap();
         repository.create(&app, b"icon").unwrap();
         fs::remove_file(repository.app_dir(&app.id).join(ICON_FILE)).unwrap();
         assert!(repository.read_icon(&app.id).is_err());
@@ -361,7 +615,7 @@ mod tests {
     #[test]
     fn rejected_icon_update_does_not_commit_new_config() {
         let (_temp, repository) = repository();
-        let mut app = AppConfigV1::new("Before", "example.org", 0).unwrap();
+        let mut app = AppConfigV2::new("Before", "example.org", 0).unwrap();
         repository.create(&app, b"old-icon").unwrap();
         let icon_path = repository.app_dir(&app.id).join(ICON_FILE);
         fs::remove_file(&icon_path).unwrap();

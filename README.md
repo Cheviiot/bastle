@@ -13,10 +13,10 @@ project is not positioned as a security product.
 
 ## Status
 
-Version 0.1 targets x86_64, GNOME 50, and Flatpak. It supports application
-creation, editing, launching, deletion, launcher repair, offline creation, and
-an explicit settings-only import from Spider. Cookies, browser sessions,
-profiles, and cache are never imported.
+The current development series targets x86_64, GNOME 50, and Flatpak. It
+supports application creation, editing, launching, deletion, launcher repair,
+offline creation, popup/OAuth windows, navigation controls, zoom, and
+fullscreen.
 
 Flathub submission is intentionally deferred until Bastle has an independent
 release history and enough differentiation from Spider.
@@ -26,13 +26,13 @@ release history and enough differentiation from Spider.
 ```text
 $XDG_DATA_HOME/bastle/apps/<id>/app.json
 $XDG_DATA_HOME/bastle/apps/<id>/icon.png
+$XDG_DATA_HOME/bastle/apps/<id>/policy.json
 $XDG_DATA_HOME/bastle/profiles/<id>/
 $XDG_CACHE_HOME/bastle/<id>/
 ```
 
-GSettings stores only the main-window size and whether the first-run legacy
-import prompt has been handled. Bastle reads Spider data only after the user
-selects a legacy keyfile or configuration directory.
+GSettings stores only the main-window size. Application configuration and
+permission decisions live in versioned, atomically written JSON files.
 
 ## Development environment
 
@@ -40,7 +40,7 @@ Development is reproducible in the Fedora 44 Distrobox named `bastle-dev`:
 
 ```sh
 distrobox create --name bastle-dev --image registry.fedoraproject.org/fedora:44 --yes
-distrobox enter bastle-dev -- sudo dnf install -y rust cargo rustfmt clippy gcc pkgconf-pkg-config meson ninja-build blueprint-compiler gtk4-devel libadwaita-devel webkitgtk6.0-devel openssl-devel appstream desktop-file-utils flatpak-builder gettext glib2-devel librsvg2-tools xorg-x11-server-Xvfb git
+distrobox enter bastle-dev -- sudo dnf install -y rust cargo rustfmt clippy cargo-deny gcc pkgconf-pkg-config meson ninja-build blueprint-compiler gtk4-devel libadwaita-devel webkitgtk6.0-devel openssl-devel appstream desktop-file-utils flatpak-builder gettext glib2-devel librsvg2-tools xorg-x11-server-Xvfb git
 distrobox enter bastle-dev -- meson setup build
 distrobox enter bastle-dev -- meson compile -C build
 ```
@@ -49,7 +49,7 @@ To build the Flatpak from inside Distrobox (where FUSE mounts are intentionally
 restricted), use:
 
 ```sh
-distrobox enter bastle-dev -- flatpak-builder --disable-rofiles-fuse --user --force-clean --install-deps-from=flathub .flatpak-build build-aux/io.github.cheviiot.bastle.Devel.json
+distrobox enter bastle-dev -- flatpak-builder --disable-rofiles-fuse --user --install --force-clean --install-deps-from=flathub .flatpak-build build-aux/io.github.cheviiot.bastle.Devel.json
 ```
 
 GUI smoke tests must use a dedicated virtual display and explicitly disable
@@ -77,5 +77,7 @@ licensed under `GPL-3.0-or-later`; see [COPYING](COPYING).
 - v0.3 — Bastle backup/import, optional site-data transfer, aarch64, and KDE
   portal compatibility.
 - v0.4 — privacy and power features after a dedicated threat model.
+- v0.5 — an optional, separately sandboxed Chromium companion for sites that
+  cannot run correctly on WebKitGTK.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) before proposing changes.
