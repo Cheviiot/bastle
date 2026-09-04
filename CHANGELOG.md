@@ -14,13 +14,18 @@ Changelog and versions follow Semantic Versioning.
 
 ### Fixed
 
-- Prevent the application manager from aborting when an application card is
-  opened for editing, and cover the editor with an Xvfb-only UI regression
-  test.
 - Include the web-app window Blueprint in translation extraction and repair a
   malformed Russian AppStream translation.
 - Build development and CI Flatpaks from the generated, offline Cargo source
   set instead of relying on live crates.io downloads.
+
+## [0.1.1] - 2026-09-05
+
+### Fixed
+
+- Prevent the application manager from aborting when an application card is
+  opened for editing, and cover the editor with an Xvfb-only UI regression
+  test.
 
 ## [0.1.0] - 2026-09-04
 
@@ -40,5 +45,6 @@ Changelog and versions follow Semantic Versioning.
   sanitization, validated theme colors, sandboxed glycin decoding, and safe file
   URI downloads.
 
-[Unreleased]: https://github.com/Cheviiot/bastle/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/Cheviiot/bastle/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/Cheviiot/bastle/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/Cheviiot/bastle/releases/tag/v0.1.0

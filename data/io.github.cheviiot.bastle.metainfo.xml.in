@@ -49,6 +49,15 @@
   </categories>
   <launchable type="desktop-id">io.github.cheviiot.bastle.desktop</launchable>
   <releases>
+    <release version="0.1.1" date="2026-09-05">
+      <description>
+        <ul>
+          <li>Prevent a crash when opening an application card for editing</li>
+          <li>Add a headless regression test for editor state changes</li>
+        </ul>
+      </description>
+      <url>https://github.com/Cheviiot/bastle/releases/tag/v0.1.1</url>
+    </release>
     <release version="0.1.0" date="2026-09-04">
       <description>
         <ul>
