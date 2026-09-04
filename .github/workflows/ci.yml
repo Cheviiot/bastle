@@ -52,8 +52,16 @@ jobs:
           command: check
 
   flatpak:
-    name: Flatpak
-    runs-on: ubuntu-24.04
+    name: Flatpak (${{ matrix.variant.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        variant:
+          - arch: x86_64
+            runner: ubuntu-24.04
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.variant.runner }}
     container:
       image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
       options: --privileged
@@ -61,8 +69,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: flatpak/flatpak-github-actions/flatpak-builder@aa777012a985fe1b1fd3e66ea2173609cf0c9a70
         with:
-          bundle: Bastle.flatpak
+          bundle: Bastle-${{ matrix.variant.arch }}.flatpak
           manifest-path: build-aux/io.github.cheviiot.bastle.Devel.json
-          arch: x86_64
+          arch: ${{ matrix.variant.arch }}
           run-tests: true
-          artifact-name: Bastle-x86_64.flatpak
+          artifact-name: Bastle-${{ matrix.variant.arch }}

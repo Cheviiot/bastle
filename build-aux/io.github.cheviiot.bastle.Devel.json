@@ -48,7 +48,16 @@
       "sources": [
         {
           "type": "dir",
-          "path": ".."
+          "path": "..",
+          "skip": [
+            ".git",
+            ".flatpak-build",
+            ".flatpak-builder",
+            ".flatpak-build-v03",
+            ".flatpak-builder-v03",
+            "build",
+            "target"
+          ]
         },
         "generated-sources.json"
       ]

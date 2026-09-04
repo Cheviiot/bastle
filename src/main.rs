@@ -4,6 +4,8 @@ mod app_page;
 mod app_row;
 mod app_window;
 mod application;
+mod backup;
+mod backup_dialog;
 mod config;
 mod create_app_dialog;
 mod download_manager;

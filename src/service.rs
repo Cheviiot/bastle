@@ -9,7 +9,7 @@ use crate::{
     launcher::{LauncherBackend, PortalLauncher, UninstallOutcome},
     model::{AppConfigV2, AppId, WindowState},
     policy::{AppPolicyV1, Origin, PermissionDecision, PermissionKind},
-    repository::{AppRepository, LoadReport},
+    repository::{AppRepository, LoadReport, ProfileLock},
 };
 
 #[derive(Debug, Clone)]
@@ -53,6 +53,22 @@ impl<L: LauncherBackend> AppService<L> {
 
     pub fn cache_dir(&self, id: &AppId) -> PathBuf {
         self.repository.cache_dir(id)
+    }
+
+    pub fn contains_any_data(&self, id: &AppId) -> bool {
+        self.repository.contains_any_data(id)
+    }
+
+    pub fn acquire_runtime_lock(&self, id: &AppId) -> Result<ProfileLock> {
+        self.repository.acquire_runtime_lock(id)
+    }
+
+    pub fn try_acquire_profile_snapshot_lock(&self, id: &AppId) -> Result<ProfileLock> {
+        self.repository.try_acquire_profile_snapshot_lock(id)
+    }
+
+    pub fn install_profile_from(&self, id: &AppId, source: &std::path::Path) -> Result<()> {
+        self.repository.install_profile_from(id, source)
     }
 
     pub fn save_runtime_state(&self, id: &AppId, window: WindowState) -> Result<()> {

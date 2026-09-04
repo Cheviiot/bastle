@@ -65,6 +65,11 @@ template $BastleWindow: Adw.ApplicationWindow {
 
 
 menu primary_menu {
-  item (_("_Keyboard Shortcuts"), "win.show-help-overlay")
-  item (_("_About Bastle"), "app.about")
+  item (_("_Back Up…"), "win.backup")
+  item (_("_Restore…"), "win.restore")
+  section {
+    item (_("System _Capabilities"), "win.capabilities")
+    item (_("_Keyboard Shortcuts"), "win.show-help-overlay")
+    item (_("_About Bastle"), "app.about")
+  }
 }

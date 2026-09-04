@@ -22,6 +22,12 @@ const CONFIG_FILE: &str = "app.json";
 const ICON_FILE: &str = "icon.png";
 const POLICY_FILE: &str = "policy.json";
 const POLICY_LOCK_FILE: &str = ".policy.lock";
+pub const RUNTIME_LOCK_FILE: &str = ".runtime.lock";
+
+#[derive(Debug)]
+pub struct ProfileLock {
+    _file: fs::File,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RepositoryWarning {
@@ -85,6 +91,40 @@ impl AppRepository {
 
     pub fn profile_dir(&self, id: &AppId) -> PathBuf {
         self.data_root.join("profiles").join(id.as_str())
+    }
+
+    pub fn contains_any_data(&self, id: &AppId) -> bool {
+        self.app_dir(id).exists() || self.profile_dir(id).exists() || self.cache_dir(id).exists()
+    }
+
+    pub fn acquire_runtime_lock(&self, id: &AppId) -> Result<ProfileLock> {
+        self.lock_profile(id, rustix::fs::FlockOperation::LockShared)
+    }
+
+    pub fn try_acquire_profile_snapshot_lock(&self, id: &AppId) -> Result<ProfileLock> {
+        self.lock_profile(id, rustix::fs::FlockOperation::NonBlockingLockExclusive)
+            .context("the WebKit profile is in use by a running application")
+    }
+
+    fn lock_profile(
+        &self,
+        id: &AppId,
+        operation: rustix::fs::FlockOperation,
+    ) -> Result<ProfileLock> {
+        let profile = self.profile_dir(id);
+        fs::create_dir_all(&profile)
+            .with_context(|| format!("failed to create {}", profile.display()))?;
+        let path = profile.join(RUNTIME_LOCK_FILE);
+        let file = OpenOptions::new()
+            .create(true)
+            .read(true)
+            .write(true)
+            .truncate(false)
+            .open(&path)
+            .with_context(|| format!("failed to open {}", path.display()))?;
+        rustix::fs::flock(&file, operation)
+            .with_context(|| format!("failed to lock {}", path.display()))?;
+        Ok(ProfileLock { _file: file })
     }
 
     pub fn cache_dir(&self, id: &AppId) -> PathBuf {
@@ -367,6 +407,62 @@ impl AppRepository {
         }
         Ok(())
     }
+
+    pub fn install_profile_from(&self, id: &AppId, source: &Path) -> Result<()> {
+        if !source.is_dir() {
+            return Ok(());
+        }
+        let destination = self.profile_dir(id);
+        if destination.exists() {
+            bail!("profile target {} already exists", destination.display());
+        }
+        let profiles_root = destination
+            .parent()
+            .context("profile target has no parent")?;
+        fs::create_dir_all(profiles_root)
+            .with_context(|| format!("failed to create {}", profiles_root.display()))?;
+        let staging = Builder::new()
+            .prefix(".tmp-profile-")
+            .tempdir_in(profiles_root)
+            .context("failed to create profile staging directory")?;
+        copy_regular_tree(source, staging.path())?;
+        let staging_path = staging.keep();
+        if let Err(error) = fs::rename(&staging_path, &destination) {
+            let _ = fs::remove_dir_all(&staging_path);
+            return Err(error)
+                .with_context(|| format!("failed to install {}", destination.display()));
+        }
+        sync_parent(&destination)
+    }
+}
+
+fn copy_regular_tree(source: &Path, destination: &Path) -> Result<()> {
+    let mut entries = fs::read_dir(source)
+        .with_context(|| format!("failed to read {}", source.display()))?
+        .collect::<std::io::Result<Vec<_>>>()?;
+    entries.sort_by_key(fs::DirEntry::file_name);
+    for entry in entries {
+        let file_type = entry.file_type()?;
+        let name = entry.file_name();
+        if name == RUNTIME_LOCK_FILE {
+            continue;
+        }
+        let target = destination.join(&name);
+        if file_type.is_dir() {
+            fs::create_dir(&target)
+                .with_context(|| format!("failed to create {}", target.display()))?;
+            copy_regular_tree(&entry.path(), &target)?;
+        } else if file_type.is_file() {
+            fs::copy(entry.path(), &target)
+                .with_context(|| format!("failed to copy {}", entry.path().display()))?;
+        } else {
+            bail!(
+                "profile contains an unsupported file: {}",
+                entry.path().display()
+            );
+        }
+    }
+    Ok(())
 }
 
 fn serialize_json(value: &impl Serialize) -> Result<Vec<u8>> {

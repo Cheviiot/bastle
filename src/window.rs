@@ -8,8 +8,9 @@ use gettextrs::gettext;
 use gtk::{gio, glib};
 
 use crate::{
-    app_page::AppPage, app_row::AppRow, application::settings, create_app_dialog::CreateAppDialog,
-    home_page::HomePage, model::AppId, permissions_dialog, service::AppService,
+    app_page::AppPage, app_row::AppRow, application::settings, backup_dialog,
+    create_app_dialog::CreateAppDialog, home_page::HomePage, launcher::PortalLauncher,
+    model::AppId, permissions_dialog, service::AppService,
 };
 
 mod imp {
@@ -139,7 +140,51 @@ impl BastleWindow {
                     }
                 })
                 .build(),
+            gio::ActionEntry::builder("backup")
+                .activate(|window: &Self, _, _| backup_dialog::start_backup(window))
+                .build(),
+            gio::ActionEntry::builder("restore")
+                .activate(|window: &Self, _, _| backup_dialog::start_restore(window))
+                .build(),
+            gio::ActionEntry::builder("capabilities")
+                .activate(|window: &Self, _, _| window.show_capabilities())
+                .build(),
         ]);
+    }
+
+    fn show_capabilities(&self) {
+        let window = self.clone();
+        glib::spawn_future_local(async move {
+            let (heading, body) = match PortalLauncher::capabilities().await {
+                Ok(capabilities) => (
+                    gettext("Portal Available"),
+                    format!(
+                        "{}: {}\n{}: {}\n{}: {}\n{}: {}\n\n{}",
+                        gettext("Desktop session"),
+                        capabilities.desktop,
+                        gettext("Dynamic Launcher version"),
+                        capabilities.portal_version,
+                        gettext("Application launchers"),
+                        availability(capabilities.application_launchers),
+                        gettext("Web application launchers"),
+                        availability(capabilities.web_application_launchers),
+                        gettext("Bastle uses portals only and never writes launchers directly to the host."),
+                    ),
+                ),
+                Err(error) => (
+                    gettext("Portal Unavailable"),
+                    format!(
+                        "{error:#}\n\n{}",
+                        gettext("Creating, repairing, and restoring applications requires a Dynamic Launcher Portal implementation for this desktop session.")
+                    ),
+                ),
+            };
+            let dialog = adw::AlertDialog::new(Some(&heading), Some(&body));
+            dialog.add_response("close", &gettext("Close"));
+            dialog.set_default_response(Some("close"));
+            dialog.set_close_response("close");
+            dialog.present(Some(&window));
+        });
     }
 
     fn confirm_delete(&self, id: AppId) {
@@ -182,7 +227,7 @@ impl BastleWindow {
         });
     }
 
-    fn refresh(&self) {
+    pub(crate) fn refresh(&self) {
         let list = &self.imp().apps_listbox;
         list.remove_all();
         match AppService::portal().list() {
@@ -213,8 +258,16 @@ impl BastleWindow {
         self.set_default_size(settings.int("window-width"), settings.int("window-height"));
     }
 
-    fn toast(&self, message: &str) {
+    pub(crate) fn toast(&self, message: &str) {
         self.imp().toast_overlay.add_toast(adw::Toast::new(message));
+    }
+}
+
+fn availability(available: bool) -> String {
+    if available {
+        gettext("Available")
+    } else {
+        gettext("Unavailable")
     }
 }
 

@@ -76,7 +76,8 @@ mod imp {
                 .unwrap_or(false)
             {
                 let result = crate::app_page::run_ui_smoke_test()
-                    .and_then(|()| crate::download_manager::run_ui_smoke_test(&*self.obj()));
+                    .and_then(|()| crate::download_manager::run_ui_smoke_test(&*self.obj()))
+                    .and_then(|()| crate::backup_dialog::run_ui_smoke_test(&*self.obj()));
                 return match result {
                     Ok(()) => glib::ExitCode::SUCCESS,
                     Err(error) => {

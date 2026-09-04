@@ -5,6 +5,27 @@ Changelog and versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Versioned `.bastle-backup` backup and restore with conflict preview,
+  per-application transactional launcher installation, and partial-failure
+  reporting.
+- Optional passphrase-encrypted transfer of cookies and WebKit site storage
+  using `age`.
+- Runtime profile locks that prevent site-data backup while an application is
+  running.
+- Dynamic Launcher Portal capability diagnostics showing the active desktop,
+  interface version, and supported launcher types.
+- Native `aarch64` Flatpak CI and release bundles alongside `x86_64`.
+
+### Security
+
+- Reject backup archives containing absolute or traversing paths, links,
+  special files, duplicate entries, unexpected files, excessive entry counts,
+  or excessive uncompressed data.
+- Run UI smoke tests in a dedicated D-Bus session and Xvfb display with the
+  Wayland backend disabled.
+
 ## [0.2.0] - 2026-09-05
 
 ### Added

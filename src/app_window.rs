@@ -17,6 +17,7 @@ use crate::{
     download_manager::DownloadManager,
     model::{AppConfigV2, WindowState},
     policy::{AppPolicyV1, Origin, PermissionDecision, PermissionKind},
+    repository::ProfileLock,
     service::AppService,
     util,
 };
@@ -328,6 +329,7 @@ mod imp {
         pub download_manager: RefCell<Option<std::rc::Rc<DownloadManager>>>,
         pub webview: RefCell<Option<WebView>>,
         pub provider: RefCell<Option<gtk::CssProvider>>,
+        pub runtime_lock: RefCell<Option<ProfileLock>>,
     }
 
     #[glib::object_subclass]
@@ -377,6 +379,7 @@ mod imp {
     impl AppWindow {
         pub(super) fn create_webview(&self, config: &AppConfigV2) -> Result<WebView> {
             let service = AppService::portal();
+            let runtime_lock = service.acquire_runtime_lock(&config.id)?;
             let profile = service.profile_dir(&config.id);
             let cache = service.cache_dir(&config.id);
             std::fs::create_dir_all(&profile)
@@ -451,6 +454,7 @@ mod imp {
                 .user_content_manager(&content_manager)
                 .web_context(&context)
                 .build();
+            self.runtime_lock.replace(Some(runtime_lock));
             self.connect_webview(&view);
             Ok(view)
         }

@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: bastle 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-05 02:11+1000\n"
+"POT-Creation-Date: 2026-09-05 02:54+1000\n"
 "PO-Revision-Date: 2026-09-04 00:00+1000\n"
 "Last-Translator: Bastle contributors\n"
 "Language-Team: Russian\n"
@@ -111,7 +111,8 @@ msgstr "Безопасная обработка URL, метаданных, зн�
 msgid "Menu"
 msgstr "Меню"
 
-#: src/app_page.blp:26 src/window.rs:155
+#: src/app_page.blp:26 src/backup_dialog.rs:38 src/backup_dialog.rs:185
+#: src/backup_dialog.rs:213 src/window.rs:200
 msgid "Cancel"
 msgstr "Отмена"
 
@@ -223,107 +224,259 @@ msgstr "_Сбросить масштаб"
 msgid "_Fullscreen"
 msgstr "_Полноэкранный режим"
 
-#: src/app_window.blp:62 src/window.blp:68
+#: src/app_window.blp:62 src/window.blp:72
 msgid "_Keyboard Shortcuts"
 msgstr "_Комбинации клавиш"
 
-#: src/app_window.rs:112 src/app_window.rs:132
+#: src/app_window.rs:113 src/app_window.rs:133
 msgid "Web App Window"
 msgstr "Окно веб-приложения"
 
-#: src/app_window.rs:236
+#: src/app_window.rs:237
 msgid "Screen sharing is not available"
 msgstr "Демонстрация экрана недоступна"
 
-#: src/app_window.rs:246
+#: src/app_window.rs:247
 msgid "Allow this website to use the camera?"
 msgstr "Разрешить этому сайту использовать камеру?"
 
-#: src/app_window.rs:247
+#: src/app_window.rs:248
 msgid "Allow this website to use the microphone?"
 msgstr "Разрешить этому сайту использовать микрофон?"
 
-#: src/app_window.rs:249
+#: src/app_window.rs:250
 msgid "Allow this website to use the camera and microphone?"
 msgstr "Разрешить этому сайту использовать камеру и микрофон?"
 
-#: src/app_window.rs:251
+#: src/app_window.rs:252
 msgid "Unknown media device request"
 msgstr "Неизвестный запрос к мультимедийному устройству"
 
-#: src/app_window.rs:258
+#: src/app_window.rs:259
 msgid "Allow this website to access your location?"
 msgstr "Разрешить этому сайту доступ к вашему местоположению?"
 
-#: src/app_window.rs:264
+#: src/app_window.rs:265
 msgid "Allow this website to send notifications?"
 msgstr "Разрешить этому сайту отправлять уведомления?"
 
-#: src/app_window.rs:270
+#: src/app_window.rs:271
 msgid "Allow this website to read the clipboard?"
 msgstr "Разрешить этому сайту читать буфер обмена?"
 
-#: src/app_window.rs:276
+#: src/app_window.rs:277
 msgid "Allow this website to lock the pointer?"
 msgstr "Разрешить этому сайту захватывать указатель?"
 
-#: src/app_window.rs:282
+#: src/app_window.rs:283
 msgid "Allow this website to access third-party storage?"
 msgstr "Разрешить этому сайту доступ к стороннему хранилищу?"
 
-#: src/app_window.rs:287
+#: src/app_window.rs:288
 msgid "This WebKit permission type is not supported"
 msgstr "Этот тип разрешения WebKit не поддерживается"
 
-#: src/app_window.rs:598
+#: src/app_window.rs:602
 msgid "Permission settings could not be loaded"
 msgstr "Не удалось загрузить настройки разрешений"
 
-#: src/app_window.rs:709
+#: src/app_window.rs:713
 msgid "Unsupported website permission request"
 msgstr "Неподдерживаемый запрос разрешения сайта"
 
-#: src/app_window.rs:720
+#: src/app_window.rs:724
 msgid "Website permission origin is unavailable"
 msgstr "Не удалось определить источник запроса разрешения"
 
-#: src/app_window.rs:748
+#: src/app_window.rs:752
 msgid "Website"
 msgstr "Сайт"
 
-#: src/app_window.rs:749
+#: src/app_window.rs:753
 msgid "Website Permission"
 msgstr "Разрешение сайта"
 
-#: src/app_window.rs:751
+#: src/app_window.rs:755
 msgid "Not Now"
 msgstr "Не сейчас"
 
-#: src/app_window.rs:752
+#: src/app_window.rs:756
 msgid "Always Block"
 msgstr "Всегда блокировать"
 
-#: src/app_window.rs:753
+#: src/app_window.rs:757
 msgid "Allow for This Session"
 msgstr "Разрешить на эту сессию"
 
-#: src/app_window.rs:754
+#: src/app_window.rs:758
 msgid "Always Allow"
 msgstr "Всегда разрешать"
 
-#: src/app_window.rs:781
+#: src/app_window.rs:785
 msgid "Permission was allowed only for this session"
 msgstr "Разрешение действует только в этом сеансе"
 
-#: src/app_window.rs:794
+#: src/app_window.rs:798
 msgid "Permission block could not be saved"
 msgstr "Не удалось сохранить блокировку разрешения"
 
-#: src/app_window.rs:818
+#: src/app_window.rs:822
 msgid "System notifications are unavailable"
 msgstr "Системные уведомления недоступны"
 
-#: src/application.rs:191
+#: src/backup_dialog.rs:22
+msgid "There are no applications to back up"
+msgstr "Нет приложений для резервного копирования"
+
+#: src/backup_dialog.rs:32
+msgid "Back Up Bastle"
+msgstr "Резервная копия Bastle"
+
+#: src/backup_dialog.rs:34
+msgid "Configuration, icons, and permissions are always included."
+msgstr "Конфигурация, значки и разрешения включаются всегда."
+
+#: src/backup_dialog.rs:39
+msgid "Choose Destination"
+msgstr "Выберите место сохранения"
+
+#: src/backup_dialog.rs:50
+msgid "Include cookies and site storage (requires encryption)"
+msgstr "Включить cookies и данные сайтов (требуется шифрование)"
+
+#: src/backup_dialog.rs:53 src/backup_dialog.rs:190
+msgid "Passphrase"
+msgstr "Парольная фраза"
+
+#: src/backup_dialog.rs:58
+msgid "Confirm Passphrase"
+msgstr "Подтвердите парольную фразу"
+
+#: src/backup_dialog.rs:83
+msgid "Passphrases must be non-empty and match"
+msgstr "Парольные фразы не должны быть пустыми и должны совпадать"
+
+#: src/backup_dialog.rs:91
+msgid "Save Bastle Backup"
+msgstr "Сохранить резервную копию Bastle"
+
+#: src/backup_dialog.rs:92
+msgid "Back Up"
+msgstr "Создать копию"
+
+#: src/backup_dialog.rs:101
+msgid "The selected destination is not writable"
+msgstr "В выбранное место нельзя записать файл"
+
+#: src/backup_dialog.rs:114
+msgid "Backup completed"
+msgstr "Резервное копирование завершено"
+
+#: src/backup_dialog.rs:115
+msgid "Backup failed"
+msgstr "Не удалось создать резервную копию"
+
+#: src/backup_dialog.rs:116
+msgid "The backup worker stopped unexpectedly"
+msgstr "Процесс резервного копирования неожиданно завершился"
+
+#: src/backup_dialog.rs:125
+msgid "Bastle Backups"
+msgstr "Резервные копии Bastle"
+
+#: src/backup_dialog.rs:130
+msgid "Open Bastle Backup"
+msgstr "Открыть резервную копию Bastle"
+
+#: src/backup_dialog.rs:131 src/backup_dialog.rs:185
+msgid "Open"
+msgstr "Открыть"
+
+#: src/backup_dialog.rs:140
+msgid "The selected backup cannot be read"
+msgstr "Не удалось прочитать выбранную резервную копию"
+
+#: src/backup_dialog.rs:167
+msgid "Backup could not be opened"
+msgstr "Не удалось открыть резервную копию"
+
+#: src/backup_dialog.rs:172
+msgid "The restore worker stopped unexpectedly"
+msgstr "Процесс восстановления неожиданно завершился"
+
+#: src/backup_dialog.rs:182
+msgid "Encrypted Backup"
+msgstr "Зашифрованная резервная копия"
+
+#: src/backup_dialog.rs:183
+msgid "Enter the passphrase used to create this backup."
+msgstr "Введите парольную фразу, указанную при создании этой копии."
+
+#: src/backup_dialog.rs:204
+msgid ""
+"This encrypted backup includes cookies and site storage. Select the "
+"applications to restore."
+msgstr ""
+"Эта зашифрованная копия содержит cookies и данные сайтов. Выберите "
+"приложения для восстановления."
+
+#: src/backup_dialog.rs:207
+msgid ""
+"This encrypted backup contains settings only. Select the applications to "
+"restore."
+msgstr ""
+"Эта зашифрованная копия содержит только настройки. Выберите приложения для "
+"восстановления."
+
+#: src/backup_dialog.rs:209
+msgid "Select the applications to restore."
+msgstr "Выберите приложения для восстановления."
+
+#: src/backup_dialog.rs:211
+msgid "Restore Preview"
+msgstr "Предпросмотр восстановления"
+
+#: src/backup_dialog.rs:214
+msgid "Restore"
+msgstr "Восстановить"
+
+#: src/backup_dialog.rs:227
+msgid "Restore with the original ID"
+msgstr "Восстановить с исходным ID"
+
+#: src/backup_dialog.rs:228
+msgid "ID conflict: restore with a new ID"
+msgstr "Конфликт ID: восстановить с новым ID"
+
+#: src/backup_dialog.rs:229
+msgid "Identical application already exists"
+msgstr "Такое же приложение уже существует"
+
+#: src/backup_dialog.rs:270
+msgid "No applications were selected"
+msgstr "Не выбрано ни одного приложения"
+
+#: src/backup_dialog.rs:280
+msgid "Restored"
+msgstr "Восстановлено"
+
+#: src/backup_dialog.rs:282
+msgid "Skipped"
+msgstr "Пропущено"
+
+#: src/backup_dialog.rs:288 src/download_manager.rs:129
+msgid "Failed"
+msgstr "Ошибка"
+
+#: src/backup_dialog.rs:308
+msgid "Restore Finished with Errors"
+msgstr "Восстановление завершено с ошибками"
+
+#: src/backup_dialog.rs:310 src/window.rs:183
+msgid "Close"
+msgstr "Закрыть"
+
+#: src/application.rs:192
 msgid "Website Notification"
 msgstr "Уведомление сайта"
 
@@ -379,10 +532,6 @@ msgstr "Отменено"
 #: src/download_manager.rs:116
 msgid "Download cancelled"
 msgstr "Загрузка отменена"
-
-#: src/download_manager.rs:129
-msgid "Failed"
-msgstr "Ошибка"
 
 #: src/download_manager.rs:131
 msgid "Download failed"
@@ -558,34 +707,93 @@ msgstr "Значок приложения"
 msgid "Applications"
 msgstr "Приложения"
 
+#: src/window.blp:68
+msgid "_Back Up…"
+msgstr "_Резервная копия…"
+
 #: src/window.blp:69
+msgid "_Restore…"
+msgstr "_Восстановить…"
+
+#: src/window.blp:71
+msgid "System _Capabilities"
+msgstr "Системные _возможности"
+
+#: src/window.blp:73
 msgid "_About Bastle"
 msgstr "_О Bastle"
 
-#: src/window.rs:149
+#: src/window.rs:160
+msgid "Portal Available"
+msgstr "Портал доступен"
+
+#: src/window.rs:163
+msgid "Desktop session"
+msgstr "Сеанс рабочего стола"
+
+#: src/window.rs:165
+msgid "Dynamic Launcher version"
+msgstr "Версия Dynamic Launcher"
+
+#: src/window.rs:167
+msgid "Application launchers"
+msgstr "Ярлыки приложений"
+
+#: src/window.rs:169
+msgid "Web application launchers"
+msgstr "Ярлыки веб-приложений"
+
+#: src/window.rs:171
+msgid ""
+"Bastle uses portals only and never writes launchers directly to the host."
+msgstr ""
+"Bastle использует только порталы и никогда не записывает ярлыки напрямую в "
+"основную систему."
+
+#: src/window.rs:175
+msgid "Portal Unavailable"
+msgstr "Портал недоступен"
+
+#: src/window.rs:178
+msgid ""
+"Creating, repairing, and restoring applications requires a Dynamic Launcher "
+"Portal implementation for this desktop session."
+msgstr ""
+"Для создания, восстановления и ремонта приложений в этом сеансе рабочего "
+"стола нужна реализация Dynamic Launcher Portal."
+
+#: src/window.rs:194
 msgid "Delete this application?"
 msgstr "Удалить это приложение?"
 
-#: src/window.rs:151
+#: src/window.rs:196
 msgid ""
 "Its launcher, settings, WebKit profile, cookies, and cache will be removed."
 msgstr "Будут удалены ярлык, настройки, профиль WebKit, cookies и кэш."
 
-#: src/window.rs:156
+#: src/window.rs:201
 msgid "Delete"
 msgstr "Удалить"
 
-#: src/window.rs:166
+#: src/window.rs:211
 msgid "Application deleted"
 msgstr "Приложение удалено"
 
-#: src/window.rs:179
+#: src/window.rs:224
 msgid "Launcher repaired"
 msgstr "Ярлык восстановлен"
 
-#: src/window.rs:196
+#: src/window.rs:241
 msgid "Some application data could not be loaded"
 msgstr "Не удалось загрузить часть данных приложений"
+
+#: src/window.rs:268
+msgid "Available"
+msgstr "Доступно"
+
+#: src/window.rs:270
+msgid "Unavailable"
+msgstr "Недоступно"
 
 #~ msgid "Allow Once"
 #~ msgstr "Разрешить один раз"
