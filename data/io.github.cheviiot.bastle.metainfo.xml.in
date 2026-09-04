@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component type="desktop-application">
+  <id>io.github.cheviiot.bastle</id>
+  <name>Bastle</name>
+  <summary>Create isolated web applications for GNOME</summary>
+  <developer id="io.github.cheviiot">
+    <name>Cheviiot and Bastle contributors</name>
+    <url>https://github.com/Cheviiot</url>
+  </developer>
+  <icon type="stock">io.github.cheviiot.bastle</icon>
+  <metadata_license>FSFAP</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <content_rating type="oars-1.1" />
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+    <control>touch</control>
+  </supports>
+  <requires>
+    <display_length compare="ge">360</display_length>
+  </requires>
+  <branding>
+    <color type="primary" scheme_preference="light">#3A7D78</color>
+    <color type="primary" scheme_preference="dark">#344955</color>
+  </branding>
+  <description>
+    <p>
+      Bastle is a GNOME-native manager for isolated web applications powered by
+      the system WebKitGTK engine. Each website gets separate local data,
+      cookies, cache, settings, and its own desktop launcher.
+    </p>
+    <p>
+      Bastle is an independent successor to Spider. The original work and Git
+      history by Zaedus remain credited.
+    </p>
+    <ul>
+      <li>Create, edit, repair, and remove portal-installed launchers</li>
+      <li>Fetch and safely normalize website icons with an offline fallback</li>
+      <li>Optionally import Spider settings without importing browser sessions</li>
+    </ul>
+  </description>
+  <url type="homepage">https://github.com/Cheviiot/bastle</url>
+  <url type="bugtracker">https://github.com/Cheviiot/bastle/issues</url>
+  <url type="vcs-browser">https://github.com/Cheviiot/bastle</url>
+  <categories>
+    <category>Network</category>
+    <category>WebBrowser</category>
+  </categories>
+  <launchable type="desktop-id">io.github.cheviiot.bastle.desktop</launchable>
+  <releases>
+    <release version="0.1.0" date="2026-09-04">
+      <description>
+        <ul>
+          <li>Introduce the Bastle identity and isolated JSON-based storage</li>
+          <li>Add transactional launcher operations and repair support</li>
+          <li>Add an explicit, settings-only Spider importer</li>
+          <li>Harden URL, metadata, icon, download, and theme-color handling</li>
+        </ul>
+      </description>
+      <url>https://github.com/Cheviiot/bastle/releases/tag/v0.1.0</url>
+    </release>
+  </releases>
+</component>

@@ -1,64 +1,48 @@
-/* main.rs
- *
- * Copyright 2024 Unknown
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
- * SPDX-License-Identifier: GPL-3.0-or-later
- */
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 mod app_page;
 mod app_row;
 mod app_window;
 mod application;
-mod apps;
 mod config;
 mod create_app_dialog;
 mod home_page;
+mod import_dialog;
+mod launcher;
+mod legacy;
+mod model;
+mod repository;
+mod service;
 mod util;
 mod window;
 
-use self::application::SpiderApplication;
-use self::window::SpiderWindow;
-
+use application::BastleApplication;
 use config::{GETTEXT_PACKAGE, LOCALEDIR, PKGDATADIR};
 use gettextrs::{bind_textdomain_codeset, bindtextdomain, textdomain};
-use gtk::prelude::*;
-use gtk::{gio, glib};
+use gtk::{gio, glib, prelude::*};
+use window::BastleWindow;
 
 fn main() -> glib::ExitCode {
-    // Set up gettext translations
-    bindtextdomain(GETTEXT_PACKAGE, LOCALEDIR).expect("Unable to bind the text domain");
-    bind_textdomain_codeset(GETTEXT_PACKAGE, "UTF-8")
-        .expect("Unable to set the text domain encoding");
-    textdomain(GETTEXT_PACKAGE).expect("Unable to switch to the text domain");
+    let gettext_result = bindtextdomain(GETTEXT_PACKAGE, LOCALEDIR)
+        .and_then(|_| bind_textdomain_codeset(GETTEXT_PACKAGE, "UTF-8"))
+        .and_then(|_| textdomain(GETTEXT_PACKAGE));
+    if let Err(error) = gettext_result {
+        eprintln!("Failed to initialize translations: {error}");
+        return glib::ExitCode::FAILURE;
+    }
 
-    // Load resources
-    let resources = gio::Resource::load(PKGDATADIR.to_owned() + "/spider.gresource")
-        .expect("Could not load resources");
+    let resource_path = format!("{PKGDATADIR}/bastle.gresource");
+    let resources = match gio::Resource::load(&resource_path) {
+        Ok(resources) => resources,
+        Err(error) => {
+            eprintln!("Failed to load {resource_path}: {error}");
+            return glib::ExitCode::FAILURE;
+        }
+    };
     gio::resources_register(&resources);
 
-    // Create a new GtkApplication. The application manages our main loop,
-    // application windows, integration with the window manager/compositor, and
-    // desktop features such as file opening and single-instance applications.
-    let app = SpiderApplication::new(
-        &(gio::ApplicationFlags::HANDLES_COMMAND_LINE | gio::ApplicationFlags::NON_UNIQUE),
-    );
-
-    // Run the application. This function will block until the application
-    // exits. Upon return, we have our exit code to return to the shell. (This
-    // is the code you see when you do `echo $?` after running a command in a
-    // terminal.
-    app.run()
+    BastleApplication::new(
+        gio::ApplicationFlags::HANDLES_COMMAND_LINE | gio::ApplicationFlags::NON_UNIQUE,
+    )
+    .run()
 }

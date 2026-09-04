@@ -1,5 +1,7 @@
 /subprojects/blueprint-compiler
 /target
-/src/config.rs
 /.flatpak-builder
+/.flatpak-build
+/.flatpak-repo
+/Bastle-x86_64.flatpak
 /build

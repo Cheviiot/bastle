@@ -1,87 +1,78 @@
-use adw::prelude::*;
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+use std::cell::OnceCell;
+
 use adw::subclass::prelude::*;
 use glib::clone;
-use glib::Object;
 use gtk::glib;
-use std::cell::{OnceCell, RefCell};
 
-use crate::apps::{get_app_details, get_app_icon, AppDetails};
+use crate::{model::AppConfigV1, service::AppService, util};
 
 mod imp {
-
     use super::*;
 
-    #[derive(Default, Debug, gtk::CompositeTemplate, glib::Properties)]
-    #[template(resource = "/io/github/zaedus/spider/app_row.ui")]
-    #[properties(wrapper_type = super::AppRow)]
+    #[derive(Debug, Default, gtk::CompositeTemplate)]
+    #[template(resource = "/io/github/cheviiot/bastle/app_row.ui")]
     pub struct AppRow {
+        pub config: OnceCell<AppConfigV1>,
         #[template_child]
         pub icon: TemplateChild<gtk::Image>,
         #[template_child]
         pub title: TemplateChild<gtk::Label>,
         #[template_child]
         pub subtitle: TemplateChild<gtk::Label>,
-
-        #[property(get, set = Self::on_id_set)]
-        pub id: RefCell<String>,
-
-        pub details: OnceCell<AppDetails>,
     }
 
     #[glib::object_subclass]
     impl ObjectSubclass for AppRow {
-        const NAME: &'static str = "AppRow";
+        const NAME: &'static str = "BastleAppRow";
         type Type = super::AppRow;
         type ParentType = gtk::ListBoxRow;
 
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
         }
+
         fn instance_init(obj: &glib::subclass::InitializingObject<Self>) {
             obj.init_template();
         }
     }
 
-    #[glib::derived_properties]
     impl ObjectImpl for AppRow {}
     impl WidgetImpl for AppRow {}
     impl ListBoxRowImpl for AppRow {}
-
-    impl AppRow {
-        fn on_id_set(&self, id: String) {
-            self.id.replace(id.clone());
-            glib::spawn_future_local(clone!(
-                #[weak(rename_to = _self)]
-                self,
-                #[strong]
-                id,
-                async move {
-                    let icon = get_app_icon(id.as_str()).await.unwrap();
-                    let details = get_app_details(id.as_str()).unwrap().with_icon(icon);
-                    _self
-                        .details
-                        .set(details.clone())
-                        .expect("attempted to set id more than once");
-
-                    _self.title.set_label(&details.title);
-                    _self.subtitle.set_label(&details.url);
-                    if let Ok(texture) = details.load_texture().await {
-                        _self.icon.set_paintable(Some(&texture));
-                    }
-                }
-            ));
-        }
-    }
 }
 
 glib::wrapper! {
     pub struct AppRow(ObjectSubclass<imp::AppRow>)
-        @extends adw::ActionRow, adw::PreferencesRow, gtk::ListBoxRow, gtk::Widget,
-        @implements gtk::Accessible, gtk::Actionable, gtk::Buildable, gtk::ConstraintTarget;
+        @extends gtk::Widget, gtk::ListBoxRow,
+        @implements gtk::Accessible, gtk::Buildable, gtk::ConstraintTarget, gtk::Actionable;
 }
 
 impl AppRow {
-    pub fn new(id: String) -> Self {
-        Object::builder().property("id", id).build()
+    pub fn new(config: AppConfigV1) -> Self {
+        let row: Self = glib::Object::builder().build();
+        row.imp().title.set_label(&config.title);
+        row.imp().subtitle.set_label(&config.start_url);
+        let id = config.id.clone();
+        if row.imp().config.set(config).is_err() {
+            return row;
+        }
+        glib::spawn_future_local(clone!(
+            #[weak]
+            row,
+            async move {
+                if let Ok(bytes) = AppService::portal().read_icon(&id) {
+                    if let Ok(texture) = util::load_texture(bytes).await {
+                        row.imp().icon.set_paintable(Some(&texture));
+                    }
+                }
+            }
+        ));
+        row
+    }
+
+    pub fn config(&self) -> Option<AppConfigV1> {
+        self.imp().config.get().cloned()
     }
 }

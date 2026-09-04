@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+[Desktop Entry]
+Name=Bastle
+Comment=Create isolated web applications
+Exec=bastle
+Icon=io.github.cheviiot.bastle
+Terminal=false
+Type=Application
+StartupNotify=true
+Categories=Network;WebBrowser;
+X-Purism-FormFactor=Workstation;Mobile;

@@ -1,7 +1,9 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 using Gtk 4.0;
 using Adw 1;
 
-template $SpiderWindow: Adw.ApplicationWindow {
+template $BastleWindow: Adw.ApplicationWindow {
   default-width: 800;
   default-height: 600;
   width-request: 360;
@@ -21,7 +23,7 @@ template $SpiderWindow: Adw.ApplicationWindow {
       show-content: false;
       [sidebar]
       Adw.NavigationPage {
-        title: "Applications";
+        title: _("Applications");
         Adw.ToolbarView {
           
           [top]
@@ -35,8 +37,8 @@ template $SpiderWindow: Adw.ApplicationWindow {
             [end]
             MenuButton {
               primary: true;
-              icon-name: 'open-menu-symbolic';
-              tooltip-text: _('Menu');
+              icon-name: "open-menu-symbolic";
+              tooltip-text: _("Menu");
               menu-model: primary_menu;
             }
           }
@@ -55,7 +57,7 @@ template $SpiderWindow: Adw.ApplicationWindow {
         }
       }
       [content]
-      $HomePage home_page {}
+      $BastleHomePage home_page {}
     }
   };
 }
@@ -63,6 +65,7 @@ template $SpiderWindow: Adw.ApplicationWindow {
 
 
 menu primary_menu {
+  item (_("_Import from Spider"), "win.import-spider")
   item (_("_Keyboard Shortcuts"), "win.show-help-overlay")
-  item (_("_About Spider"), "app.about")
+  item (_("_About Bastle"), "app.about")
 }

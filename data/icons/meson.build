@@ -1,4 +1,6 @@
-application_id = 'io.github.zaedus.spider'
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+application_id = 'io.github.cheviiot.bastle'
 
 scalable_dir = 'hicolor' / 'scalable' / 'apps'
 install_data(

@@ -1,6 +1,8 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 desktop_file = i18n.merge_file(
-        input: 'io.github.zaedus.spider.desktop.in',
-       output: 'io.github.zaedus.spider.desktop',
+        input: 'io.github.cheviiot.bastle.desktop.in',
+       output: 'io.github.cheviiot.bastle.desktop',
          type: 'desktop',
        po_dir: '../po',
       install: true,
@@ -13,8 +15,8 @@ if desktop_utils.found()
 endif
 
 appstream_file = i18n.merge_file(
-        input: 'io.github.zaedus.spider.metainfo.xml.in',
-       output: 'io.github.zaedus.spider.metainfo.xml',
+        input: 'io.github.cheviiot.bastle.metainfo.xml.in',
+       output: 'io.github.cheviiot.bastle.metainfo.xml',
        po_dir: '../po',
       install: true,
   install_dir: get_option('datadir') / 'metainfo'
@@ -24,7 +26,7 @@ appstreamcli = find_program('appstreamcli', required: false, disabler: true)
 test('Validate appstream file', appstreamcli,
      args: ['validate', '--no-net', '--explain', appstream_file])
 
-install_data('io.github.zaedus.spider.gschema.xml',
+install_data('io.github.cheviiot.bastle.gschema.xml',
   install_dir: get_option('datadir') / 'glib-2.0' / 'schemas'
 )
 

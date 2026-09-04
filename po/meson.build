@@ -1,1 +1,3 @@
-i18n.gettext('spider', preset: 'glib')
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+i18n.gettext('bastle', preset: 'glib')

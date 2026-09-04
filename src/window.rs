@@ -1,59 +1,35 @@
-/* window.rs
- *
- * Copyright 2024 Unknown
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
- * SPDX-License-Identifier: GPL-3.0-or-later
- */
+// SPDX-License-Identifier: GPL-3.0-or-later
 
-use adw::prelude::*;
-use adw::subclass::prelude::*;
-use anyhow::anyhow;
+use std::str::FromStr;
+
+use adw::{prelude::*, subclass::prelude::*};
 use ashpd::WindowIdentifier;
-use glib::clone;
+use gettextrs::gettext;
 use gtk::{gio, glib};
 
-use crate::app_page::AppPage;
-use crate::app_row::AppRow;
-use crate::application::settings;
-use crate::apps::{copy_app_dir, get_app_details, get_app_icon, install_app, uninstall_app};
-use crate::create_app_dialog::{gen_unique_id, CreateAppDialog, APP_ID_LENGTH};
-use crate::home_page::HomePage;
+use crate::{
+    app_page::AppPage, app_row::AppRow, application::settings, create_app_dialog::CreateAppDialog,
+    home_page::HomePage, import_dialog, model::AppId, service::AppService,
+};
 
 mod imp {
-
     use super::*;
 
     #[derive(Debug, Default, gtk::CompositeTemplate)]
-    #[template(resource = "/io/github/zaedus/spider/window.ui")]
-    pub struct SpiderWindow {
-        // Template widgets
+    #[template(resource = "/io/github/cheviiot/bastle/window.ui")]
+    pub struct BastleWindow {
         #[template_child]
         pub split_view: TemplateChild<adw::NavigationSplitView>,
         #[template_child]
         pub apps_listbox: TemplateChild<gtk::ListBox>,
         #[template_child]
         pub toast_overlay: TemplateChild<adw::ToastOverlay>,
-        #[template_child]
-        pub home_page: TemplateChild<HomePage>,
     }
 
     #[glib::object_subclass]
-    impl ObjectSubclass for SpiderWindow {
-        const NAME: &'static str = "SpiderWindow";
-        type Type = super::SpiderWindow;
+    impl ObjectSubclass for BastleWindow {
+        const NAME: &'static str = "BastleWindow";
+        type Type = super::BastleWindow;
         type ParentType = adw::ApplicationWindow;
 
         fn class_init(klass: &mut Self::Class) {
@@ -66,238 +42,186 @@ mod imp {
         }
     }
 
-    impl ObjectImpl for SpiderWindow {
+    impl ObjectImpl for BastleWindow {
         fn constructed(&self) {
             self.parent_constructed();
-
-            let obj = self.obj();
-            obj.setup_gactions();
-            obj.refresh();
-            obj.load_window_size();
-            self.apps_listbox.unselect_all();
+            let window = self.obj();
+            window.setup_gactions();
+            window.load_window_size();
+            window.refresh();
+            if !settings().boolean("legacy-import-completed") {
+                glib::idle_add_local_once(glib::clone!(
+                    #[weak]
+                    window,
+                    move || import_dialog::start(window.upcast_ref(), true)
+                ));
+            }
         }
     }
-    impl WidgetImpl for SpiderWindow {}
-    impl WindowImpl for SpiderWindow {
+    impl WidgetImpl for BastleWindow {}
+    impl WindowImpl for BastleWindow {
         fn close_request(&self) -> glib::Propagation {
+            let (width, height) = self.obj().default_size();
             let settings = settings();
-            let size = self.obj().default_size();
-            settings
-                .set_int("window-width", size.0)
-                .expect("Failed to save window size");
-            settings
-                .set_int("window-height", size.1)
-                .expect("Failed to save window size");
+            if let Err(error) = settings.set_int("window-width", width) {
+                eprintln!("Failed to save main window width: {error}");
+            }
+            if let Err(error) = settings.set_int("window-height", height) {
+                eprintln!("Failed to save main window height: {error}");
+            }
             glib::Propagation::Proceed
         }
     }
-    impl ApplicationWindowImpl for SpiderWindow {}
-    impl AdwApplicationWindowImpl for SpiderWindow {}
+    impl ApplicationWindowImpl for BastleWindow {}
+    impl AdwApplicationWindowImpl for BastleWindow {}
 
     #[gtk::template_callbacks]
-    impl SpiderWindow {
+    impl BastleWindow {
         #[template_callback]
-        fn on_add_clicked(&self, _: gtk::Button) {
-            let dialog = CreateAppDialog::new();
-            dialog.present(Some(&self.obj().clone()));
+        fn on_add_clicked(&self, _button: gtk::Button) {
+            CreateAppDialog::new().present(Some(&*self.obj()));
         }
+
         #[template_callback]
         fn on_app_selected(&self, row: Option<AppRow>) {
-            if let Some(row) = row {
-                if let Some(details) = row.imp().details.get() {
-                    let page = AppPage::new(details.clone());
-                    self.split_view.set_content(Some(&page));
-                    self.split_view.set_show_content(true);
-                }
+            if let Some(config) = row.and_then(|row| row.config()) {
+                self.split_view.set_content(Some(&AppPage::new(config)));
+                self.split_view.set_show_content(true);
             }
         }
     }
 }
 
 glib::wrapper! {
-    pub struct SpiderWindow(ObjectSubclass<imp::SpiderWindow>)
+    pub struct BastleWindow(ObjectSubclass<imp::BastleWindow>)
         @extends gtk::Widget, gtk::Window, gtk::ApplicationWindow, adw::ApplicationWindow,
-        @implements gio::ActionGroup, gio::ActionMap, gtk::Accessible, gtk::Buildable, gtk::ConstraintTarget, gtk::Native, gtk::Root, gtk::ShortcutManager;
+        @implements gio::ActionGroup, gio::ActionMap, gtk::Accessible, gtk::Buildable,
+                    gtk::ConstraintTarget, gtk::Native, gtk::Root, gtk::ShortcutManager;
 }
 
-impl SpiderWindow {
+impl BastleWindow {
     pub fn new<P: IsA<gtk::Application>>(application: &P) -> Self {
+        // The window template constructs this custom widget by its GType name,
+        // so register it before GTK parses the template.
+        let _ = HomePage::static_type();
         glib::Object::builder()
             .property("application", application)
             .build()
     }
+
     fn setup_gactions(&self) {
         self.add_action_entries([
             gio::ActionEntry::builder("refresh")
-                .activate(move |win: &Self, _, _| win.refresh())
-                .build(),
-            gio::ActionEntry::builder("delete")
-                .parameter_type(Some(&String::static_variant_type()))
-                .activate(move |win: &Self, _, id| {
-                    win.confirm_delete_app(
-                        id.expect("no id provided")
-                            .get::<String>()
-                            .expect("invalid id type provided"),
-                    );
-                })
-                .build(),
-            gio::ActionEntry::builder("reinstall")
-                .parameter_type(Some(&String::static_variant_type()))
-                .activate(move |win: &Self, _, id| {
-                    win.confirm_reinstall_app(
-                        id.expect("no id provided")
-                            .get::<String>()
-                            .expect("invalid id type provided"),
-                    );
-                })
+                .activate(|window: &Self, _, _| window.refresh())
                 .build(),
             gio::ActionEntry::builder("notify")
                 .parameter_type(Some(&String::static_variant_type()))
-                .activate(move |win: &Self, _, msg| {
-                    win.toast(
-                        msg.expect("no message provided")
-                            .get::<String>()
-                            .expect("invalid message type provided")
-                            .as_str(),
-                    )
+                .activate(|window: &Self, _, parameter| {
+                    if let Some(message) = parameter.and_then(|value| value.get::<String>()) {
+                        window.toast(&message);
+                    }
                 })
+                .build(),
+            gio::ActionEntry::builder("delete")
+                .parameter_type(Some(&String::static_variant_type()))
+                .activate(|window: &Self, _, parameter| {
+                    if let Some(id) = parse_action_id(parameter) {
+                        window.confirm_delete(id);
+                    }
+                })
+                .build(),
+            gio::ActionEntry::builder("repair")
+                .parameter_type(Some(&String::static_variant_type()))
+                .activate(|window: &Self, _, parameter| {
+                    if let Some(id) = parse_action_id(parameter) {
+                        window.repair(id);
+                    }
+                })
+                .build(),
+            gio::ActionEntry::builder("import-spider")
+                .activate(|window: &Self, _, _| import_dialog::start(window.upcast_ref(), false))
                 .build(),
         ]);
     }
-    fn selected_page_id(&self) -> Option<String> {
-        self.imp()
-            .apps_listbox
-            .selected_row()
-            .and_downcast::<AppRow>()
-            .map(|x| x.id())
-    }
 
-    async fn reinstall_app(&self, id: String) -> anyhow::Result<()> {
-        // Generate with the new id format
-        let mut details = get_app_details(&id).ok_or(anyhow!("failed to get app details"))?;
-        let icon = get_app_icon(&id).await?;
-        let id = if id.len() != APP_ID_LENGTH {
-            let new_id = gen_unique_id();
-            copy_app_dir(id.as_str(), new_id.as_str())?;
-            uninstall_app(id.as_str()).await?;
-            new_id
-        } else {
-            id
-        };
-
-        details.id = id;
-
-        let wid = WindowIdentifier::from_native(&self.root().unwrap())
-            .await
-            .ok_or(anyhow!("failed to get window"))?;
-
-        install_app(&details, icon, &wid).await?;
-
-        self.refresh();
-
-        Ok(())
-    }
-
-    async fn delete_app(&self, id: String) -> anyhow::Result<()> {
-        uninstall_app(id.as_str()).await?;
-        self.refresh();
-        Ok(())
-    }
-
-    fn confirm_reinstall_app(&self, id: String) {
-        let confirm_dialog = adw::AlertDialog::new(
-            Some("Are you sure you want to reinstall this app?"),
-            Some("This can fix faulty installations."),
-        );
-        confirm_dialog.add_responses(&[("reinstall", "Reinstall"), ("cancel", "Cancel")]);
-        confirm_dialog.set_response_appearance("reinstall", adw::ResponseAppearance::Destructive);
-        confirm_dialog.present(Some(self));
-        confirm_dialog.connect_response(
-            Some("reinstall"),
-            clone!(
-                #[strong(rename_to=_self)]
-                self,
-                #[strong]
-                id,
-                move |_, _| {
-                    glib::spawn_future_local(clone!(
-                        #[strong]
-                        _self,
-                        #[strong]
-                        id,
-                        async move {
-                            let message = match _self.reinstall_app(id).await {
-                                Ok(_) => "Successfully reinstalled app!".to_string(),
-                                Err(err) => err.to_string(),
-                            };
-                            _self.toast(message.as_str());
-                        }
-                    ));
+    fn confirm_delete(&self, id: AppId) {
+        let window = self.clone();
+        glib::spawn_future_local(async move {
+            let dialog = adw::AlertDialog::new(
+                Some(&gettext("Delete this application?")),
+                Some(&gettext(
+                    "Its launcher, settings, WebKit profile, cookies, and cache will be removed.",
+                )),
+            );
+            dialog.add_responses(&[
+                ("cancel", &gettext("Cancel")),
+                ("delete", &gettext("Delete")),
+            ]);
+            dialog.set_response_appearance("delete", adw::ResponseAppearance::Destructive);
+            dialog.set_default_response(Some("cancel"));
+            dialog.set_close_response("cancel");
+            if dialog.choose_future(Some(&window)).await == "delete" {
+                let result = AppService::portal().delete(&id).await;
+                match result {
+                    Ok(_) => {
+                        window.refresh();
+                        window.toast(&gettext("Application deleted"));
+                    }
+                    Err(error) => window.toast(&error.to_string()),
                 }
-            ),
-        );
+            }
+        });
     }
 
-    fn confirm_delete_app(&self, id: String) {
-        let confirm_dialog = adw::AlertDialog::new(
-            Some("Are you sure you want to delete this app?"),
-            Some("This action CANNOT be undone."),
-        );
-        confirm_dialog.add_responses(&[("delete", "Delete"), ("cancel", "Cancel")]);
-        confirm_dialog.set_response_appearance("delete", adw::ResponseAppearance::Destructive);
-        confirm_dialog.present(Some(self));
-        confirm_dialog.connect_response(
-            Some("delete"),
-            clone!(
-                #[strong(rename_to=_self)]
-                self,
-                #[strong]
-                id,
-                move |_, _| {
-                    glib::spawn_future_local(clone!(
-                        #[strong]
-                        _self,
-                        #[strong]
-                        id,
-                        async move {
-                            let message = match _self.delete_app(id).await {
-                                Ok(_) => "Successfully deleted app!".to_string(),
-                                Err(err) => err.to_string(),
-                            };
-                            _self.toast(message.as_str());
-                        }
-                    ));
-                }
-            ),
-        );
+    fn repair(&self, id: AppId) {
+        let window = self.clone();
+        glib::spawn_future_local(async move {
+            let parent = WindowIdentifier::from_native(&window).await;
+            match AppService::portal().repair(&id, parent.as_ref()).await {
+                Ok(()) => window.toast(&gettext("Launcher repaired")),
+                Err(error) => window.toast(&error.to_string()),
+            }
+        });
     }
 
     fn refresh(&self) {
-        let imp = self.imp();
-        let selected_id = self.selected_page_id();
-        imp.apps_listbox.remove_all();
-
-        let settings = settings();
-        for id in settings.get::<Vec<String>>("app-ids") {
-            let row = AppRow::new(id);
-            imp.apps_listbox.append(&row);
-            if let Some(selected_id) = selected_id.as_deref() {
-                if selected_id == row.id() {
-                    imp.apps_listbox.select_row(Some(&row));
+        let list = &self.imp().apps_listbox;
+        list.remove_all();
+        match AppService::portal().list() {
+            Ok(report) => {
+                for app in report.apps {
+                    list.append(&AppRow::new(app));
+                }
+                if let Some(warning) = report.warnings.first() {
+                    self.toast(&format!(
+                        "{}: {}",
+                        gettext("Some application data could not be loaded"),
+                        warning.path.display()
+                    ));
                 }
             }
+            Err(error) => self.toast(&error.to_string()),
         }
-        if self.selected_page_id().is_none() {
+        if list.row_at_index(0).is_none() {
             self.imp()
                 .split_view
                 .set_content(Some(&HomePage::default()));
+            self.imp().split_view.set_show_content(false);
         }
     }
-    fn toast(&self, message: &str) {
-        self.imp().toast_overlay.add_toast(adw::Toast::new(message));
-    }
+
     fn load_window_size(&self) {
         let settings = settings();
         self.set_default_size(settings.int("window-width"), settings.int("window-height"));
     }
+
+    fn toast(&self, message: &str) {
+        self.imp().toast_overlay.add_toast(adw::Toast::new(message));
+    }
+}
+
+fn parse_action_id(parameter: Option<&glib::Variant>) -> Option<AppId> {
+    parameter
+        .and_then(|value| value.get::<String>())
+        .and_then(|value| AppId::from_str(&value).ok())
 }
