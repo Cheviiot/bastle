@@ -14,6 +14,9 @@ Changelog and versions follow Semantic Versioning.
 
 ### Fixed
 
+- Prevent the application manager from aborting when an application card is
+  opened for editing, and cover the editor with an Xvfb-only UI regression
+  test.
 - Include the web-app window Blueprint in translation extraction and repair a
   malformed Russian AppStream translation.
 - Build development and CI Flatpaks from the generated, offline Cargo source

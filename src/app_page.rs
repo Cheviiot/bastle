@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 
 use adw::{prelude::*, subclass::prelude::*};
 use ashpd::WindowIdentifier;
@@ -23,6 +23,7 @@ mod imp {
     pub struct AppPage {
         pub config: RefCell<Option<AppConfigV1>>,
         pub pending_icon: RefCell<Option<Vec<u8>>>,
+        pub populating: Cell<bool>,
         #[template_child]
         pub icon_image: TemplateChild<gtk::Image>,
         #[template_child]
@@ -61,7 +62,21 @@ mod imp {
         }
     }
 
-    impl ObjectImpl for AppPage {}
+    impl ObjectImpl for AppPage {
+        fn constructed(&self) {
+            self.parent_constructed();
+            self.user_agent_expander
+                .connect_enable_expansion_notify(glib::clone!(
+                    #[weak(rename_to = page)]
+                    self.obj(),
+                    move |_| {
+                        if !page.imp().populating.get() {
+                            page.mark_dirty();
+                        }
+                    }
+                ));
+        }
+    }
     impl WidgetImpl for AppPage {}
     impl NavigationPageImpl for AppPage {}
 
@@ -69,12 +84,7 @@ mod imp {
     impl AppPage {
         #[template_callback]
         fn on_cancel_clicked(&self, _button: gtk::Button) {
-            if let Some(config) = self.config.borrow().as_ref() {
-                self.obj().show_config(config);
-            }
-            self.pending_icon.replace(None);
-            self.headerbar_stack
-                .set_visible_child(&self.normal_headerbar.get());
+            self.obj().cancel_changes();
         }
 
         #[template_callback]
@@ -141,11 +151,6 @@ mod imp {
         fn update_unsaved_details_cb(&self, _widget: gtk::Widget) {
             self.obj().mark_dirty();
         }
-
-        #[template_callback]
-        fn update_unsaved_details_notify_cb(&self, _widget: gtk::Widget, _pspec: glib::ParamSpec) {
-            self.obj().mark_dirty();
-        }
     }
 }
 
@@ -188,6 +193,7 @@ impl AppPage {
 
     fn show_config(&self, config: &AppConfigV1) {
         let imp = self.imp();
+        imp.populating.set(true);
         self.set_title(&config.title);
         imp.url_entry.set_text(&config.start_url);
         imp.title_entry.set_text(&config.title);
@@ -196,6 +202,17 @@ impl AppPage {
             .set_enable_expansion(config.user_agent.is_some());
         imp.user_agent_entry
             .set_text(config.user_agent.as_deref().unwrap_or_default());
+        imp.populating.set(false);
+    }
+
+    fn cancel_changes(&self) {
+        let imp = self.imp();
+        if let Some(config) = imp.config.borrow().as_ref() {
+            self.show_config(config);
+        }
+        imp.pending_icon.replace(None);
+        imp.headerbar_stack
+            .set_visible_child(&imp.normal_headerbar.get());
     }
 
     fn mark_dirty(&self) {
@@ -207,4 +224,35 @@ impl AppPage {
     fn notify_error(&self, message: &str) {
         let _ = self.activate_action("win.notify", Some(&message.to_variant()));
     }
+
+    #[cfg(feature = "ui-tests")]
+    fn is_dirty(&self) -> bool {
+        self.imp().headerbar_stack.visible_child().as_ref()
+            == Some(self.imp().edit_headerbar.get().upcast_ref())
+    }
+}
+
+#[cfg(feature = "ui-tests")]
+pub(crate) fn run_ui_smoke_test() -> anyhow::Result<()> {
+    use anyhow::ensure;
+
+    for user_agent in [None, Some("Bastle UI smoke test".to_owned())] {
+        let mut config = AppConfigV1::new("UI smoke test", "https://example.org", 0)?;
+        config.user_agent = user_agent;
+        let page = AppPage::new(config);
+        ensure!(!page.is_dirty(), "opening the editor marked it as dirty");
+
+        let enabled = page.imp().user_agent_expander.enables_expansion();
+        page.imp()
+            .user_agent_expander
+            .set_enable_expansion(!enabled);
+        ensure!(
+            page.is_dirty(),
+            "changing the user-agent toggle stayed clean"
+        );
+
+        page.cancel_changes();
+        ensure!(!page.is_dirty(), "cancelling the edit stayed dirty");
+    }
+    Ok(())
 }

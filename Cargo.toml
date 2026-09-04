@@ -8,6 +8,9 @@ license = "GPL-3.0-or-later"
 repository = "https://github.com/Cheviiot/bastle"
 description = "Install isolated web apps that integrate with GNOME"
 
+[features]
+ui-tests = []
+
 [dependencies]
 anyhow = "1.0.103"
 async-trait = "0.1.89"

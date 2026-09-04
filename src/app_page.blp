@@ -104,7 +104,6 @@ template $BastleAppPage: Adw.NavigationPage {
               show-enable-switch: true;
               expanded: bind user_agent_expander.enable-expansion;
               title: _("Custom User Agent");
-              notify => $update_unsaved_details_notify_cb() swapped;
 
               Adw.EntryRow user_agent_entry {
                 title: _("User Agent");
