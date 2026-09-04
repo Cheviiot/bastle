@@ -49,6 +49,18 @@
   </categories>
   <launchable type="desktop-id">io.github.cheviiot.bastle.desktop</launchable>
   <releases>
+    <release version="0.4.0" date="2026-09-05">
+      <description>
+        <ul>
+          <li>Add opt-in navigation allowlists, proxy settings, background mode, autostart, and content filters</li>
+          <li>Add a threat model for websites, profiles, portals, backups, and the future companion boundary</li>
+          <li>Keep every new privacy and power feature disabled until the user enables it</li>
+          <li>Serialize portal reconciliation and safely merge concurrent policy edits</li>
+          <li>Require fresh background authorization after restore while preserving other policy</li>
+        </ul>
+      </description>
+      <url>https://github.com/Cheviiot/bastle/releases/tag/v0.4.0</url>
+    </release>
     <release version="0.3.0" date="2026-09-05">
       <description>
         <ul>

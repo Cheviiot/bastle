@@ -5,6 +5,8 @@ Changelog and versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-05
+
 ### Added
 
 - `AppPolicyV2` with an atomic migration from v1 that preserves saved website
@@ -19,6 +21,21 @@ Changelog and versions follow Semantic Versioning.
   application and included in metadata backups.
 - A documented threat model covering websites, profiles, portals, backups, and
   the future Chromium companion boundary.
+
+### Changed
+
+- Restore keeps permission, navigation, proxy, and content-filter policy while
+  requiring explicit reauthorization for background mode and autostart.
+- Background changes are serialized across processes and merged per field so
+  concurrent editors cannot silently overwrite newer choices.
+
+### Fixed
+
+- Surface every background-startup failure instead of leaving an invisible
+  process running, and correctly release background holds on notification
+  activation.
+- Preserve exact-policy backup matches and avoid duplicate applications during
+  restore.
 
 ### Security
 
@@ -110,7 +127,8 @@ Changelog and versions follow Semantic Versioning.
   sanitization, validated theme colors, sandboxed glycin decoding, and safe file
   URI downloads.
 
-[Unreleased]: https://github.com/Cheviiot/bastle/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/Cheviiot/bastle/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/Cheviiot/bastle/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Cheviiot/bastle/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Cheviiot/bastle/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/Cheviiot/bastle/compare/v0.1.0...v0.1.1

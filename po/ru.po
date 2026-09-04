@@ -2,10 +2,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 msgid ""
 msgstr ""
-"Project-Id-Version: bastle 0.1.0\n"
+"Project-Id-Version: bastle 0.4.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-05 06:25+1000\n"
-"PO-Revision-Date: 2026-09-04 00:00+1000\n"
+"POT-Creation-Date: 2026-09-05 06:51+1000\n"
+"PO-Revision-Date: 2026-09-05 00:00+1000\n"
 "Last-Translator: Bastle contributors\n"
 "Language-Team: Russian\n"
 "Language: ru\n"
@@ -68,73 +68,111 @@ msgstr ""
 
 #: data/io.github.cheviiot.bastle.metainfo.xml.in:55
 msgid ""
+"Add opt-in navigation allowlists, proxy settings, background mode, "
+"autostart, and content filters"
+msgstr ""
+"Добавлены необязательные списки разрешённых адресов навигации, настройки "
+"прокси, фоновый режим, автозапуск и фильтры содержимого"
+
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:56
+msgid ""
+"Add a threat model for websites, profiles, portals, backups, and the future "
+"companion boundary"
+msgstr ""
+"Добавлена модель угроз для сайтов, профилей, порталов, резервных копий и "
+"границы будущего companion-компонента"
+
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:57
+msgid ""
+"Keep every new privacy and power feature disabled until the user enables it"
+msgstr ""
+"Все новые функции приватности и дополнительные возможности остаются "
+"выключенными, пока пользователь их не включит"
+
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:58
+msgid ""
+"Serialize portal reconciliation and safely merge concurrent policy edits"
+msgstr ""
+"Согласование с порталом выполняется последовательно, а одновременные "
+"изменения правил безопасно объединяются"
+
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:59
+msgid ""
+"Require fresh background authorization after restore while preserving other "
+"policy"
+msgstr ""
+"После восстановления требуется новая авторизация фонового режима, а "
+"остальные правила сохраняются"
+
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:67
+msgid ""
 "Add versioned metadata backups with transactional per-application restore"
 msgstr ""
 "Версионированные резервные копии метаданных с транзакционным восстановлением "
 "приложений"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:56
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:68
 msgid "Add optional passphrase-encrypted transfer of cookies and site storage"
 msgstr ""
 "Опциональный зашифрованный перенос cookie и данных сайтов по парольной фразе"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:57
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:69
 msgid ""
 "Add conflict preview, partial-failure reporting, and runtime profile locks"
 msgstr ""
 "Предпросмотр конфликтов, отчёт о частичных сбоях и блокировки запущенных "
 "профилей"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:58
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:70
 msgid "Add portal capability diagnostics and native aarch64 release bundles"
 msgstr "Диагностика возможностей portal и нативные release-сборки для aarch64"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:59
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:71
 msgid ""
 "Harden archive extraction, resource limits, and concurrent profile operations"
 msgstr ""
 "Защищённое извлечение архивов, лимиты ресурсов и безопасные параллельные "
 "операции с профилями"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:67
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:79
 msgid "Add per-origin website permissions with session and persistent choices"
 msgstr "Разрешения сайтов по origin с выбором на сессию или постоянно"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:68
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:80
 msgid ""
 "Add popup and OAuth windows, native notifications, and managed downloads"
 msgstr "Всплывающие окна и OAuth, системные уведомления и менеджер загрузок"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:69
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:81
 msgid "Add navigation, zoom, and fullscreen runtime controls"
 msgstr "Навигация, масштабирование и полноэкранный режим"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:70
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:82
 msgid ""
 "Migrate Bastle data to schema v2 and remove Spider runtime compatibility"
 msgstr "Миграция данных Bastle на схему v2 и удаление совместимости со Spider"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:78
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:90
 msgid "Prevent a crash when opening an application card for editing"
 msgstr "Исправление сбоя при открытии карточки приложения для редактирования"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:79
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:91
 msgid "Add a headless regression test for editor state changes"
 msgstr "Headless regression-тест изменений состояния редактора"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:87
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:99
 msgid "Introduce the Bastle identity and isolated JSON-based storage"
 msgstr "Новая идентичность Bastle и изолированное хранилище на основе JSON"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:88
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:100
 msgid "Add transactional launcher operations and repair support"
 msgstr "Транзакционные операции с ярлыками и их восстановление"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:89
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:101
 msgid "Add an explicit, settings-only Spider importer"
 msgstr "Явный импорт только настроек Spider"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:90
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:102
 msgid "Harden URL, metadata, icon, download, and theme-color handling"
 msgstr "Безопасная обработка URL, метаданных, значков, загрузок и цветов темы"
 
