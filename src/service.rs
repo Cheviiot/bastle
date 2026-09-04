@@ -7,23 +7,37 @@ use ashpd::WindowIdentifier;
 use futures::channel::oneshot;
 
 use crate::{
+    background::{BackgroundBackend, PortalBackground},
     launcher::{LauncherBackend, PortalLauncher, UninstallOutcome},
     model::{AppConfigV2, AppId, WindowState},
     policy::{AppPolicyV2, Origin, PermissionDecision, PermissionKind},
     repository::{AppRepository, AppSnapshot, LoadReport, ProfileLock, StagedProfile},
 };
 
-#[derive(Debug, Clone)]
-pub struct AppService<L> {
-    repository: AppRepository,
-    launcher: L,
+#[derive(Debug)]
+pub struct PolicyUpdate {
+    pub portal_warning: Option<String>,
 }
 
-impl<L: LauncherBackend> AppService<L> {
+#[derive(Debug, Clone)]
+pub struct AppService<L, B = PortalBackground> {
+    repository: AppRepository,
+    launcher: L,
+    background: B,
+}
+
+impl<L: LauncherBackend> AppService<L, PortalBackground> {
     pub fn new(repository: AppRepository, launcher: L) -> Self {
+        Self::with_background(repository, launcher, PortalBackground)
+    }
+}
+
+impl<L: LauncherBackend, B: BackgroundBackend> AppService<L, B> {
+    pub fn with_background(repository: AppRepository, launcher: L, background: B) -> Self {
         Self {
             repository,
             launcher,
+            background,
         }
     }
 
@@ -127,6 +141,76 @@ impl<L: LauncherBackend> AppService<L> {
         self.repository.reset_policy(id)
     }
 
+    pub async fn merge_policy_with_background(
+        &self,
+        id: &AppId,
+        original: &AppPolicyV2,
+        edited: &AppPolicyV2,
+        parent: Option<&WindowIdentifier>,
+        reason: &str,
+    ) -> Result<PolicyUpdate> {
+        let needs_other_autostart = (edited.background.enabled
+            && edited.background != original.background
+            && !edited.background.autostart)
+            || (!edited.background.enabled && original.background.autostart);
+        let other_autostart = if needs_other_autostart {
+            self.another_app_uses_autostart(id)?
+        } else {
+            false
+        };
+        let previous_global_autostart = original.background.autostart || other_autostart;
+        let mut effective = edited.clone();
+        let mut portal_changed = false;
+        let mut portal_warning = None;
+
+        if effective.background.enabled && effective.background != original.background {
+            let requested_for_this_app = effective.background.autostart;
+            let requested_global_autostart = requested_for_this_app || other_autostart;
+            let grant = self
+                .background
+                .request_access(parent, reason, requested_global_autostart)
+                .await?;
+            portal_changed = true;
+            effective.background.enabled = grant.background;
+            effective.background.autostart = requested_for_this_app && grant.autostart;
+            if requested_global_autostart && !grant.autostart {
+                portal_warning =
+                    Some("the desktop allowed background activity but not autostart".to_owned());
+            }
+        } else if !effective.background.enabled && original.background.autostart {
+            self.background
+                .update_autostart(parent, other_autostart)
+                .await?;
+            portal_changed = true;
+        }
+
+        match self.repository.merge_policy(id, original, &effective) {
+            Ok(_) => Ok(PolicyUpdate { portal_warning }),
+            Err(error) if portal_changed => {
+                match self
+                    .background
+                    .update_autostart(parent, previous_global_autostart)
+                    .await
+                {
+                    Ok(_) => Err(error).context("the previous portal autostart state was restored"),
+                    Err(rollback) => Err(error).context(format!(
+                        "portal autostart rollback also failed: {rollback:#}"
+                    )),
+                }
+            }
+            Err(error) => Err(error),
+        }
+    }
+
+    fn another_app_uses_autostart(&self, excluded: &AppId) -> Result<bool> {
+        for app in self.repository.list()?.apps {
+            if app.id != *excluded && self.repository.load_policy(&app.id)?.background.autostart {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
     pub async fn create(
         &self,
         mut app: AppConfigV2,
@@ -160,10 +244,11 @@ impl<L: LauncherBackend> AppService<L> {
         parent: Option<&WindowIdentifier>,
     ) -> Result<AppConfigV2> {
         app.normalize_and_validate()?;
+        let policy = policy.for_restore();
         policy.validate()?;
         let staged_app = self
             .repository
-            .stage_create_with_policy(&app, icon, policy)?;
+            .stage_create_with_policy(&app, icon, &policy)?;
         let staged_profile = match profile_source {
             Some(source) => Some(self.stage_profile_from(&app.id, source).await?),
             None => None,
@@ -242,27 +327,50 @@ impl<L: LauncherBackend> AppService<L> {
     }
 
     pub async fn delete(&self, id: &AppId) -> Result<UninstallOutcome> {
+        let policy = self.repository.load_policy(id)?;
         let profile_existed = self.repository.profile_dir(id).exists();
         let profile_lock = self.repository.acquire_delete_profile_lock(id)?;
-        let outcome = match self.launcher.uninstall(id).await {
-            Ok(outcome) => outcome,
-            Err(error) => {
-                if !profile_existed {
-                    return match self.repository.remove_profile_with_lock(id, profile_lock) {
-                        Ok(()) => Err(error),
-                        Err(cleanup) => Err(error).context(format!(
-                            "temporary profile-lock cleanup also failed: {cleanup}"
-                        )),
-                    };
+        let disable_portal_autostart =
+            policy.background.autostart && !self.another_app_uses_autostart(id)?;
+        if disable_portal_autostart {
+            self.background.update_autostart(None, false).await?;
+        }
+
+        let result = async {
+            let outcome = match self.launcher.uninstall(id).await {
+                Ok(outcome) => outcome,
+                Err(error) => {
+                    if !profile_existed {
+                        return match self.repository.remove_profile_with_lock(id, profile_lock) {
+                            Ok(()) => Err(error),
+                            Err(cleanup) => Err(error).context(format!(
+                                "temporary profile-lock cleanup also failed: {cleanup}"
+                            )),
+                        };
+                    }
+                    drop(profile_lock);
+                    return Err(error);
                 }
-                drop(profile_lock);
-                return Err(error);
+            };
+            self.repository
+                .delete_with_profile_lock(id, profile_lock)
+                .context("launcher was removed but local data cleanup failed")?;
+            Ok(outcome)
+        }
+        .await;
+
+        match result {
+            Ok(outcome) => Ok(outcome),
+            Err(error) if disable_portal_autostart => {
+                match self.background.update_autostart(None, true).await {
+                    Ok(_) => Err(error).context("the previous portal autostart state was restored"),
+                    Err(rollback) => Err(error).context(format!(
+                        "portal autostart rollback also failed: {rollback:#}"
+                    )),
+                }
             }
-        };
-        self.repository
-            .delete_with_profile_lock(id, profile_lock)
-            .context("launcher was removed but local data cleanup failed")?;
-        Ok(outcome)
+            Err(error) => Err(error),
+        }
     }
 
     pub async fn repair(&self, id: &AppId, parent: Option<&WindowIdentifier>) -> Result<()> {
@@ -272,7 +380,7 @@ impl<L: LauncherBackend> AppService<L> {
     }
 }
 
-impl AppService<PortalLauncher> {
+impl AppService<PortalLauncher, PortalBackground> {
     pub fn portal() -> Self {
         Self::new(AppRepository::for_current_user(), PortalLauncher)
     }
@@ -281,7 +389,7 @@ impl AppService<PortalLauncher> {
 #[cfg(test)]
 mod tests {
     use std::{
-        cell::RefCell,
+        cell::{Cell, RefCell},
         collections::{HashMap, HashSet},
         rc::Rc,
         str::FromStr,
@@ -292,7 +400,10 @@ mod tests {
     use futures::executor::block_on;
 
     use super::*;
-    use crate::policy::{Origin, PermissionDecision, PermissionKind};
+    use crate::{
+        background::BackgroundGrant,
+        policy::{Origin, PermissionDecision, PermissionKind},
+    };
 
     #[derive(Debug, Clone, Default)]
     struct FakeLauncher {
@@ -334,12 +445,69 @@ mod tests {
         }
     }
 
+    #[derive(Debug, Clone, Default)]
+    struct FakeBackground {
+        autostart: Rc<Cell<bool>>,
+        updates: Rc<RefCell<Vec<bool>>>,
+        remove_on_request: Rc<RefCell<Option<(AppRepository, AppId)>>>,
+    }
+
+    impl FakeBackground {
+        fn apply(&self, enabled: bool) -> Result<()> {
+            self.updates.borrow_mut().push(enabled);
+            self.autostart.set(enabled);
+            if let Some((repository, id)) = self.remove_on_request.borrow_mut().take() {
+                repository.delete(&id)?;
+            }
+            Ok(())
+        }
+    }
+
+    #[async_trait(?Send)]
+    impl BackgroundBackend for FakeBackground {
+        async fn request_access(
+            &self,
+            _parent: Option<&WindowIdentifier>,
+            _reason: &str,
+            autostart: bool,
+        ) -> Result<BackgroundGrant> {
+            self.apply(autostart)?;
+            Ok(BackgroundGrant {
+                background: true,
+                autostart,
+            })
+        }
+
+        async fn update_autostart(
+            &self,
+            _parent: Option<&WindowIdentifier>,
+            enabled: bool,
+        ) -> Result<bool> {
+            self.apply(enabled)?;
+            Ok(enabled)
+        }
+    }
+
     fn service() -> (tempfile::TempDir, AppService<FakeLauncher>, FakeLauncher) {
         let temp = tempfile::tempdir().unwrap();
         let repository = AppRepository::new(temp.path().join("data"), temp.path().join("cache"));
         let launcher = FakeLauncher::default();
         let service = AppService::new(repository, launcher.clone());
         (temp, service, launcher)
+    }
+
+    fn service_with_background() -> (
+        tempfile::TempDir,
+        AppService<FakeLauncher, FakeBackground>,
+        FakeLauncher,
+        FakeBackground,
+    ) {
+        let temp = tempfile::tempdir().unwrap();
+        let repository = AppRepository::new(temp.path().join("data"), temp.path().join("cache"));
+        let launcher = FakeLauncher::default();
+        let background = FakeBackground::default();
+        let service = AppService::with_background(repository, launcher.clone(), background.clone());
+        (temp, service, launcher, background)
     }
 
     #[test]
@@ -464,6 +632,82 @@ mod tests {
     }
 
     #[test]
+    fn background_portal_changes_roll_back_when_policy_commit_fails() {
+        let (_temp, service, _launcher, background) = service_with_background();
+        let app = AppConfigV2::new("Transactional", "example.org", 0).unwrap();
+        block_on(service.create(app.clone(), b"icon", None)).unwrap();
+        let original = service.load_policy(&app.id).unwrap();
+        let mut edited = original.clone();
+        edited.background.enabled = true;
+        edited.background.autostart = true;
+        background
+            .remove_on_request
+            .borrow_mut()
+            .replace((service.repository().clone(), app.id.clone()));
+
+        assert!(block_on(
+            service.merge_policy_with_background(&app.id, &original, &edited, None, "test",)
+        )
+        .is_err());
+        assert_eq!(*background.updates.borrow(), vec![true, false]);
+        assert!(!background.autostart.get());
+    }
+
+    #[test]
+    fn unrelated_policy_edits_skip_the_global_autostart_scan() {
+        let (_temp, service, _launcher, background) = service_with_background();
+        let app = AppConfigV2::new("Healthy", "example.org", 0).unwrap();
+        let corrupt = AppConfigV2::new("Corrupt", "corrupt.example", 1).unwrap();
+        block_on(service.create(app.clone(), b"icon", None)).unwrap();
+        block_on(service.create(corrupt.clone(), b"icon", None)).unwrap();
+        std::fs::write(
+            service
+                .repository()
+                .app_dir(&corrupt.id)
+                .join("policy.json"),
+            b"not json",
+        )
+        .unwrap();
+        let original = service.load_policy(&app.id).unwrap();
+        let mut edited = original.clone();
+        edited.navigation.enabled = true;
+        edited
+            .navigation
+            .allowed_origins
+            .insert(Origin::from_str("https://example.org").unwrap());
+
+        block_on(service.merge_policy_with_background(&app.id, &original, &edited, None, "test"))
+            .unwrap();
+        assert!(background.updates.borrow().is_empty());
+    }
+
+    #[test]
+    fn deleting_last_autostart_app_updates_portal_and_rolls_back_failure() {
+        let (_temp, service, launcher, background) = service_with_background();
+        let app = AppConfigV2::new("Autostart", "example.org", 0).unwrap();
+        block_on(service.create(app.clone(), b"icon", None)).unwrap();
+        let mut policy = AppPolicyV2::default();
+        policy.background.enabled = true;
+        policy.background.autostart = true;
+        service
+            .merge_policy(&app.id, &AppPolicyV2::default(), &policy)
+            .unwrap();
+        background.autostart.set(true);
+        *launcher.deny_uninstall.borrow_mut() = true;
+
+        assert!(block_on(service.delete(&app.id)).is_err());
+        assert!(service.contains(&app.id));
+        assert!(background.autostart.get());
+        assert_eq!(*background.updates.borrow(), vec![false, true]);
+
+        *launcher.deny_uninstall.borrow_mut() = false;
+        block_on(service.delete(&app.id)).unwrap();
+        assert!(!service.contains(&app.id));
+        assert!(!background.autostart.get());
+        assert_eq!(*background.updates.borrow(), vec![false, true, false]);
+    }
+
+    #[test]
     fn backup_restore_commits_profile_before_launcher_and_rolls_back_denial() {
         let (_temp, service, launcher) = service();
         let source = tempfile::tempdir().unwrap();
@@ -476,6 +720,8 @@ mod tests {
             PermissionKind::Notifications,
             PermissionDecision::Allow,
         );
+        policy.background.enabled = true;
+        policy.background.autostart = true;
         launcher
             .required_profiles
             .borrow_mut()
@@ -489,7 +735,16 @@ mod tests {
             None,
         ))
         .unwrap();
-        assert_eq!(service.load_policy(&app.id).unwrap(), policy);
+        let restored_policy = service.load_policy(&app.id).unwrap();
+        assert_eq!(
+            restored_policy.decision(
+                &Origin::from_str("https://example.org").unwrap(),
+                PermissionKind::Notifications
+            ),
+            PermissionDecision::Allow
+        );
+        assert!(!restored_policy.background.enabled);
+        assert!(!restored_policy.background.autostart);
         assert_eq!(
             std::fs::read(service.profile_dir(&app.id).join("profile-state")).unwrap(),
             b"session"

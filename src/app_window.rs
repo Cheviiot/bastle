@@ -334,6 +334,7 @@ mod imp {
         pub runtime_lock: RefCell<Option<ProfileLock>>,
         pub background_hold: RefCell<Option<gio::ApplicationHoldGuard>>,
         pub background_start_pending: Cell<bool>,
+        pub startup_error: RefCell<Option<String>>,
         pub stop_requested: Cell<bool>,
     }
 
@@ -648,7 +649,9 @@ impl AppWindow {
                     policy.content_filters.values().any(|filter| filter.enabled);
                 if has_enabled_filters {
                     let Some(manager) = view.user_content_manager() else {
-                        self.toast(&gettext("Content filters could not be initialized"));
+                        self.show_startup_error(&gettext(
+                            "Content filters could not be initialized",
+                        ));
                         return;
                     };
                     let filter_error_message = gettext("Some content filters could not be enabled");
@@ -663,7 +666,7 @@ impl AppWindow {
                             let failures =
                                 content_filters::apply_filters(&profile, &policy, &manager).await;
                             if !failures.is_empty() {
-                                window.toast(&format!(
+                                window.show_startup_error(&format!(
                                     "{}: {}",
                                     filter_error_message,
                                     failures.join("; ")
@@ -1036,7 +1039,10 @@ impl AppWindow {
     }
 
     pub(crate) fn start_in_background(&self) {
-        if self.imp().webview.borrow().is_some() {
+        if self.imp().startup_error.borrow().is_some() {
+            self.imp().background_start_pending.set(false);
+            self.present();
+        } else if self.imp().webview.borrow().is_some() {
             self.enter_background();
         } else {
             self.imp().background_start_pending.set(true);
@@ -1116,6 +1122,14 @@ impl AppWindow {
         if self.imp().background_start_pending.replace(false) {
             self.enter_background();
         }
+    }
+
+    fn show_startup_error(&self, message: &str) {
+        self.imp().startup_error.replace(Some(message.to_owned()));
+        if self.imp().background_start_pending.replace(false) {
+            self.present();
+        }
+        self.toast(message);
     }
 
     fn go_home(&self) {

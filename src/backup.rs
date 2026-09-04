@@ -360,7 +360,7 @@ impl<L: LauncherBackend + Clone> BackupService<L> {
     fn existing_matches(&self, id: &AppId, archived: &ArchivedApp) -> Result<bool> {
         Ok(self.service.load(id)? == archived.config
             && self.service.read_icon(id)? == archived.icon
-            && self.service.load_policy(id)? == archived.policy)
+            && self.service.load_policy(id)? == archived.policy.for_restore())
     }
 
     pub async fn restore(

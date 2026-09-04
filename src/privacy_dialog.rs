@@ -11,7 +11,7 @@ use gettextrs::gettext;
 use gtk::{gio, glib};
 
 use crate::{
-    background, content_filters,
+    content_filters,
     model::AppId,
     policy::{
         normalize_proxy_uri, AppPolicyV2, ContentFilterRuleSet, Origin, ProxyMode,
@@ -266,7 +266,7 @@ fn present_editor(
                 start_url: &config.start_url,
             };
             let result = build_edited_policy(&edited.borrow(), &input);
-            let mut policy = match result {
+            let policy = match result {
                 Ok(policy) => policy,
                 Err(error) => {
                     parent.toast(&error.to_string());
@@ -288,62 +288,27 @@ fn present_editor(
                 #[strong]
                 autostart_failed_message,
                 async move {
-                    let other_autostart = if needs_other_autostart(&original, &policy) {
-                        match another_app_uses_autostart(&app_id) {
-                            Ok(enabled) => enabled,
-                            Err(error) => {
-                                parent_window.toast(&error.to_string());
-                                return;
-                            }
-                        }
-                    } else {
-                        false
-                    };
                     let identifier = WindowIdentifier::from_native(&parent_window).await;
-                    let mut portal_warning = None;
-                    if policy.background.enabled && policy.background != original.background {
-                        let requested_for_this_app = policy.background.autostart;
-                        match background::request_access(
+                    match AppService::portal()
+                        .merge_policy_with_background(
+                            &app_id,
+                            &original,
+                            &policy,
                             identifier.as_ref(),
                             &background_request_reason,
-                            requested_for_this_app || other_autostart,
                         )
                         .await
-                        {
-                            Ok(grant) => {
-                                policy.background.enabled = grant.background;
-                                policy.background.autostart =
-                                    requested_for_this_app && grant.autostart;
-                                if (requested_for_this_app || other_autostart) && !grant.autostart {
-                                    portal_warning = Some(anyhow!(
-                                        "the desktop allowed background activity but not autostart"
-                                    ));
-                                }
-                            }
-                            Err(error) => {
-                                parent_window
-                                    .toast(&format!("{}: {error:#}", background_denied_message));
-                                return;
-                            }
-                        }
-                    } else if !policy.background.enabled && original.background.autostart {
-                        if let Err(error) =
-                            background::update_autostart(identifier.as_ref(), other_autostart).await
-                        {
-                            portal_warning = Some(error);
-                        }
-                    }
-
-                    match AppService::portal().merge_policy(&app_id, &original, &policy) {
-                        Ok(_) => {
+                    {
+                        Ok(update) => {
                             dialog.close();
                             parent_window.toast(&privacy_saved_message);
-                            if let Some(error) = portal_warning {
+                            if let Some(warning) = update.portal_warning {
                                 parent_window
-                                    .toast(&format!("{}: {error:#}", autostart_failed_message));
+                                    .toast(&format!("{}: {warning}", autostart_failed_message));
                             }
                         }
-                        Err(error) => parent_window.toast(&error.to_string()),
+                        Err(error) => parent_window
+                            .toast(&format!("{}: {error:#}", background_denied_message)),
                     }
                 }
             ));
@@ -352,23 +317,6 @@ fn present_editor(
 
     dialog.present(Some(parent));
     dialog
-}
-
-fn another_app_uses_autostart(excluded: &AppId) -> Result<bool> {
-    let service = AppService::portal();
-    for app in service.list()?.apps {
-        if app.id != *excluded && service.load_policy(&app.id)?.background.autostart {
-            return Ok(true);
-        }
-    }
-    Ok(false)
-}
-
-fn needs_other_autostart(original: &AppPolicyV2, edited: &AppPolicyV2) -> bool {
-    (edited.background.enabled
-        && edited.background != original.background
-        && !edited.background.autostart)
-        || (!edited.background.enabled && original.background.autostart)
 }
 
 struct PolicyEditorInput<'a> {
@@ -568,13 +516,5 @@ mod tests {
         assert!(!policy.navigation.enabled);
         assert!(!policy.background.enabled);
         assert!(policy.content_filters.is_empty());
-        assert!(!needs_other_autostart(&policy, &policy));
-
-        let mut enabling_background = policy.clone();
-        enabling_background.background.enabled = true;
-        assert!(needs_other_autostart(&policy, &enabling_background));
-
-        enabling_background.background.autostart = true;
-        assert!(!needs_other_autostart(&policy, &enabling_background));
     }
 }

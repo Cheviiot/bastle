@@ -208,6 +208,11 @@ async fn show_restore_preview(parent: &BastleWindow, plan: RestorePlan) {
     } else {
         gettext("Select the applications to restore.")
     };
+    let description = format!(
+        "{}\n\n{}",
+        description,
+        gettext("Background activity and autostart must be enabled again after restore."),
+    );
     let dialog = adw::AlertDialog::new(Some(&gettext("Restore Preview")), Some(&description));
     dialog.add_responses(&[
         ("cancel", &gettext("Cancel")),

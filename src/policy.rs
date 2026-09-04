@@ -371,6 +371,12 @@ impl AppPolicyV2 {
     pub fn reset_permissions(&mut self) {
         self.permissions.clear();
     }
+
+    pub fn for_restore(&self) -> Self {
+        let mut restored = self.clone();
+        restored.background = BackgroundPolicy::default();
+        restored
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -530,6 +536,26 @@ mod tests {
         };
         assert!(policy.add_content_filter(oversized).is_err());
         assert!(policy.content_filters.is_empty());
+    }
+
+    #[test]
+    fn restore_keeps_policy_but_requires_new_background_authorization() {
+        let origin = Origin::from_str("https://example.org").unwrap();
+        let mut policy = AppPolicyV2::default();
+        policy.set_decision(
+            origin.clone(),
+            PermissionKind::Notifications,
+            PermissionDecision::Allow,
+        );
+        policy.background.enabled = true;
+        policy.background.autostart = true;
+
+        let restored = policy.for_restore();
+        assert_eq!(
+            restored.decision(&origin, PermissionKind::Notifications),
+            PermissionDecision::Allow
+        );
+        assert_eq!(restored.background, BackgroundPolicy::default());
     }
 
     #[test]

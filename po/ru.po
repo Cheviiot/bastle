@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: bastle 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-05 05:50+1000\n"
+"POT-Creation-Date: 2026-09-05 06:06+1000\n"
 "PO-Revision-Date: 2026-09-04 00:00+1000\n"
 "Last-Translator: Bastle contributors\n"
 "Language-Team: Russian\n"
@@ -16,7 +16,7 @@ msgstr ""
 "n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
 
 #: data/io.github.cheviiot.bastle.desktop.in:3
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:5 src/app_window.rs:1069
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:5 src/app_window.rs:1075
 #: src/home_page.blp:7
 msgid "Bastle"
 msgstr "Bastle"
@@ -143,7 +143,7 @@ msgid "Menu"
 msgstr "Меню"
 
 #: src/app_page.blp:26 src/backup_dialog.rs:38 src/backup_dialog.rs:185
-#: src/backup_dialog.rs:213 src/window.rs:214
+#: src/backup_dialog.rs:218 src/window.rs:214
 msgid "Cancel"
 msgstr "Отмена"
 
@@ -211,7 +211,7 @@ msgstr "User-Agent"
 msgid "Permissions"
 msgstr "Разрешения"
 
-#: src/app_page.rs:174 src/privacy_dialog.rs:50 src/privacy_dialog.rs:531
+#: src/app_page.rs:174 src/privacy_dialog.rs:50 src/privacy_dialog.rs:479
 msgid "Privacy & Power"
 msgstr "Конфиденциальность и фоновые функции"
 
@@ -315,112 +315,112 @@ msgstr "Разрешить этому сайту доступ к сторонн�
 msgid "This WebKit permission type is not supported"
 msgstr "Этот тип разрешения WebKit не поддерживается"
 
-#: src/app_window.rs:628
+#: src/app_window.rs:629
 msgid "Privacy policy could not be loaded; web content was not started"
 msgstr ""
 "Не удалось загрузить политику конфиденциальности; веб-содержимое не запущено"
 
-#: src/app_window.rs:651
+#: src/app_window.rs:653
 msgid "Content filters could not be initialized"
 msgstr "Не удалось инициализировать фильтры содержимого"
 
-#: src/app_window.rs:654
+#: src/app_window.rs:657
 msgid "Some content filters could not be enabled"
 msgstr "Не удалось включить некоторые фильтры содержимого"
 
-#: src/app_window.rs:832
+#: src/app_window.rs:835
 msgid "This origin is outside the application's navigation allowlist."
 msgstr "Этот origin отсутствует в списке разрешённой навигации приложения."
 
-#: src/app_window.rs:833
+#: src/app_window.rs:836
 msgid "Destination"
 msgstr "Назначение"
 
-#: src/app_window.rs:836
+#: src/app_window.rs:839
 msgid "Open Another Origin?"
 msgstr "Открыть другой origin?"
 
-#: src/app_window.rs:838 src/permissions_dialog.rs:53
+#: src/app_window.rs:841 src/permissions_dialog.rs:53
 msgid "Block"
 msgstr "Блокировать"
 
-#: src/app_window.rs:839
+#: src/app_window.rs:842
 msgid "Open Externally"
 msgstr "Открыть во внешнем браузере"
 
-#: src/app_window.rs:840
+#: src/app_window.rs:843
 msgid "Open Once"
 msgstr "Открыть один раз"
 
-#: src/app_window.rs:841
+#: src/app_window.rs:844
 msgid "Always Allow Origin"
 msgstr "Всегда разрешать origin"
 
-#: src/app_window.rs:855
+#: src/app_window.rs:858
 msgid "The origin could not be saved"
 msgstr "Не удалось сохранить origin"
 
-#: src/app_window.rs:865
+#: src/app_window.rs:868
 msgid "Navigation blocked"
 msgstr "Навигация заблокирована"
 
-#: src/app_window.rs:879
+#: src/app_window.rs:882
 msgid "Unsupported website permission request"
 msgstr "Неподдерживаемый запрос разрешения сайта"
 
-#: src/app_window.rs:890
+#: src/app_window.rs:893
 msgid "Website permission origin is unavailable"
 msgstr "Не удалось определить источник запроса разрешения"
 
-#: src/app_window.rs:918
+#: src/app_window.rs:921
 msgid "Website"
 msgstr "Сайт"
 
-#: src/app_window.rs:919
+#: src/app_window.rs:922
 msgid "Website Permission"
 msgstr "Разрешение сайта"
 
-#: src/app_window.rs:921
+#: src/app_window.rs:924
 msgid "Not Now"
 msgstr "Не сейчас"
 
-#: src/app_window.rs:922
+#: src/app_window.rs:925
 msgid "Always Block"
 msgstr "Всегда блокировать"
 
-#: src/app_window.rs:923
+#: src/app_window.rs:926
 msgid "Allow for This Session"
 msgstr "Разрешить на эту сессию"
 
-#: src/app_window.rs:924
+#: src/app_window.rs:927
 msgid "Always Allow"
 msgstr "Всегда разрешать"
 
-#: src/app_window.rs:951
+#: src/app_window.rs:954
 msgid "Permission was allowed only for this session"
 msgstr "Разрешение действует только в этом сеансе"
 
-#: src/app_window.rs:964
+#: src/app_window.rs:967
 msgid "Permission block could not be saved"
 msgstr "Не удалось сохранить блокировку разрешения"
 
-#: src/app_window.rs:988
+#: src/app_window.rs:991
 msgid "System notifications are unavailable"
 msgstr "Системные уведомления недоступны"
 
-#: src/app_window.rs:1070
+#: src/app_window.rs:1076
 msgid "Web App Running in Background"
 msgstr "Веб-приложение работает в фоне"
 
-#: src/app_window.rs:1074
+#: src/app_window.rs:1080
 msgid "is still active. Use Stop to end its process."
 msgstr "всё ещё активно. Нажмите «Остановить», чтобы завершить его процесс."
 
-#: src/app_window.rs:1081
+#: src/app_window.rs:1087
 msgid "Stop"
 msgstr "Остановить"
 
-#: src/app_window.rs:1088
+#: src/app_window.rs:1094
 msgid "Bastle web apps are running"
 msgstr "Веб-приложения Bastle работают"
 
@@ -532,51 +532,55 @@ msgstr ""
 msgid "Select the applications to restore."
 msgstr "Выберите приложения для восстановления."
 
-#: src/backup_dialog.rs:211
+#: src/backup_dialog.rs:214
+msgid "Background activity and autostart must be enabled again after restore."
+msgstr "Фоновую работу и автозапуск после восстановления нужно включить заново."
+
+#: src/backup_dialog.rs:216
 msgid "Restore Preview"
 msgstr "Предпросмотр восстановления"
 
-#: src/backup_dialog.rs:214
+#: src/backup_dialog.rs:219
 msgid "Restore"
 msgstr "Восстановить"
 
-#: src/backup_dialog.rs:227
+#: src/backup_dialog.rs:232
 msgid "Restore with the original ID"
 msgstr "Восстановить с исходным ID"
 
-#: src/backup_dialog.rs:228
+#: src/backup_dialog.rs:233
 msgid "ID conflict: restore with a new ID"
 msgstr "Конфликт ID: восстановить с новым ID"
 
-#: src/backup_dialog.rs:229
+#: src/backup_dialog.rs:234
 msgid "Identical application already exists"
 msgstr "Такое же приложение уже существует"
 
-#: src/backup_dialog.rs:270
+#: src/backup_dialog.rs:275
 msgid "No applications were selected"
 msgstr "Не выбрано ни одного приложения"
 
-#: src/backup_dialog.rs:280
+#: src/backup_dialog.rs:285
 msgid "Restored"
 msgstr "Восстановлено"
 
-#: src/backup_dialog.rs:282
+#: src/backup_dialog.rs:287
 msgid "Skipped"
 msgstr "Пропущено"
 
-#: src/backup_dialog.rs:288 src/download_manager.rs:129
+#: src/backup_dialog.rs:293 src/download_manager.rs:129
 msgid "Failed"
 msgstr "Ошибка"
 
-#: src/backup_dialog.rs:308
+#: src/backup_dialog.rs:313
 msgid "Restore Finished with Errors"
 msgstr "Восстановление завершено с ошибками"
 
-#: src/backup_dialog.rs:310 src/window.rs:197
+#: src/backup_dialog.rs:315 src/window.rs:197
 msgid "Close"
 msgstr "Закрыть"
 
-#: src/background.rs:45
+#: src/background.rs:73
 msgid "Keep selected Bastle web applications running in the background"
 msgstr "Разрешить выбранным веб-приложениям Bastle работать в фоне"
 
@@ -917,27 +921,27 @@ msgstr ""
 msgid "Autostart could not be updated by the portal"
 msgstr "Порталу не удалось изменить автозапуск"
 
-#: src/privacy_dialog.rs:437
+#: src/privacy_dialog.rs:385
 msgid "WebKit content-extension rules"
 msgstr "Правила расширений содержимого WebKit"
 
-#: src/privacy_dialog.rs:442
+#: src/privacy_dialog.rs:390
 msgid "Remove Filter"
 msgstr "Удалить фильтр"
 
-#: src/privacy_dialog.rs:475
+#: src/privacy_dialog.rs:423
 msgid "WebKit Content Filters"
 msgstr "Фильтры содержимого WebKit"
 
-#: src/privacy_dialog.rs:481
+#: src/privacy_dialog.rs:429
 msgid "Import Content Filter"
 msgstr "Импорт фильтра содержимого"
 
-#: src/privacy_dialog.rs:482
+#: src/privacy_dialog.rs:430
 msgid "Import"
 msgstr "Импортировать"
 
-#: src/privacy_dialog.rs:496
+#: src/privacy_dialog.rs:444
 msgid "Imported Filter"
 msgstr "Импортированный фильтр"
 
