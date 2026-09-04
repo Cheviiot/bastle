@@ -49,6 +49,18 @@
   </categories>
   <launchable type="desktop-id">io.github.cheviiot.bastle.desktop</launchable>
   <releases>
+    <release version="0.3.0" date="2026-09-05">
+      <description>
+        <ul>
+          <li>Add versioned metadata backups with transactional per-application restore</li>
+          <li>Add optional passphrase-encrypted transfer of cookies and site storage</li>
+          <li>Add conflict preview, partial-failure reporting, and runtime profile locks</li>
+          <li>Add portal capability diagnostics and native aarch64 release bundles</li>
+          <li>Harden archive extraction, resource limits, and concurrent profile operations</li>
+        </ul>
+      </description>
+      <url>https://github.com/Cheviiot/bastle/releases/tag/v0.3.0</url>
+    </release>
     <release version="0.2.0" date="2026-09-05">
       <description>
         <ul>
