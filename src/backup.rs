@@ -358,9 +358,11 @@ impl<L: LauncherBackend + Clone> BackupService<L> {
     }
 
     fn existing_matches(&self, id: &AppId, archived: &ArchivedApp) -> Result<bool> {
+        let existing_policy = self.service.load_policy(id)?;
         Ok(self.service.load(id)? == archived.config
             && self.service.read_icon(id)? == archived.icon
-            && self.service.load_policy(id)? == archived.policy.for_restore())
+            && (existing_policy == archived.policy
+                || existing_policy == archived.policy.for_restore()))
     }
 
     pub async fn restore(
@@ -928,6 +930,37 @@ mod tests {
             RestoreDisposition::RestoreWithNewId
         );
         assert_ne!(conflict.entries[0].target_id, app.id);
+    }
+
+    #[test]
+    fn identical_backup_with_background_settings_is_skipped() {
+        let source = tempfile::tempdir().unwrap();
+        let service = backup_service(source.path());
+        let app = AppConfigV2::new("Background", "example.org", 0).unwrap();
+        block_on(service.service.create(app.clone(), b"icon", None)).unwrap();
+        let mut policy = AppPolicyV2::default();
+        policy.background.enabled = true;
+        policy.background.autostart = true;
+        service
+            .service
+            .merge_policy(&app.id, &AppPolicyV2::default(), &policy)
+            .unwrap();
+
+        let backup = source.path().join("background.bastle-backup");
+        service
+            .create_backup(
+                &backup,
+                std::slice::from_ref(&app.id),
+                &BackupOptions::default(),
+            )
+            .unwrap();
+
+        let plan = service.prepare_restore(&backup, None).unwrap();
+        assert_eq!(
+            plan.entries[0].disposition,
+            RestoreDisposition::SkipIdentical
+        );
+        assert_eq!(plan.entries[0].target_id, app.id);
     }
 
     #[test]

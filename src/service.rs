@@ -165,16 +165,9 @@ impl<L: LauncherBackend, B: BackgroundBackend> AppService<L, B> {
             return Ok(());
         }
         let _background_lock = self.lock_background().await?;
-        let needs_other_autostart = (edited.background.enabled
-            && edited.background != original.background
-            && !edited.background.autostart)
-            || (!edited.background.enabled && original.background.autostart);
-        let other_autostart = if needs_other_autostart {
-            self.another_app_uses_autostart(id)?
-        } else {
-            false
-        };
-        let previous_global_autostart = original.background.autostart || other_autostart;
+        let current = self.repository.load_policy(id)?;
+        let other_autostart = self.another_app_uses_autostart(id)?;
+        let previous_global_autostart = current.background.autostart || other_autostart;
         let mut effective = edited.clone();
         let mut portal_changed = false;
 
@@ -201,7 +194,7 @@ impl<L: LauncherBackend, B: BackgroundBackend> AppService<L, B> {
             }
             effective.background.enabled = grant.background;
             effective.background.autostart = requested_for_this_app && grant.autostart;
-        } else if original.background.autostart {
+        } else if current.background.autostart {
             self.background
                 .update_autostart(parent, other_autostart)
                 .await?;
@@ -695,6 +688,42 @@ mod tests {
         )
         .is_err());
         assert_eq!(*background.updates.borrow(), vec![true, false]);
+        assert!(!background.autostart.get());
+    }
+
+    #[test]
+    fn background_rollback_uses_policy_reloaded_under_global_lock() {
+        let (_temp, service, _launcher, background) = service_with_background();
+        let app = AppConfigV2::new("Concurrent", "example.org", 0).unwrap();
+        block_on(service.create(app.clone(), b"icon", None)).unwrap();
+
+        let mut stale_original = AppPolicyV2::default();
+        stale_original.background.enabled = true;
+        stale_original.background.autostart = true;
+        service
+            .merge_policy(&app.id, &AppPolicyV2::default(), &stale_original)
+            .unwrap();
+        service
+            .merge_policy(&app.id, &stale_original, &AppPolicyV2::default())
+            .unwrap();
+
+        let mut edited = stale_original.clone();
+        edited.background.autostart = false;
+        background.autostart.set(false);
+        background
+            .remove_on_request
+            .borrow_mut()
+            .replace((service.repository().clone(), app.id.clone()));
+
+        assert!(block_on(service.merge_policy_with_background(
+            &app.id,
+            &stale_original,
+            &edited,
+            None,
+            "test",
+        ))
+        .is_err());
+        assert_eq!(*background.updates.borrow(), vec![false, false]);
         assert!(!background.autostart.get());
     }
 
