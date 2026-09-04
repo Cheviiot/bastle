@@ -43,6 +43,14 @@ mod imp {
                 "List known applications",
                 None,
             );
+            app.add_main_option(
+                "background",
+                glib::Char::from(0),
+                OptionFlags::NONE,
+                OptionArg::None,
+                "Start opted-in web applications in the background",
+                None,
+            );
             #[cfg(feature = "ui-tests")]
             app.add_main_option(
                 "ui-test-app-page",
@@ -77,7 +85,9 @@ mod imp {
             {
                 let result = crate::app_page::run_ui_smoke_test()
                     .and_then(|()| crate::download_manager::run_ui_smoke_test(&*self.obj()))
-                    .and_then(|()| crate::backup_dialog::run_ui_smoke_test(&*self.obj()));
+                    .and_then(|()| crate::backup_dialog::run_ui_smoke_test(&*self.obj()))
+                    .and_then(|()| crate::privacy_dialog::run_ui_smoke_test(&*self.obj()))
+                    .and_then(|()| crate::app_window::run_background_ui_smoke_test(&*self.obj()));
                 return match result {
                     Ok(()) => glib::ExitCode::SUCCESS,
                     Err(error) => {
@@ -88,6 +98,37 @@ mod imp {
             }
 
             let service = AppService::portal();
+            if command_line
+                .options_dict()
+                .lookup::<bool>("background")
+                .ok()
+                .flatten()
+                .unwrap_or(false)
+            {
+                return match service.list() {
+                    Ok(report) => {
+                        for config in report.apps {
+                            match service.load_policy(&config.id) {
+                                Ok(policy)
+                                    if policy.background.enabled && policy.background.autostart =>
+                                {
+                                    AppWindow::new(&*self.obj(), &config).start_in_background();
+                                }
+                                Ok(_) => {}
+                                Err(error) => eprintln!(
+                                    "Failed to load background policy for {}: {error:#}",
+                                    config.id
+                                ),
+                            }
+                        }
+                        glib::ExitCode::SUCCESS
+                    }
+                    Err(error) => {
+                        eprintln!("Error: {error:#}");
+                        glib::ExitCode::FAILURE
+                    }
+                };
+            }
             if command_line
                 .options_dict()
                 .lookup::<bool>("list-applications")
@@ -179,7 +220,35 @@ impl BastleApplication {
                 .parameter_type(Some(&String::static_variant_type()))
                 .activate(|app: &Self, _, parameter| app.activate_web_notification(parameter))
                 .build(),
+            gio::ActionEntry::builder("show-background")
+                .parameter_type(Some(&String::static_variant_type()))
+                .activate(|app: &Self, _, parameter| {
+                    if let Some(window) = app.background_window(parameter) {
+                        window.show_from_background();
+                    }
+                })
+                .build(),
+            gio::ActionEntry::builder("stop-background")
+                .parameter_type(Some(&String::static_variant_type()))
+                .activate(|app: &Self, _, parameter| {
+                    if let Some(window) = app.background_window(parameter) {
+                        window.stop_background();
+                    }
+                })
+                .build(),
         ]);
+    }
+
+    fn background_window(&self, parameter: Option<&glib::Variant>) -> Option<AppWindow> {
+        let id = parameter
+            .and_then(|value| value.get::<String>())
+            .and_then(|value| AppId::from_str(&value).ok())?;
+        self.windows().into_iter().find_map(|window| {
+            window
+                .downcast::<AppWindow>()
+                .ok()
+                .filter(|window| window.app_id().as_ref() == Some(&id))
+        })
     }
 
     pub fn send_web_notification(&self, id: &AppId, web_notification: &webkit::Notification) {

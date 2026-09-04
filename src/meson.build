@@ -75,6 +75,9 @@ if get_option('ui_tests')
   ui_test_env.set('GDK_BACKEND', 'x11')
   ui_test_env.set('BASTLE_TEST_RESOURCE', resources.full_path())
   ui_test_env.set('GSETTINGS_SCHEMA_DIR', meson.project_build_root() / 'data')
+  ui_test_env.set('XDG_DATA_HOME', meson.project_build_root() / 'ui-test-data')
+  ui_test_env.set('XDG_CACHE_HOME', meson.project_build_root() / 'ui-test-cache')
+  ui_test_env.set('XDG_CONFIG_HOME', meson.project_build_root() / 'ui-test-config')
   test(
     'UI smoke',
     dbus_run_session,

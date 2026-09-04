@@ -17,7 +17,7 @@ use tempfile::{Builder as TempBuilder, NamedTempFile, TempDir};
 use crate::{
     launcher::{LauncherBackend, PortalLauncher},
     model::{AppConfigV2, AppId},
-    policy::AppPolicyV1,
+    policy::{decode_policy, AppPolicyV2},
     repository::{ProfileLock, RUNTIME_LOCK_FILE},
     service::AppService,
 };
@@ -437,7 +437,7 @@ pub fn is_encrypted_backup(path: &Path) -> Result<bool> {
 struct ArchivedApp {
     config: AppConfigV2,
     icon: Vec<u8>,
-    policy: AppPolicyV1,
+    policy: AppPolicyV2,
 }
 
 fn read_archived_app(root: &Path, id: &AppId) -> Result<ArchivedApp> {
@@ -448,8 +448,8 @@ fn read_archived_app(root: &Path, id: &AppId) -> Result<ArchivedApp> {
     ensure!(config.id == *id, "archive app id does not match its path");
     let icon = read_limited_file(&directory.join("icon.png"), MAX_ICON_SIZE)?;
     ensure!(!icon.is_empty(), "archive icon is empty");
-    let policy: AppPolicyV1 = read_limited_json(&directory.join("policy.json"), MAX_POLICY_SIZE)?;
-    policy.validate()?;
+    let policy_bytes = read_limited_file(&directory.join("policy.json"), MAX_POLICY_SIZE)?;
+    let (policy, _) = decode_policy(&policy_bytes)?;
     Ok(ArchivedApp {
         config,
         icon,

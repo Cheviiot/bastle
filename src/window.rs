@@ -8,9 +8,9 @@ use gettextrs::gettext;
 use gtk::{gio, glib};
 
 use crate::{
-    app_page::AppPage, app_row::AppRow, application::settings, backup_dialog,
+    app_page::AppPage, app_row::AppRow, application::settings, background, backup_dialog,
     create_app_dialog::CreateAppDialog, home_page::HomePage, launcher::PortalLauncher,
-    model::AppId, permissions_dialog, service::AppService,
+    model::AppId, permissions_dialog, privacy_dialog, service::AppService,
 };
 
 mod imp {
@@ -140,6 +140,14 @@ impl BastleWindow {
                     }
                 })
                 .build(),
+            gio::ActionEntry::builder("privacy")
+                .parameter_type(Some(&String::static_variant_type()))
+                .activate(|window: &Self, _, parameter| {
+                    if let Some(id) = parse_action_id(parameter) {
+                        privacy_dialog::start(window, id);
+                    }
+                })
+                .build(),
             gio::ActionEntry::builder("backup")
                 .activate(|window: &Self, _, _| backup_dialog::start_backup(window))
                 .build(),
@@ -155,11 +163,15 @@ impl BastleWindow {
     fn show_capabilities(&self) {
         let window = self.clone();
         glib::spawn_future_local(async move {
+            let background_capability = background::capability()
+                .await
+                .map(|version| format!("{} (v{version})", gettext("Available")))
+                .unwrap_or_else(|error| format!("{} ({error})", gettext("Unavailable")));
             let (heading, body) = match PortalLauncher::capabilities().await {
                 Ok(capabilities) => (
                     gettext("Portal Available"),
                     format!(
-                        "{}: {}\n{}: {}\n{}: {}\n{}: {}\n\n{}",
+                        "{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n\n{}",
                         gettext("Desktop session"),
                         capabilities.desktop,
                         gettext("Dynamic Launcher version"),
@@ -168,6 +180,8 @@ impl BastleWindow {
                         availability(capabilities.application_launchers),
                         gettext("Web application launchers"),
                         availability(capabilities.web_application_launchers),
+                        gettext("Background activity"),
+                        background_capability,
                         gettext("Bastle uses portals only and never writes launchers directly to the host."),
                     ),
                 ),

@@ -15,7 +15,7 @@ use tempfile::{Builder, NamedTempFile, TempDir};
 use crate::{
     config::DATA_DIR_NAME,
     model::{AppConfigV2, AppId, SCHEMA_VERSION},
-    policy::{AppPolicyV1, Origin, PermissionDecision, PermissionKind},
+    policy::{decode_policy, AppPolicyV2, Origin, PermissionDecision, PermissionKind},
 };
 
 const CONFIG_FILE: &str = "app.json";
@@ -46,7 +46,7 @@ pub struct LoadReport {
 pub struct AppSnapshot {
     pub config: AppConfigV2,
     pub icon: Vec<u8>,
-    pub policy: AppPolicyV1,
+    pub policy: AppPolicyV2,
 }
 
 #[derive(Debug, Clone)]
@@ -283,27 +283,29 @@ impl AppRepository {
         self.app_dir(id).join(CONFIG_FILE).is_file()
     }
 
-    pub fn load_policy(&self, id: &AppId) -> Result<AppPolicyV1> {
+    pub fn load_policy(&self, id: &AppId) -> Result<AppPolicyV2> {
         let path = self.app_dir(id).join(POLICY_FILE);
         if !path.exists() {
-            return Ok(AppPolicyV1::default());
+            return Ok(AppPolicyV2::default());
         }
         self.load_policy_from_path(&path)
     }
 
-    fn load_policy_from_path(&self, path: &Path) -> Result<AppPolicyV1> {
-        let contents = fs::read_to_string(path)
-            .with_context(|| format!("failed to read {}", path.display()))?;
-        let policy: AppPolicyV1 = serde_json::from_str(&contents)
-            .with_context(|| format!("invalid JSON in {}", path.display()))?;
-        policy
-            .validate()
+    fn load_policy_from_path(&self, path: &Path) -> Result<AppPolicyV2> {
+        let contents =
+            fs::read(path).with_context(|| format!("failed to read {}", path.display()))?;
+        let (policy, migrated) = decode_policy(&contents)
             .with_context(|| format!("invalid policy in {}", path.display()))?;
+        if migrated {
+            replace_json(path, &policy).with_context(|| {
+                format!("failed to migrate {} to policy schema v2", path.display())
+            })?;
+        }
         Ok(policy)
     }
 
     #[cfg(test)]
-    pub fn save_policy(&self, id: &AppId, policy: &AppPolicyV1) -> Result<()> {
+    pub fn save_policy(&self, id: &AppId, policy: &AppPolicyV2) -> Result<()> {
         if !self.app_dir(id).is_dir() {
             bail!("app {id} is not stored locally");
         }
@@ -315,7 +317,7 @@ impl AppRepository {
         &self,
         id: &AppId,
         decisions: &[(Origin, PermissionKind, PermissionDecision)],
-    ) -> Result<AppPolicyV1> {
+    ) -> Result<AppPolicyV2> {
         self.mutate_policy(id, |policy| {
             for (origin, kind, decision) in decisions {
                 policy.set_decision(origin.clone(), *kind, *decision);
@@ -323,12 +325,18 @@ impl AppRepository {
         })
     }
 
+    pub fn allow_navigation_origin(&self, id: &AppId, origin: Origin) -> Result<AppPolicyV2> {
+        self.mutate_policy(id, |policy| {
+            policy.navigation.allowed_origins.insert(origin);
+        })
+    }
+
     pub fn merge_policy(
         &self,
         id: &AppId,
-        original: &AppPolicyV1,
-        edited: &AppPolicyV1,
-    ) -> Result<AppPolicyV1> {
+        original: &AppPolicyV2,
+        edited: &AppPolicyV2,
+    ) -> Result<AppPolicyV2> {
         original.validate()?;
         edited.validate()?;
         let mut changes = Vec::new();
@@ -352,18 +360,34 @@ impl AppRepository {
                 }
             }
         }
-        self.apply_policy_decisions(id, &changes)
+        self.mutate_policy(id, |current| {
+            for (origin, kind, decision) in changes {
+                current.set_decision(origin, kind, decision);
+            }
+            if original.navigation != edited.navigation {
+                current.navigation = edited.navigation.clone();
+            }
+            if original.proxy != edited.proxy {
+                current.proxy = edited.proxy.clone();
+            }
+            if original.background != edited.background {
+                current.background = edited.background.clone();
+            }
+            if original.content_filters != edited.content_filters {
+                current.content_filters = edited.content_filters.clone();
+            }
+        })
     }
 
-    pub fn reset_policy(&self, id: &AppId) -> Result<AppPolicyV1> {
-        self.mutate_policy(id, AppPolicyV1::reset)
+    pub fn reset_policy(&self, id: &AppId) -> Result<AppPolicyV2> {
+        self.mutate_policy(id, AppPolicyV2::reset_permissions)
     }
 
     fn mutate_policy(
         &self,
         id: &AppId,
-        mutate: impl FnOnce(&mut AppPolicyV1),
-    ) -> Result<AppPolicyV1> {
+        mutate: impl FnOnce(&mut AppPolicyV2),
+    ) -> Result<AppPolicyV2> {
         let app_dir = self.app_dir(id);
         if !app_dir.is_dir() {
             bail!("app {id} is not stored locally");
@@ -384,14 +408,14 @@ impl AppRepository {
     }
 
     pub fn stage_create(&self, app: &AppConfigV2, icon: &[u8]) -> Result<StagedApp> {
-        self.stage_create_with_policy(app, icon, &AppPolicyV1::default())
+        self.stage_create_with_policy(app, icon, &AppPolicyV2::default())
     }
 
     pub fn stage_create_with_policy(
         &self,
         app: &AppConfigV2,
         icon: &[u8],
-        policy: &AppPolicyV1,
+        policy: &AppPolicyV2,
     ) -> Result<StagedApp> {
         let final_dir = self.app_dir(&app.id);
         if final_dir.exists() {
@@ -650,7 +674,7 @@ mod tests {
         assert_eq!(repository.read_icon(&app.id).unwrap(), b"icon");
         assert_eq!(
             repository.load_policy(&app.id).unwrap(),
-            AppPolicyV1::default()
+            AppPolicyV2::default()
         );
 
         app.title = "Updated".to_owned();
@@ -736,7 +760,7 @@ mod tests {
             b"profile"
         );
         assert_eq!(fs::read(cache_dir.join("cache-state")).unwrap(), b"cache");
-        assert_eq!(repository.load_policy(&id).unwrap(), AppPolicyV1::default());
+        assert_eq!(repository.load_policy(&id).unwrap(), AppPolicyV2::default());
     }
 
     #[test]
@@ -746,7 +770,7 @@ mod tests {
         repository.create(&app, b"icon").unwrap();
 
         let origin = Origin::from_str("https://example.org/path").unwrap();
-        let mut policy = AppPolicyV1::default();
+        let mut policy = AppPolicyV2::default();
         policy.set_decision(
             origin.clone(),
             PermissionKind::Camera,
@@ -768,6 +792,39 @@ mod tests {
     }
 
     #[test]
+    fn policy_v1_is_atomically_migrated_to_v2() {
+        let (_temp, repository) = repository();
+        let app = AppConfigV2::new("Example", "example.org", 0).unwrap();
+        repository.create(&app, b"icon").unwrap();
+        let policy_path = repository.app_dir(&app.id).join(POLICY_FILE);
+        fs::write(
+            &policy_path,
+            r#"{
+  "schema_version": 1,
+  "permissions": {
+    "https://example.org": { "camera": "block" }
+  }
+}"#,
+        )
+        .unwrap();
+
+        let policy = repository.load_policy(&app.id).unwrap();
+        assert_eq!(policy.schema_version, POLICY_SCHEMA_VERSION);
+        assert_eq!(
+            policy.decision(
+                &Origin::from_str("https://example.org").unwrap(),
+                PermissionKind::Camera
+            ),
+            PermissionDecision::Block
+        );
+        assert!(!policy.navigation.enabled);
+        assert!(!policy.background.enabled);
+        let migrated = fs::read_to_string(policy_path).unwrap();
+        assert!(migrated.contains("\"schema_version\": 2"));
+        assert!(!migrated.contains(".tmp-"));
+    }
+
+    #[test]
     fn policy_edits_merge_with_decisions_saved_by_another_process() {
         let (_temp, repository) = repository();
         let app = AppConfigV2::new("Example", "example.org", 0).unwrap();
@@ -780,6 +837,11 @@ mod tests {
             PermissionKind::Notifications,
             PermissionDecision::Allow,
         );
+        editor_changes.navigation.enabled = true;
+        editor_changes
+            .navigation
+            .allowed_origins
+            .insert(origin.clone());
 
         repository
             .apply_policy_decisions(
@@ -803,6 +865,8 @@ mod tests {
             merged.decision(&origin, PermissionKind::Notifications),
             PermissionDecision::Allow
         );
+        assert!(merged.navigation.enabled);
+        assert!(merged.navigation.allowed_origins.contains(&origin));
         assert!(repository.app_dir(&app.id).join(POLICY_LOCK_FILE).is_file());
     }
 

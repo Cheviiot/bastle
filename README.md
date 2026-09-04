@@ -17,7 +17,9 @@ The current development series targets x86_64 and aarch64, GNOME 50, and
 Flatpak. It supports application creation, editing, launching, deletion,
 launcher repair, offline creation, popup/OAuth windows, navigation controls,
 zoom, fullscreen, runtime permissions, managed downloads, and native
-notifications.
+notifications. The v0.4 policy layer adds optional top-level origin
+restrictions, per-app WebKit proxy selection, portal-authorized background
+activity, and user-imported WebKit content filters.
 
 Flathub submission is intentionally deferred until Bastle has an independent
 release history and enough differentiation from Spider.
@@ -32,8 +34,10 @@ $XDG_DATA_HOME/bastle/profiles/<id>/
 $XDG_CACHE_HOME/bastle/<id>/
 ```
 
-GSettings stores only the main-window size. Application configuration and
-permission decisions live in versioned, atomically written JSON files.
+GSettings stores only the main-window size. Application configuration,
+permission decisions, and opt-in privacy/power settings live in versioned,
+atomically written JSON files. Content-filter source rules are embedded in the
+per-app policy so ordinary backups remain self-contained.
 
 ## Backup and restore
 
@@ -49,6 +53,9 @@ as its own portal-backed transaction. Archives containing absolute paths,
 path traversal, links, duplicate entries, or unexpected files are rejected.
 
 ## Development environment
+
+Security boundaries and known limitations are documented in the
+[threat model](docs/threat-model.md).
 
 Development is reproducible in the Fedora 44 Distrobox named `bastle-dev`:
 
@@ -105,7 +112,8 @@ their own IDs, metadata, launchers, and WebKit profiles.
   notifications, and managed downloads.
 - v0.3 — Bastle backup/restore, optional encrypted site-data transfer,
   aarch64, and portal capability diagnostics for GNOME and KDE.
-- v0.4 — privacy and power features after a dedicated threat model.
+- v0.4 — opt-in origin allowlists, per-app proxy settings, background/autostart
+  through the desktop portal, content filters, and a dedicated threat model.
 - v0.5 — an optional, separately sandboxed Chromium companion for sites that
   cannot run correctly on WebKitGTK.
 

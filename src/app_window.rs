@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use std::{cell::RefCell, collections::BTreeSet, str::FromStr};
+use std::{
+    cell::{Cell, RefCell},
+    collections::BTreeSet,
+    str::FromStr,
+};
 
 use adw::{prelude::*, subclass::prelude::*};
 use anyhow::{bail, Context, Result};
@@ -14,9 +18,10 @@ use webkit::{
 
 use crate::{
     application::BastleApplication,
+    background, content_filters,
     download_manager::DownloadManager,
     model::{AppConfigV2, WindowState},
-    policy::{AppPolicyV1, Origin, PermissionDecision, PermissionKind},
+    policy::{AppPolicyV2, Origin, PermissionDecision, PermissionKind, ProxyMode},
     repository::ProfileLock,
     service::AppService,
     util,
@@ -115,7 +120,7 @@ fn create_popup(
     popup.set_destroy_with_parent(true);
 
     let settings = webkit::prelude::WebViewExt::settings(parent_view)?;
-    let content_manager = webkit::UserContentManager::new();
+    let content_manager = parent_view.user_content_manager().unwrap_or_default();
     let toolbar = adw::ToolbarView::new();
     toolbar.add_top_bar(&adw::HeaderBar::new());
     let popup_view = WebView::builder()
@@ -192,16 +197,13 @@ fn create_popup(
             true
         }
     ));
-    popup_view.connect_decide_policy(|view, decision, kind| {
-        if kind == PolicyDecisionType::NewWindowAction {
-            return handle_new_window_policy(decision).unwrap_or(false);
-        }
-        if kind == PolicyDecisionType::Response && response_requires_download(view, decision) {
-            decision.download();
-            return true;
-        }
-        false
-    });
+    popup_view.connect_decide_policy(clone!(
+        #[weak]
+        owner,
+        #[upgrade_or]
+        false,
+        move |view, decision, kind| owner.handle_policy_decision(view, decision, kind)
+    ));
     popup_view.connect_create(clone!(
         #[weak]
         owner,
@@ -324,12 +326,15 @@ mod imp {
         #[template_child]
         pub toast_overlay: TemplateChild<adw::ToastOverlay>,
         pub config: RefCell<Option<AppConfigV2>>,
-        pub policy: RefCell<AppPolicyV1>,
+        pub policy: RefCell<AppPolicyV2>,
         pub session_permissions: RefCell<BTreeSet<(Origin, PermissionKind)>>,
+        pub one_time_navigation: RefCell<BTreeSet<String>>,
         pub download_manager: RefCell<Option<std::rc::Rc<DownloadManager>>>,
         pub webview: RefCell<Option<WebView>>,
         pub provider: RefCell<Option<gtk::CssProvider>>,
         pub runtime_lock: RefCell<Option<ProfileLock>>,
+        pub background_hold: RefCell<Option<gio::ApplicationHoldGuard>>,
+        pub stop_requested: Cell<bool>,
     }
 
     #[glib::object_subclass]
@@ -369,6 +374,11 @@ mod imp {
                     eprintln!("Failed to save Bastle window state: {error:#}");
                 }
             }
+            if self.policy.borrow().background.enabled && !self.stop_requested.get() {
+                self.obj().enter_background();
+                return glib::Propagation::Stop;
+            }
+            self.obj().leave_background();
             glib::Propagation::Proceed
         }
     }
@@ -408,6 +418,26 @@ mod imp {
                 .cache_directory(cache.to_string_lossy().as_ref())
                 .data_directory(profile.to_string_lossy().as_ref())
                 .build();
+            match self.policy.borrow().proxy.mode {
+                ProxyMode::System => {
+                    network_session.set_proxy_settings(webkit::NetworkProxyMode::Default, None)
+                }
+                ProxyMode::NoProxy => {
+                    network_session.set_proxy_settings(webkit::NetworkProxyMode::NoProxy, None)
+                }
+                ProxyMode::Custom => {
+                    let uri = self
+                        .policy
+                        .borrow()
+                        .proxy
+                        .uri
+                        .clone()
+                        .context("custom proxy URI is missing")?;
+                    let settings = webkit::NetworkProxySettings::new(Some(&uri), &[]);
+                    network_session
+                        .set_proxy_settings(webkit::NetworkProxyMode::Custom, Some(&settings));
+                }
+            }
             if let Some(cookie_manager) = network_session.cookie_manager() {
                 cookie_manager.set_persistent_storage(
                     profile.join("cookies.sqlite").to_string_lossy().as_ref(),
@@ -474,18 +504,13 @@ mod imp {
                 false,
                 move |view, request| window.handle_permission_request(view, request)
             ));
-            view.connect_decide_policy(|view, decision, kind| {
-                if kind == PolicyDecisionType::NewWindowAction {
-                    return handle_new_window_policy(decision).unwrap_or(false);
-                }
-                if kind == PolicyDecisionType::Response
-                    && response_requires_download(view, decision)
-                {
-                    decision.download();
-                    return true;
-                }
-                false
-            });
+            view.connect_decide_policy(clone!(
+                #[weak(rename_to = window)]
+                self.obj(),
+                #[upgrade_or]
+                false,
+                move |view, decision, kind| window.handle_policy_decision(view, decision, kind)
+            ));
             view.connect_create(clone!(
                 #[weak(rename_to = window)]
                 self.obj(),
@@ -596,18 +621,51 @@ impl AppWindow {
                 self.imp().policy.replace(policy);
             }
             Err(error) => {
-                self.imp().policy.replace(AppPolicyV1::default());
+                self.imp().policy.replace(AppPolicyV2::default());
                 self.toast(&format!(
                     "{}: {error}",
                     gettext("Permission settings could not be loaded")
                 ));
             }
         }
+        if let Some(action) = self
+            .lookup_action("stop-background")
+            .and_downcast::<gio::SimpleAction>()
+        {
+            action.set_enabled(self.imp().policy.borrow().background.enabled);
+        }
         match self.imp().create_webview(config) {
             Ok(view) => {
-                view.load_uri(&config.start_url);
                 self.imp().webview_container.set_child(Some(&view));
-                self.imp().webview.replace(Some(view));
+                self.imp().webview.replace(Some(view.clone()));
+                let start_url = config.start_url.clone();
+                let profile = AppService::portal().profile_dir(&config.id);
+                let policy = self.imp().policy.borrow().clone();
+                if let Some(manager) = view.user_content_manager() {
+                    let filter_error_message = gettext("Some content filters could not be enabled");
+                    glib::spawn_future_local(glib::clone!(
+                        #[weak(rename_to = window)]
+                        self,
+                        #[strong]
+                        view,
+                        #[strong]
+                        filter_error_message,
+                        async move {
+                            let failures =
+                                content_filters::apply_filters(&profile, &policy, &manager).await;
+                            if !failures.is_empty() {
+                                window.toast(&format!(
+                                    "{}: {}",
+                                    filter_error_message,
+                                    failures.join("; ")
+                                ));
+                            }
+                            view.load_uri(&start_url);
+                        }
+                    ));
+                } else {
+                    view.load_uri(&start_url);
+                }
             }
             Err(error) => self.toast(&error.to_string()),
         }
@@ -691,6 +749,9 @@ impl AppWindow {
             gio::ActionEntry::builder("downloads")
                 .activate(|window: &Self, _, _| window.download_manager().show())
                 .build(),
+            gio::ActionEntry::builder("stop-background")
+                .activate(|window: &Self, _, _| window.stop_background())
+                .build(),
         ]);
     }
 
@@ -701,6 +762,101 @@ impl AppWindow {
         let manager = DownloadManager::new(self);
         self.imp().download_manager.replace(Some(manager.clone()));
         manager
+    }
+
+    fn handle_policy_decision(
+        &self,
+        view: &WebView,
+        decision: &PolicyDecision,
+        kind: PolicyDecisionType,
+    ) -> bool {
+        if kind == PolicyDecisionType::NewWindowAction {
+            return handle_new_window_policy(decision).unwrap_or(false);
+        }
+        if kind == PolicyDecisionType::Response {
+            if self.handle_top_level_navigation(view, decision) {
+                return true;
+            }
+            if response_requires_download(view, decision) {
+                decision.download();
+                return true;
+            }
+        }
+        false
+    }
+
+    fn handle_top_level_navigation(&self, view: &WebView, decision: &PolicyDecision) -> bool {
+        let Ok(response) = decision
+            .clone()
+            .downcast::<webkit::ResponsePolicyDecision>()
+        else {
+            return false;
+        };
+        if !response.is_main_frame_main_resource() {
+            return false;
+        }
+        let Some(uri) = response.request().and_then(|request| request.uri()) else {
+            return false;
+        };
+        let Ok(url) = url::Url::parse(uri.as_str()) else {
+            return false;
+        };
+        if !matches!(url.scheme(), "http" | "https") {
+            return false;
+        }
+        let Ok(origin) = Origin::from_url(&url) else {
+            return false;
+        };
+        let target = url.to_string();
+        if self.imp().one_time_navigation.borrow_mut().remove(&target) {
+            return false;
+        }
+        if self.imp().policy.borrow().navigation.allows(&origin) {
+            return false;
+        }
+
+        decision.ignore();
+        let window = self.clone();
+        let view = view.clone();
+        glib::spawn_future_local(async move {
+            let body = format!(
+                "{}\n\n{}: {}",
+                gettext("This origin is outside the application's navigation allowlist."),
+                gettext("Destination"),
+                origin
+            );
+            let dialog = adw::AlertDialog::new(Some(&gettext("Open Another Origin?")), Some(&body));
+            dialog.add_responses(&[
+                ("block", &gettext("Block")),
+                ("external", &gettext("Open Externally")),
+                ("once", &gettext("Open Once")),
+                ("allow", &gettext("Always Allow Origin")),
+            ]);
+            dialog.set_response_appearance("block", adw::ResponseAppearance::Destructive);
+            dialog.set_response_appearance("allow", adw::ResponseAppearance::Suggested);
+            dialog.set_default_response(Some("once"));
+            dialog.set_close_response("block");
+            match dialog.choose_future(Some(&window)).await.as_str() {
+                "once" => {
+                    window
+                        .imp()
+                        .one_time_navigation
+                        .borrow_mut()
+                        .insert(target.clone());
+                    view.load_uri(&target);
+                }
+                "allow" => match window.persist_navigation_origin(origin) {
+                    Ok(()) => view.load_uri(&target),
+                    Err(error) => window.toast(&format!(
+                        "{}: {error}",
+                        gettext("The origin could not be saved")
+                    )),
+                },
+                "external" => launch_external_uri(&target),
+                _ => window.toast(&gettext("Navigation blocked")),
+            }
+        });
+        true
     }
 
     fn handle_permission_request(&self, view: &WebView, request: &PermissionRequest) -> bool {
@@ -848,6 +1004,95 @@ impl AppWindow {
         Ok(())
     }
 
+    fn persist_navigation_origin(&self, origin: Origin) -> Result<()> {
+        let id = self
+            .imp()
+            .config
+            .borrow()
+            .as_ref()
+            .map(|config| config.id.clone())
+            .context("application configuration is unavailable")?;
+        let updated = AppService::portal().allow_navigation_origin(&id, origin)?;
+        self.imp().policy.replace(updated);
+        Ok(())
+    }
+
+    pub(crate) fn app_id(&self) -> Option<crate::model::AppId> {
+        self.imp()
+            .config
+            .borrow()
+            .as_ref()
+            .map(|config| config.id.clone())
+    }
+
+    pub(crate) fn start_in_background(&self) {
+        if self.imp().webview.borrow().is_some() {
+            self.enter_background();
+        } else {
+            self.imp().stop_requested.set(true);
+            self.close();
+        }
+    }
+
+    pub(crate) fn show_from_background(&self) {
+        self.leave_background();
+        self.present();
+    }
+
+    pub(crate) fn stop_background(&self) {
+        self.imp().stop_requested.set(true);
+        self.leave_background();
+        self.close();
+    }
+
+    fn enter_background(&self) {
+        if self.imp().background_hold.borrow().is_some() {
+            return;
+        }
+        self.set_visible(false);
+        let Some(application) = self.application() else {
+            return;
+        };
+        self.imp().background_hold.replace(Some(application.hold()));
+        if let Some(id) = self.app_id() {
+            let title = self.title().unwrap_or_else(|| gettext("Bastle").into());
+            let notification = gio::Notification::new(&gettext("Web App Running in Background"));
+            notification.set_body(Some(&format!(
+                "{} {}",
+                title,
+                gettext("is still active. Use Stop to end its process.")
+            )));
+            notification.set_default_action_and_target_value(
+                "app.show-background",
+                Some(&id.as_str().to_variant()),
+            );
+            notification.add_button_with_target_value(
+                &gettext("Stop"),
+                "app.stop-background",
+                Some(&id.as_str().to_variant()),
+            );
+            application.send_notification(Some(&format!("background-{id}")), &notification);
+            glib::spawn_future_local(async move {
+                if let Err(error) =
+                    background::set_status(&gettext("Bastle web apps are running")).await
+                {
+                    eprintln!("Failed to update Background Portal status: {error:#}");
+                }
+            });
+        }
+    }
+
+    fn leave_background(&self) {
+        if self.imp().background_hold.borrow_mut().take().is_none() {
+            return;
+        }
+        if let Some(application) = self.application() {
+            if let Some(id) = self.app_id() {
+                application.withdraw_notification(&format!("background-{id}"));
+            }
+        }
+    }
+
     fn with_webview(&self, operation: impl FnOnce(&WebView)) {
         if let Some(view) = self.imp().webview.borrow().as_ref() {
             operation(view);
@@ -905,6 +1150,40 @@ impl AppWindow {
     pub(crate) fn toast(&self, message: &str) {
         self.imp().toast_overlay.add_toast(adw::Toast::new(message));
     }
+}
+
+#[cfg(feature = "ui-tests")]
+pub(crate) fn run_background_ui_smoke_test<P: IsA<gtk::Application>>(
+    application: &P,
+) -> anyhow::Result<()> {
+    let repository = crate::repository::AppRepository::for_current_user();
+    let config = AppConfigV2::new("Background UI smoke test", "http://127.0.0.1:9/", 0)?;
+    repository
+        .stage_create(&config, b"ui-test-icon")?
+        .commit()?;
+    let mut policy = AppPolicyV2::default();
+    policy.background.enabled = true;
+    policy.background.autostart = true;
+    repository.merge_policy(&config.id, &AppPolicyV2::default(), &policy)?;
+
+    let window = AppWindow::new(application, &config);
+    window.start_in_background();
+    anyhow::ensure!(!window.is_visible(), "background window remained visible");
+    anyhow::ensure!(
+        window.imp().background_hold.borrow().is_some(),
+        "background mode did not hold the application"
+    );
+    window.stop_background();
+    anyhow::ensure!(
+        window.imp().background_hold.borrow().is_none(),
+        "stopping background mode retained the application hold"
+    );
+    window.destroy();
+    drop(window);
+
+    let delete_lock = repository.acquire_delete_profile_lock(&config.id)?;
+    repository.delete_with_profile_lock(&config.id, delete_lock)?;
+    Ok(())
 }
 
 #[cfg(test)]

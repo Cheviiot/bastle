@@ -9,7 +9,7 @@ use futures::channel::oneshot;
 use crate::{
     launcher::{LauncherBackend, PortalLauncher, UninstallOutcome},
     model::{AppConfigV2, AppId, WindowState},
-    policy::{AppPolicyV1, Origin, PermissionDecision, PermissionKind},
+    policy::{AppPolicyV2, Origin, PermissionDecision, PermissionKind},
     repository::{AppRepository, AppSnapshot, LoadReport, ProfileLock, StagedProfile},
 };
 
@@ -98,7 +98,7 @@ impl<L: LauncherBackend> AppService<L> {
         self.repository.update(&current, None)
     }
 
-    pub fn load_policy(&self, id: &AppId) -> Result<AppPolicyV1> {
+    pub fn load_policy(&self, id: &AppId) -> Result<AppPolicyV2> {
         self.repository.load_policy(id)
     }
 
@@ -106,20 +106,24 @@ impl<L: LauncherBackend> AppService<L> {
         &self,
         id: &AppId,
         decisions: &[(Origin, PermissionKind, PermissionDecision)],
-    ) -> Result<AppPolicyV1> {
+    ) -> Result<AppPolicyV2> {
         self.repository.apply_policy_decisions(id, decisions)
+    }
+
+    pub fn allow_navigation_origin(&self, id: &AppId, origin: Origin) -> Result<AppPolicyV2> {
+        self.repository.allow_navigation_origin(id, origin)
     }
 
     pub fn merge_policy(
         &self,
         id: &AppId,
-        original: &AppPolicyV1,
-        edited: &AppPolicyV1,
-    ) -> Result<AppPolicyV1> {
+        original: &AppPolicyV2,
+        edited: &AppPolicyV2,
+    ) -> Result<AppPolicyV2> {
         self.repository.merge_policy(id, original, edited)
     }
 
-    pub fn reset_policy(&self, id: &AppId) -> Result<AppPolicyV1> {
+    pub fn reset_policy(&self, id: &AppId) -> Result<AppPolicyV2> {
         self.repository.reset_policy(id)
     }
 
@@ -151,7 +155,7 @@ impl<L: LauncherBackend> AppService<L> {
         &self,
         mut app: AppConfigV2,
         icon: &[u8],
-        policy: &AppPolicyV1,
+        policy: &AppPolicyV2,
         profile_source: Option<&std::path::Path>,
         parent: Option<&WindowIdentifier>,
     ) -> Result<AppConfigV2> {
@@ -447,7 +451,7 @@ mod tests {
             PermissionDecision::Allow,
         );
         service
-            .merge_policy(&app.id, &AppPolicyV1::default(), &policy)
+            .merge_policy(&app.id, &AppPolicyV2::default(), &policy)
             .unwrap();
 
         assert_eq!(
@@ -466,7 +470,7 @@ mod tests {
         std::fs::write(source.path().join("profile-state"), b"session").unwrap();
         let app = AppConfigV2::new("Example", "example.org", 0).unwrap();
         let origin = Origin::from_str("https://example.org").unwrap();
-        let mut policy = AppPolicyV1::default();
+        let mut policy = AppPolicyV2::default();
         policy.set_decision(
             origin,
             PermissionKind::Notifications,
@@ -496,7 +500,7 @@ mod tests {
         assert!(block_on(service.create_from_backup(
             denied.clone(),
             b"icon",
-            &AppPolicyV1::default(),
+            &AppPolicyV2::default(),
             Some(source.path()),
             None,
         ))
