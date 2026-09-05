@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: bastle\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-05 09:59+1000\n"
+"POT-Creation-Date: 2026-09-05 10:07+1000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -38,119 +38,150 @@ msgstr ""
 #: data/io.github.cheviiot.bastle.metainfo.xml.in:28
 msgid ""
 "Bastle is a GNOME-native manager for isolated web applications powered by "
-"the system WebKitGTK engine. Each website gets separate local data, cookies, "
-"cache, settings, and its own desktop launcher."
+"the system WebKitGTK engine, with an optional separately sandboxed Chromium "
+"companion. Each website gets separate local data, cookies, cache, settings, "
+"and its own desktop launcher."
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:33
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:34
 msgid ""
 "Bastle is an independent successor to Spider. The original work and Git "
 "history by Zaedus remain credited."
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:38
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:39
 msgid "Create, edit, repair, and remove portal-installed launchers"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:39
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:40
 msgid "Fetch and safely normalize website icons with an offline fallback"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:40
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:41
 msgid ""
 "Keep each application's configuration, policy, profile, and cache separate"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:55
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:56
+msgid ""
+"Add an explicit WebKitGTK or Chromium engine choice with local compatibility "
+"recommendations"
+msgstr ""
+
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:57
+msgid ""
+"Integrate the separately sandboxed Chromium companion through an "
+"authenticated D-Bus protocol"
+msgstr ""
+
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:58
+msgid ""
+"Keep engine profiles separate and safely retry deferred companion profile "
+"cleanup"
+msgstr ""
+
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:59
+msgid ""
+"Diagnose Dynamic Launcher, File Chooser, and Documents portal capabilities "
+"independently"
+msgstr ""
+
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:60
+msgid ""
+"Distinguish unavailable, unsupported, cancelled, denied, and failed portal "
+"operations"
+msgstr ""
+
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:68
 msgid ""
 "Add opt-in navigation allowlists, proxy settings, background mode, "
 "autostart, and content filters"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:56
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:69
 msgid ""
 "Add a threat model for websites, profiles, portals, backups, and the future "
 "companion boundary"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:57
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:70
 msgid ""
 "Keep every new privacy and power feature disabled until the user enables it"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:58
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:71
 msgid ""
 "Serialize portal reconciliation and safely merge concurrent policy edits"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:59
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:72
 msgid ""
 "Require fresh background authorization after restore while preserving other "
 "policy"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:67
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:80
 msgid ""
 "Add versioned metadata backups with transactional per-application restore"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:68
-msgid "Add optional passphrase-encrypted transfer of cookies and site storage"
-msgstr ""
-
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:69
-msgid ""
-"Add conflict preview, partial-failure reporting, and runtime profile locks"
-msgstr ""
-
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:70
-msgid "Add portal capability diagnostics and native aarch64 release bundles"
-msgstr ""
-
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:71
-msgid ""
-"Harden archive extraction, resource limits, and concurrent profile operations"
-msgstr ""
-
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:79
-msgid "Add per-origin website permissions with session and persistent choices"
-msgstr ""
-
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:80
-msgid ""
-"Add popup and OAuth windows, native notifications, and managed downloads"
-msgstr ""
-
 #: data/io.github.cheviiot.bastle.metainfo.xml.in:81
-msgid "Add navigation, zoom, and fullscreen runtime controls"
+msgid "Add optional passphrase-encrypted transfer of cookies and site storage"
 msgstr ""
 
 #: data/io.github.cheviiot.bastle.metainfo.xml.in:82
 msgid ""
+"Add conflict preview, partial-failure reporting, and runtime profile locks"
+msgstr ""
+
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:83
+msgid "Add portal capability diagnostics and native aarch64 release bundles"
+msgstr ""
+
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:84
+msgid ""
+"Harden archive extraction, resource limits, and concurrent profile operations"
+msgstr ""
+
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:92
+msgid "Add per-origin website permissions with session and persistent choices"
+msgstr ""
+
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:93
+msgid ""
+"Add popup and OAuth windows, native notifications, and managed downloads"
+msgstr ""
+
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:94
+msgid "Add navigation, zoom, and fullscreen runtime controls"
+msgstr ""
+
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:95
+msgid ""
 "Migrate Bastle data to schema v2 and remove Spider runtime compatibility"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:90
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:103
 msgid "Prevent a crash when opening an application card for editing"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:91
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:104
 msgid "Add a headless regression test for editor state changes"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:99
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:112
 msgid "Introduce the Bastle identity and isolated JSON-based storage"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:100
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:113
 msgid "Add transactional launcher operations and repair support"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:101
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:114
 msgid "Add an explicit, settings-only Spider importer"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:102
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:115
 msgid "Harden URL, metadata, icon, download, and theme-color handling"
 msgstr ""
 

@@ -27,8 +27,9 @@
   <description>
     <p>
       Bastle is a GNOME-native manager for isolated web applications powered by
-      the system WebKitGTK engine. Each website gets separate local data,
-      cookies, cache, settings, and its own desktop launcher.
+      the system WebKitGTK engine, with an optional separately sandboxed
+      Chromium companion. Each website gets separate local data, cookies,
+      cache, settings, and its own desktop launcher.
     </p>
     <p>
       Bastle is an independent successor to Spider. The original work and Git
@@ -49,6 +50,18 @@
   </categories>
   <launchable type="desktop-id">io.github.cheviiot.bastle.desktop</launchable>
   <releases>
+    <release version="0.5.0" date="2026-09-05">
+      <description>
+        <ul>
+          <li>Add an explicit WebKitGTK or Chromium engine choice with local compatibility recommendations</li>
+          <li>Integrate the separately sandboxed Chromium companion through an authenticated D-Bus protocol</li>
+          <li>Keep engine profiles separate and safely retry deferred companion profile cleanup</li>
+          <li>Diagnose Dynamic Launcher, File Chooser, and Documents portal capabilities independently</li>
+          <li>Distinguish unavailable, unsupported, cancelled, denied, and failed portal operations</li>
+        </ul>
+      </description>
+      <url>https://github.com/Cheviiot/bastle/releases/tag/v0.5.0</url>
+    </release>
     <release version="0.4.0" date="2026-09-05">
       <description>
         <ul>

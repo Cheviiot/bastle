@@ -14,15 +14,16 @@ project is not positioned as a security product.
 
 ## Status
 
-The current development series targets x86_64 and aarch64, GNOME 50, and
+The current release targets x86_64 and aarch64, GNOME 50, and
 Flatpak. It supports application creation, editing, launching, deletion,
 launcher repair, offline creation, popup/OAuth windows, navigation controls,
 zoom, fullscreen, runtime permissions, managed downloads, and native
 notifications. The v0.4 policy layer adds optional top-level origin
 restrictions, per-app WebKit proxy selection, portal-authorized background
-activity, and user-imported WebKit content filters. Development for v0.5 adds
-an explicit per-app engine choice and a local compatibility catalog; unknown
-sites continue to use WebKitGTK.
+activity, and user-imported WebKit content filters. v0.5 adds an explicit
+per-app engine choice, a local compatibility catalog, and the optional
+separately sandboxed Bastle Chromium companion; unknown sites continue to use
+WebKitGTK.
 
 Flathub submission is intentionally deferred until Bastle has an independent
 release history and enough differentiation from Spider.

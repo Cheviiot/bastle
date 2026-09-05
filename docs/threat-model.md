@@ -3,7 +3,7 @@
 # Bastle threat model
 
 This document covers Bastle's WebKit runtime, per-application data, portal
-calls, backups, and the trust boundary planned for the optional Chromium
+calls, backups, and the trust boundary of the optional Chromium
 companion. It describes security goals, not a claim that arbitrary websites
 are safe or fully compatible.
 
@@ -21,7 +21,7 @@ are safe or fully compatible.
 - A `.bastle-backup` is untrusted until its archive structure, size limits,
   manifest, IDs, configuration, and policy have all been validated. Site data
   is sensitive and is exported only in a passphrase-encrypted archive.
-- The future Chromium companion is a separate Flatpak, profile store, process,
+- The Chromium companion is a separate Flatpak, profile store, process,
   and D-Bus trust domain. Selecting Chromium will never copy WebKit cookies or
   silently expand either application's permissions.
 
@@ -35,7 +35,7 @@ are safe or fully compatible.
   downgrade, overwrite, or automatically delete them.
 - Require an explicit user decision for website permissions, navigation
   restrictions, proxy overrides, background activity, content filters, backup
-  of site data, and future engine changes.
+  of site data, and engine changes.
 - Keep new privacy and power features disabled by default. Ordinary third-party
   resources remain available unless the user imports and enables a content
   filter.
