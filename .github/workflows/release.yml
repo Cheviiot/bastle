@@ -105,13 +105,25 @@ jobs:
             '^app/io.github.cheviiot.bastle/x86_64/master$'
           ostree refs --repo=public/repo | grep -q \
             '^app/io.github.cheviiot.bastle/aarch64/master$'
+          ostree refs --repo=public/repo | grep -q \
+            '^runtime/io.github.cheviiot.bastle.Chromium/x86_64/master$'
+          ostree refs --repo=public/repo | grep -q \
+            '^runtime/io.github.cheviiot.bastle.Chromium/aarch64/master$'
           ! ostree refs --repo=public/repo | grep -q \
             '^runtime/io.github.cheviiot.bastle.Debug/'
+          for arch in x86_64 aarch64; do
+            app_commit="$(ostree rev-parse --repo=public/repo "app/io.github.cheviiot.bastle/$arch/master")"
+            addon_commit="$(ostree rev-parse --repo=public/repo "runtime/io.github.cheviiot.bastle.Chromium/$arch/master")"
+            ! ostree ls --repo=public/repo "$app_commit" /files/extensions/chromium/electron
+            ostree ls --repo=public/repo "$addon_commit" /files/electron
+            ostree ls --repo=public/repo "$addon_commit" /files/bin/zypak-wrapper
+          done
       - name: Create install descriptors and bundles
         run: |
           gpg_key="$(base64 --wrap=0 packaging/bastle-repository.gpg)"
           sed "s|@GPG_KEY@|$gpg_key|" packaging/bastle.flatpakrepo.in > public/bastle.flatpakrepo
           sed "s|@GPG_KEY@|$gpg_key|" packaging/bastle.flatpakref.in > public/bastle.flatpakref
+          sed "s|@GPG_KEY@|$gpg_key|" packaging/bastle-chromium.flatpakref.in > public/bastle-chromium.flatpakref
           install -Dm644 packaging/index.html public/index.html
           install -Dm644 packaging/bastle-repository.gpg public/bastle-repository.gpg
           install -Dm644 data/icons/hicolor/scalable/apps/io.github.cheviiot.bastle.svg public/io.github.cheviiot.bastle.svg
@@ -127,6 +139,18 @@ jobs:
             --runtime-repo='https://dl.flathub.org/repo/flathub.flatpakrepo' \
             --gpg-keys=packaging/bastle-repository.gpg \
             public/repo Bastle-aarch64.flatpak io.github.cheviiot.bastle master
+          flatpak build-bundle \
+            --runtime \
+            --arch=x86_64 \
+            --repo-url='https://cheviiot.github.io/bastle/repo/' \
+            --gpg-keys=packaging/bastle-repository.gpg \
+            public/repo Bastle-Chromium-x86_64.flatpak io.github.cheviiot.bastle.Chromium master
+          flatpak build-bundle \
+            --runtime \
+            --arch=aarch64 \
+            --repo-url='https://cheviiot.github.io/bastle/repo/' \
+            --gpg-keys=packaging/bastle-repository.gpg \
+            public/repo Bastle-Chromium-aarch64.flatpak io.github.cheviiot.bastle.Chromium master
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: Bastle-release-bundles
@@ -168,4 +192,5 @@ jobs:
         run: >-
           gh release create "$GITHUB_REF_NAME"
           Bastle-x86_64.flatpak Bastle-aarch64.flatpak
+          Bastle-Chromium-x86_64.flatpak Bastle-Chromium-aarch64.flatpak
           --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes

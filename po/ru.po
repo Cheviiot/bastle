@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: GPL-3.0-only
 msgid ""
 msgstr ""
-"Project-Id-Version: bastle 0.5.1\n"
+"Project-Id-Version: bastle 0.5.2\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-05 17:12+1000\n"
+"POT-Creation-Date: 2026-09-05 21:25+1000\n"
 "PO-Revision-Date: 2026-09-05 00:00+1000\n"
 "Last-Translator: Bastle contributors\n"
 "Language-Team: Russian\n"
@@ -36,12 +36,12 @@ msgstr "Cheviiot и участники проекта Bastle"
 #: data/io.github.cheviiot.bastle.metainfo.xml.in:28
 msgid ""
 "Bastle is a GNOME-native manager for isolated web applications. WebKitGTK is "
-"the default engine, and Chromium is built into the same Bastle Flatpak for "
+"the default engine, and Chromium is available as a Flatpak add-on for "
 "explicitly selected sites. Each website gets separate local data, cookies, "
 "cache, settings, and its own desktop launcher."
 msgstr ""
 "Bastle — нативный для GNOME менеджер изолированных веб-приложений. WebKitGTK "
-"используется по умолчанию, а Chromium встроен в тот же Flatpak Bastle для "
+"используется по умолчанию, а Chromium доступен как Flatpak-дополнение для "
 "явно выбранных сайтов. Каждый сайт получает отдельные локальные данные, "
 "cookies, кэш, настройки и собственный ярлык рабочего стола."
 
@@ -72,32 +72,49 @@ msgstr ""
 "Хранение конфигурации, правил, профиля и кеша каждого приложения отдельно"
 
 #: data/io.github.cheviiot.bastle.metainfo.xml.in:58
+msgid "Move the Chromium payload from the main app into a Flatpak add-on"
+msgstr "Компоненты Chromium вынесены из основного приложения в Flatpak-дополнение"
+
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:59
+msgid "Publish the app and add-on together from the signed Bastle repository"
+msgstr "Приложение и дополнение публикуются вместе в подписанном репозитории Bastle"
+
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:60
+msgid "Keep WebKitGTK usable when the Chromium add-on is not installed"
+msgstr "WebKitGTK продолжает работать без установленного дополнения Chromium"
+
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:61
+msgid "Add clear installation and compatibility diagnostics for the add-on"
+msgstr "Добавлена понятная диагностика установки и совместимости дополнения"
+
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:69
 msgid "Embed the Chromium engine into the single Bastle Flatpak"
 msgstr "Движок Chromium встроен в единый Flatpak Bastle"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:59
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:70
 msgid "Remove the need to install or update a separate Chromium package"
 msgstr "Отдельный пакет Chromium больше не нужно устанавливать или обновлять"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:60
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:71
 msgid "Keep WebKitGTK as the default and retain separate per-engine profiles"
 msgstr ""
 "WebKitGTK остаётся движком по умолчанию, а профили движков хранятся раздельно"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:61
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:72
 msgid ""
 "Activate Chromium through an internal service owned by the Bastle app ID"
 msgstr "Chromium запускается через внутреннюю службу с идентификатором Bastle"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:62
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:73
 msgid "Publish a GPG-signed project Flatpak repository for x86_64 and aarch64"
-msgstr "Публикация подписанного GPG Flatpak-репозитория проекта для x86_64 и aarch64"
+msgstr ""
+"Публикация подписанного GPG Flatpak-репозитория проекта для x86_64 и aarch64"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:63
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:74
 msgid "Clarify the GPL-3.0-only license and preserved Spider authorship"
 msgstr "Уточнение лицензии GPL-3.0-only и сохранённого авторства Spider"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:71
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:82
 msgid ""
 "Add an explicit WebKitGTK or Chromium engine choice with local compatibility "
 "recommendations"
@@ -105,7 +122,7 @@ msgstr ""
 "Добавлен явный выбор движка WebKitGTK или Chromium с локальными "
 "рекомендациями по совместимости"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:72
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:83
 msgid ""
 "Integrate the separately sandboxed Chromium companion through an "
 "authenticated D-Bus protocol"
@@ -113,7 +130,7 @@ msgstr ""
 "Отдельно изолированный Chromium-компонент интегрирован через "
 "аутентифицированный протокол D-Bus"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:73
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:84
 msgid ""
 "Keep engine profiles separate and safely retry deferred companion profile "
 "cleanup"
@@ -121,7 +138,7 @@ msgstr ""
 "Профили движков хранятся раздельно, а отложенная очистка профиля companion "
 "безопасно повторяется"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:74
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:85
 msgid ""
 "Diagnose Dynamic Launcher, File Chooser, and Documents portal capabilities "
 "independently"
@@ -129,7 +146,7 @@ msgstr ""
 "Возможности порталов Dynamic Launcher, выбора файлов и документов "
 "диагностируются независимо"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:75
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:86
 msgid ""
 "Distinguish unavailable, unsupported, cancelled, denied, and failed portal "
 "operations"
@@ -137,7 +154,7 @@ msgstr ""
 "Различаются недоступные, неподдерживаемые, отменённые, отклонённые и "
 "завершившиеся ошибкой операции портала"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:83
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:94
 msgid ""
 "Add opt-in navigation allowlists, proxy settings, background mode, "
 "autostart, and content filters"
@@ -145,7 +162,7 @@ msgstr ""
 "Добавлены необязательные списки разрешённых адресов навигации, настройки "
 "прокси, фоновый режим, автозапуск и фильтры содержимого"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:84
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:95
 msgid ""
 "Add a threat model for websites, profiles, portals, backups, and the future "
 "companion boundary"
@@ -153,21 +170,21 @@ msgstr ""
 "Добавлена модель угроз для сайтов, профилей, порталов, резервных копий и "
 "границы будущего companion-компонента"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:85
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:96
 msgid ""
 "Keep every new privacy and power feature disabled until the user enables it"
 msgstr ""
 "Все новые функции приватности и дополнительные возможности остаются "
 "выключенными, пока пользователь их не включит"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:86
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:97
 msgid ""
 "Serialize portal reconciliation and safely merge concurrent policy edits"
 msgstr ""
 "Согласование с порталом выполняется последовательно, а одновременные "
 "изменения правил безопасно объединяются"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:87
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:98
 msgid ""
 "Require fresh background authorization after restore while preserving other "
 "policy"
@@ -175,75 +192,75 @@ msgstr ""
 "После восстановления требуется новая авторизация фонового режима, а "
 "остальные правила сохраняются"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:95
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:106
 msgid ""
 "Add versioned metadata backups with transactional per-application restore"
 msgstr ""
 "Версионированные резервные копии метаданных с транзакционным восстановлением "
 "приложений"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:96
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:107
 msgid "Add optional passphrase-encrypted transfer of cookies and site storage"
 msgstr ""
 "Опциональный зашифрованный перенос cookie и данных сайтов по парольной фразе"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:97
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:108
 msgid ""
 "Add conflict preview, partial-failure reporting, and runtime profile locks"
 msgstr ""
 "Предпросмотр конфликтов, отчёт о частичных сбоях и блокировки запущенных "
 "профилей"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:98
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:109
 msgid "Add portal capability diagnostics and native aarch64 release bundles"
 msgstr "Диагностика возможностей portal и нативные release-сборки для aarch64"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:99
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:110
 msgid ""
 "Harden archive extraction, resource limits, and concurrent profile operations"
 msgstr ""
 "Защищённое извлечение архивов, лимиты ресурсов и безопасные параллельные "
 "операции с профилями"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:107
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:118
 msgid "Add per-origin website permissions with session and persistent choices"
 msgstr "Разрешения сайтов по origin с выбором на сессию или постоянно"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:108
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:119
 msgid ""
 "Add popup and OAuth windows, native notifications, and managed downloads"
 msgstr "Всплывающие окна и OAuth, системные уведомления и менеджер загрузок"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:109
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:120
 msgid "Add navigation, zoom, and fullscreen runtime controls"
 msgstr "Навигация, масштабирование и полноэкранный режим"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:110
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:121
 msgid ""
 "Migrate Bastle data to schema v2 and remove Spider runtime compatibility"
 msgstr "Миграция данных Bastle на схему v2 и удаление совместимости со Spider"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:118
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:129
 msgid "Prevent a crash when opening an application card for editing"
 msgstr "Исправление сбоя при открытии карточки приложения для редактирования"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:119
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:130
 msgid "Add a headless regression test for editor state changes"
 msgstr "Headless regression-тест изменений состояния редактора"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:127
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:138
 msgid "Introduce the Bastle identity and isolated JSON-based storage"
 msgstr "Новая идентичность Bastle и изолированное хранилище на основе JSON"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:128
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:139
 msgid "Add transactional launcher operations and repair support"
 msgstr "Транзакционные операции с ярлыками и их восстановление"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:129
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:140
 msgid "Add an explicit, settings-only Spider importer"
 msgstr "Явный импорт только настроек Spider"
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:130
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:141
 msgid "Harden URL, metadata, icon, download, and theme-color handling"
 msgstr "Безопасная обработка URL, метаданных, значков, загрузок и цветов темы"
 
@@ -252,7 +269,7 @@ msgid "Menu"
 msgstr "Меню"
 
 #: src/app_page.blp:26 src/backup_dialog.rs:39 src/backup_dialog.rs:200
-#: src/backup_dialog.rs:233 src/application.rs:453 src/window.rs:219
+#: src/backup_dialog.rs:233 src/application.rs:525 src/window.rs:219
 msgid "Cancel"
 msgstr "Отмена"
 
@@ -314,11 +331,11 @@ msgstr "Браузерный движок"
 
 #: src/app_page.blp:106
 msgid ""
-"Chromium is built into Bastle; profiles and cookies are never transferred "
-"between engines"
+"Chromium is provided by an add-on; profiles and cookies are never "
+"transferred between engines"
 msgstr ""
-"Chromium встроен в Bastle; профили и файлы cookie никогда не переносятся "
-"между движками"
+"Chromium предоставляется дополнением; профили и файлы cookie никогда не "
+"переносятся между движками"
 
 #: src/app_page.blp:111 src/create_app_dialog.blp:77
 msgid "Chromium Recommended"
@@ -333,8 +350,8 @@ msgid "User Agent"
 msgstr "User-Agent"
 
 #: src/app_page.rs:196 src/create_app_dialog.rs:187
-msgid "Chromium (built in)"
-msgstr "Chromium (встроен)"
+msgid "Chromium (add-on)"
+msgstr "Chromium (дополнение)"
 
 #: src/app_page.rs:206 src/permissions_dialog.rs:28
 msgid "Permissions"
@@ -746,41 +763,45 @@ msgstr "Закрыть"
 msgid "Keep selected Bastle web applications running in the background"
 msgstr "Разрешить выбранным веб-приложениям Bastle работать в фоне"
 
-#: src/application.rs:354
+#: src/application.rs:426
 msgid "Website Notification"
 msgstr "Уведомление сайта"
 
-#: src/application.rs:421
+#: src/application.rs:493
 msgid "Original Spider project"
 msgstr "Исходный проект Spider"
 
-#: src/application.rs:422
+#: src/application.rs:494
 msgid "Zaedus — original Spider author"
 msgstr "Zaedus — автор исходного Spider"
 
-#: src/application.rs:423
+#: src/application.rs:495
 msgid "Cameron Radmore — Spider contributor"
 msgstr "Cameron Radmore — участник разработки Spider"
 
-#: src/application.rs:447
+#: src/application.rs:519
 msgid ""
-"The built-in Chromium engine could not start. Reinstall or update Bastle, or "
-"run this application once with WebKitGTK. Your engine choice and profiles "
-"will not be changed."
+"The Chromium add-on could not start. Install or update the add-on, or run "
+"this application once with WebKitGTK. Your engine choice and profiles will "
+"not be changed."
 msgstr ""
-"Не удалось запустить встроенный движок Chromium. Переустановите или обновите "
-"Bastle либо один раз запустите это приложение через WebKitGTK. Выбор движка "
-"и профили не изменятся."
+"Не удалось запустить дополнение Chromium. Установите или обновите дополнение "
+"либо один раз запустите это приложение через WebKitGTK. Выбор движка и "
+"профили не изменятся."
 
-#: src/application.rs:451
+#: src/application.rs:523
 msgid "Chromium Engine Unavailable"
 msgstr "Движок Chromium недоступен"
 
-#: src/application.rs:454
+#: src/application.rs:526
+msgid "Get Chromium Add-on"
+msgstr "Установить дополнение Chromium"
+
+#: src/application.rs:527
 msgid "Report Problem"
 msgstr "Сообщить о проблеме"
 
-#: src/application.rs:455
+#: src/application.rs:528
 msgid "Run Once with WebKit"
 msgstr "Запустить один раз через WebKit"
 
@@ -789,8 +810,9 @@ msgid "Add a New Application"
 msgstr "Добавить новое приложение"
 
 #: src/create_app_dialog.blp:72
-msgid "WebKitGTK is the default; Chromium is built into Bastle"
-msgstr "WebKitGTK используется по умолчанию; Chromium встроен в Bastle"
+msgid "WebKitGTK is the default; Chromium is available as a Bastle add-on"
+msgstr ""
+"WebKitGTK используется по умолчанию; Chromium доступен как дополнение Bastle"
 
 #: src/create_app_dialog.blp:96
 msgid "Create"
@@ -1307,10 +1329,10 @@ msgstr "Удалить это приложение?"
 
 #: src/window.rs:215
 msgid ""
-"Its launcher, settings, and WebKit or built-in Chromium profile—including "
+"Its launcher, settings, and WebKit or Chromium add-on profile—including "
 "cookies and caches—will be removed."
 msgstr ""
-"Будут удалены ярлык, настройки и профиль WebKit или встроенного Chromium, "
+"Будут удалены ярлык, настройки и профиль WebKit или дополнения Chromium, "
 "включая файлы cookie и кэш."
 
 #: src/window.rs:220

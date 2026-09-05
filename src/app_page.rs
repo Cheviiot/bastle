@@ -193,7 +193,7 @@ impl AppPage {
     pub fn new(config: AppConfigV3) -> Self {
         let page: Self = glib::Object::builder().build();
         page.imp().populating.set(true);
-        let chromium_label = gettext("Chromium (built in)");
+        let chromium_label = gettext("Chromium (add-on)");
         page.imp()
             .engine_row
             .set_model(Some(&gtk::StringList::new(&[

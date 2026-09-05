@@ -1,0 +1,9 @@
+[Flatpak Ref]
+Title=Chromium Engine for Bastle
+Name=io.github.cheviiot.bastle.Chromium
+Branch=master
+Url=https://cheviiot.github.io/bastle/repo/
+SuggestRemoteName=bastle
+Homepage=https://github.com/Cheviiot/bastle
+IsRuntime=true
+GPGKey=@GPG_KEY@

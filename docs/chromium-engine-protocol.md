@@ -1,12 +1,14 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-# Bastle built-in Chromium engine protocol v1
+# Bastle Chromium add-on protocol v1
 
-The Chromium engine is an internal process included in the same Bastle Flatpak.
+The Chromium engine is an optional Flatpak extension built and released from
+the Bastle repository. Flatpak mounts it inside the Bastle sandbox at
+`/app/extensions/chromium`.
 Bastle talks to session-bus name `io.github.cheviiot.bastle.Chromium`, object
 `/io/github/cheviiot/bastle/Chromium/Engine1`, interface
-`io.github.cheviiot.bastle.Chromium.Engine1`. The manifest permits Bastle to own
-only that sub-name; no second Flatpak identity or package is involved.
+`io.github.cheviiot.bastle.Chromium.Engine1`. The main application owns the
+private service and validates the extension before starting its runtime.
 
 ## Authentication and profile ownership
 
@@ -19,8 +21,8 @@ inside the trust boundary, as with other per-user D-Bus services.
 
 Each app ID owns a separate Electron `userData` directory and persistent
 partition. Switching engines does not copy or remove either engine's profile.
-Profile deletion failures are retained by Bastle and retried when the built-in
-engine service next becomes available.
+Profile deletion failures are retained by Bastle and retried when the Chromium
+add-on service next becomes available.
 
 ## Methods
 

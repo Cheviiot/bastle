@@ -184,7 +184,7 @@ impl CreateAppDialog {
     pub fn new() -> Self {
         let dialog: Self = glib::Object::builder().build();
         dialog.imp().icon_image.set_icon_name(Some(config::APP_ID));
-        let chromium_label = gettext("Chromium (built in)");
+        let chromium_label = gettext("Chromium (add-on)");
         dialog
             .imp()
             .engine_row

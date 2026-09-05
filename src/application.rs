@@ -516,13 +516,14 @@ impl BastleApplication {
             let body = format!(
                 "{error:#}\n\n{}",
                 gettext(
-                    "The built-in Chromium engine could not start. Reinstall or update Bastle, or run this application once with WebKitGTK. Your engine choice and profiles will not be changed."
+                    "The Chromium add-on could not start. Install or update the add-on, or run this application once with WebKitGTK. Your engine choice and profiles will not be changed."
                 )
             );
             let dialog =
                 adw::AlertDialog::new(Some(&gettext("Chromium Engine Unavailable")), Some(&body));
             dialog.add_responses(&[
                 ("cancel", &gettext("Cancel")),
+                ("install", &gettext("Get Chromium Add-on")),
                 ("report", &gettext("Report Problem")),
                 ("webkit", &gettext("Run Once with WebKit")),
             ]);
@@ -539,6 +540,14 @@ impl BastleApplication {
                         "https://github.com/Cheviiot/bastle/issues/new",
                         None::<&gio::AppLaunchContext>,
                     );
+                }
+                "install" => {
+                    if let Err(error) = gio::AppInfo::launch_default_for_uri(
+                        "https://cheviiot.github.io/bastle/bastle-chromium.flatpakref",
+                        None::<&gio::AppLaunchContext>,
+                    ) {
+                        manager.toast(&error.to_string());
+                    }
                 }
                 _ => {}
             }

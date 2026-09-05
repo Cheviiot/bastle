@@ -1,15 +1,16 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-# Bastle Chromium engine
+# Chromium add-on for Bastle
 
-This directory contains the Chromium engine bundled into the main Bastle
-Flatpak. It is an internal runtime component, not a separately installed or
-user-facing application.
+This directory contains the Chromium engine published as the
+`io.github.cheviiot.bastle.Chromium` Flatpak add-on. It is built from the same
+repository and release as Bastle, but its large Electron payload is not stored
+inside the main application ref.
 
 The engine is activated on demand through the private
-`io.github.cheviiot.bastle.Chromium` D-Bus service exported by the same
-`io.github.cheviiot.bastle` Flatpak. WebKitGTK remains the default, and Bastle
-uses Chromium only after an explicit user choice.
+`io.github.cheviiot.bastle.Chromium` D-Bus service exported by Bastle. Flatpak
+mounts the add-on at `/app/extensions/chromium`. WebKitGTK remains the default,
+and Bastle uses Chromium only after an explicit user choice.
 
 The C broker validates every request, serializes profile operations, and starts
 one sandboxed Electron process per Bastle application ID. The JavaScript layer

@@ -5,6 +5,18 @@ Changelog and versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-09-05
+
+### Changed
+
+- Publish Chromium as the `io.github.cheviiot.bastle.Chromium` Flatpak add-on
+  instead of storing its Electron payload in the main application ref.
+- Build and update the app and its add-on from the same repository and signed
+  GitHub Pages remote, following Flatpak's application-extension model.
+- Keep the small broker in Bastle so missing or incompatible add-ons produce a
+  clear diagnostic and WebKitGTK remains usable on its own.
+- Label Chromium consistently as an add-on in the English and Russian UI.
+
 ## [0.5.1] - 2026-09-05
 
 ### Changed
