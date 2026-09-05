@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-only
 
 using Gtk 4.0;
 using Adw 1;
@@ -42,6 +42,7 @@ template $BastleCreateAppDialog: Adw.Dialog {
 
           Adw.EntryRow title_entry {
             title: _("Title");
+            max-length: 512;
             sensitive: bind template.loading inverted;
             changed => $validate_input_cb() swapped;
 
@@ -68,7 +69,7 @@ template $BastleCreateAppDialog: Adw.Dialog {
 
           Adw.ComboRow engine_row {
             title: _("Browser Engine");
-            subtitle: _("WebKitGTK is built in; Chromium requires the optional companion");
+            subtitle: _("WebKitGTK is the default; Chromium is built into Bastle");
           }
 
           Adw.ActionRow recommendation_row {

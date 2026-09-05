@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-only
 
 use std::str::FromStr;
 
@@ -212,7 +212,7 @@ impl BastleWindow {
             let dialog = adw::AlertDialog::new(
                 Some(&gettext("Delete this application?")),
                 Some(&gettext(
-                    "Its launcher, settings, WebKit data, and any Chromium companion profile—including cookies and caches—will be removed.",
+                    "Its launcher, settings, and WebKit or built-in Chromium profile—including cookies and caches—will be removed.",
                 )),
             );
             dialog.add_responses(&[

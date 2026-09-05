@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-only
 
 use std::cell::{Cell, RefCell};
 
@@ -193,11 +193,12 @@ impl AppPage {
     pub fn new(config: AppConfigV3) -> Self {
         let page: Self = glib::Object::builder().build();
         page.imp().populating.set(true);
+        let chromium_label = gettext("Chromium (built in)");
         page.imp()
             .engine_row
             .set_model(Some(&gtk::StringList::new(&[
                 "WebKitGTK",
-                "Chromium companion",
+                chromium_label.as_str(),
             ])));
         page.show_config(&config);
         let id = config.id.clone();

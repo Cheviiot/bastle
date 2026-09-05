@@ -3,6 +3,8 @@
   "runtime": "org.gnome.Platform",
   "runtime-version": "50",
   "sdk": "org.gnome.Sdk",
+  "base": "org.electronjs.Electron2.BaseApp",
+  "base-version": "25.08",
   "sdk-extensions": ["org.freedesktop.Sdk.Extension.rust-stable"],
   "command": "bastle",
   "separate-locales": false,
@@ -13,7 +15,8 @@
     "--device=dri",
     "--socket=wayland",
     "--socket=pulseaudio",
-    "--talk-name=io.github.cheviiot.bastle_chromium"
+    "--own-name=io.github.cheviiot.bastle.Chromium",
+    "--env=GTK_USE_PORTAL=1"
   ],
   "build-options": {
     "append-path": "/usr/lib/sdk/rust-stable/bin",
@@ -37,6 +40,38 @@
       ]
     },
     {
+      "name": "bastle-chromium-engine",
+      "buildsystem": "simple",
+      "build-commands": [
+        "cc -std=c17 -O2 -Wall -Wextra -Werror src/broker.c -o bastle-chromium-service $(pkg-config --cflags --libs gio-2.0 json-glib-1.0)",
+        "./bastle-chromium-service --self-test",
+        "install -Dm755 bastle-chromium-service /app/bin/bastle-chromium-service",
+        "install -d /app/lib/bastle-chromium /app/share/dbus-1/services",
+        "cp -a electron/. /app/lib/bastle-chromium/",
+        "install -Dm644 src/main.js src/validate.js src/navigation-policy.js src/permission-policy.js src/proxy.js src/user-agent.js src/window-state.js /app/lib/bastle-chromium/",
+        "install -Dm644 data/io.github.cheviiot.bastle.Chromium.service /app/share/dbus-1/services/io.github.cheviiot.bastle.Chromium.service"
+      ],
+      "sources": [
+        { "type": "dir", "path": "../chromium" },
+        {
+          "type": "archive",
+          "url": "https://github.com/electron/electron/releases/download/v40.1.0/electron-v40.1.0-linux-x64.zip",
+          "sha256": "26f7675cc103f6ca0a1122d82f30bed7544c1a5d5507a6980992ae07ec876a12",
+          "dest": "electron",
+          "strip-components": 0,
+          "only-arches": ["x86_64"]
+        },
+        {
+          "type": "archive",
+          "url": "https://github.com/electron/electron/releases/download/v40.1.0/electron-v40.1.0-linux-arm64.zip",
+          "sha256": "4f07ff00445a707289d46f52dffd6faa504a4b60355ddb20df36ff8daa5cfc70",
+          "dest": "electron",
+          "strip-components": 0,
+          "only-arches": ["aarch64"]
+        }
+      ]
+    },
+    {
       "name": "bastle",
       "builddir": true,
       "buildsystem": "meson",
@@ -50,7 +85,7 @@
         {
           "type": "git",
           "url": "https://github.com/Cheviiot/bastle.git",
-          "commit": "v0.5.0"
+          "commit": "v0.5.1"
         },
         "generated-sources.json"
       ]

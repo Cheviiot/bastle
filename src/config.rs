@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-only
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const GETTEXT_PACKAGE: &str = "bastle";

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-only
 
 use std::collections::BTreeSet;
 
@@ -10,14 +10,14 @@ use crate::{
     policy::AppPolicyV2,
 };
 
-pub const BUS_NAME: &str = "io.github.cheviiot.bastle_chromium";
-pub const OBJECT_PATH: &str = "/io/github/cheviiot/bastle_chromium/Engine1";
-pub const INTERFACE_NAME: &str = "io.github.cheviiot.bastle_chromium.Engine1";
+pub const BUS_NAME: &str = "io.github.cheviiot.bastle.Chromium";
+pub const OBJECT_PATH: &str = "/io/github/cheviiot/bastle/Chromium/Engine1";
+pub const INTERFACE_NAME: &str = "io.github.cheviiot.bastle.Chromium.Engine1";
 pub const PROTOCOL_VERSION: u32 = 1;
 const CALL_TIMEOUT_MSEC: i32 = 10_000;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CompanionCapabilities {
+pub struct ChromiumCapabilities {
     pub protocol_version: u32,
     pub features: BTreeSet<String>,
 }
@@ -26,7 +26,7 @@ pub struct CompanionCapabilities {
 pub struct ChromiumClient;
 
 pub trait ChromiumBackend: Clone {
-    fn capabilities(&self) -> Result<CompanionCapabilities>;
+    fn capabilities(&self) -> Result<ChromiumCapabilities>;
     fn open_app(
         &self,
         app: &AppConfigV3,
@@ -38,12 +38,12 @@ pub trait ChromiumBackend: Clone {
 }
 
 impl ChromiumBackend for ChromiumClient {
-    fn capabilities(&self) -> Result<CompanionCapabilities> {
+    fn capabilities(&self) -> Result<ChromiumCapabilities> {
         let response = self.call("GetCapabilities", None)?;
         let (protocol_version, features) = response
             .get::<(u32, Vec<String>)>()
-            .context("Chromium companion returned malformed capabilities")?;
-        let capabilities = CompanionCapabilities {
+            .context("the built-in Chromium engine returned malformed capabilities")?;
+        let capabilities = ChromiumCapabilities {
             protocol_version,
             features: features.into_iter().collect(),
         };
@@ -58,9 +58,9 @@ impl ChromiumBackend for ChromiumClient {
         token: &str,
         start_in_background: bool,
     ) -> Result<()> {
-        let mut companion_policy = policy.clone();
-        companion_policy.content_filters.clear();
-        let policy_json = serde_json::to_string(&companion_policy)
+        let mut chromium_policy = policy.clone();
+        chromium_policy.content_filters.clear();
+        let policy_json = serde_json::to_string(&chromium_policy)
             .context("failed to serialize the Chromium runtime policy")?;
         let parameters = (
             app.id.as_str(),
@@ -86,10 +86,10 @@ impl ChromiumBackend for ChromiumClient {
     }
 }
 
-impl CompanionCapabilities {
+impl ChromiumCapabilities {
     pub fn require(&self, feature: &str) -> Result<()> {
         if !self.features.contains(feature) {
-            bail!("Chromium companion does not support required feature {feature}");
+            bail!("the built-in Chromium engine does not support required feature {feature}");
         }
         Ok(())
     }
@@ -106,7 +106,7 @@ impl ChromiumClient {
             INTERFACE_NAME,
             gio::Cancellable::NONE,
         )
-        .context("Chromium companion is not installed or could not be activated")?;
+        .context("the bundled Chromium engine could not be activated")?;
         proxy
             .call_sync(
                 method,
@@ -115,14 +115,14 @@ impl ChromiumClient {
                 CALL_TIMEOUT_MSEC,
                 gio::Cancellable::NONE,
             )
-            .with_context(|| format!("Chromium companion {method} call failed"))
+            .with_context(|| format!("built-in Chromium engine {method} call failed"))
     }
 }
 
-fn validate_capabilities(capabilities: &CompanionCapabilities) -> Result<()> {
+fn validate_capabilities(capabilities: &ChromiumCapabilities) -> Result<()> {
     if capabilities.protocol_version != PROTOCOL_VERSION {
         bail!(
-            "incompatible Chromium companion protocol {}; Bastle requires {}",
+            "incompatible built-in Chromium engine protocol {}; Bastle requires {}",
             capabilities.protocol_version,
             PROTOCOL_VERSION
         );
@@ -136,7 +136,7 @@ mod tests {
 
     #[test]
     fn protocol_mismatch_is_rejected_before_opening_an_app() {
-        let capabilities = CompanionCapabilities {
+        let capabilities = ChromiumCapabilities {
             protocol_version: PROTOCOL_VERSION + 1,
             features: BTreeSet::new(),
         };

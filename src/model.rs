@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-only
 
 use std::{fmt, str::FromStr};
 
@@ -10,6 +10,8 @@ use url::Url;
 
 pub const SCHEMA_VERSION: u32 = 3;
 pub const APP_ID_LENGTH: usize = 12;
+pub const MAX_TITLE_CHARS: usize = 512;
+pub const MAX_USER_AGENT_BYTES: usize = 4096;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
 #[serde(transparent)]
@@ -157,13 +159,28 @@ impl AppConfigV3 {
         if self.title.is_empty() {
             bail!("application title cannot be empty");
         }
+        if self.title.chars().count() > MAX_TITLE_CHARS {
+            bail!("application title cannot exceed {MAX_TITLE_CHARS} characters");
+        }
 
         let url = parse_web_url(&self.start_url)?;
         self.start_url = url.to_string();
         self.window.width = self.window.width.clamp(320, 8192);
         self.window.height = self.window.height.clamp(200, 8192);
-        if self.user_agent.as_deref().is_some_and(str::is_empty) {
-            self.user_agent = None;
+        match self.user_agent.as_deref() {
+            Some("") => self.user_agent = None,
+            Some(user_agent) => {
+                if user_agent.len() > MAX_USER_AGENT_BYTES {
+                    bail!("user agent cannot exceed {MAX_USER_AGENT_BYTES} UTF-8 bytes");
+                }
+                if user_agent
+                    .bytes()
+                    .any(|byte| matches!(byte, b'\0' | b'\r' | b'\n'))
+                {
+                    bail!("user agent cannot contain NUL or line breaks");
+                }
+            }
+            None => {}
         }
         Ok(())
     }
@@ -263,6 +280,28 @@ mod tests {
             sanitize_title("Example\nExec=malware\r\n"),
             "Example Exec=malware"
         );
+    }
+
+    #[test]
+    fn title_limit_counts_unicode_characters() {
+        assert!(AppConfigV3::new("🏠".repeat(MAX_TITLE_CHARS), "example.org", 0).is_ok());
+        assert!(AppConfigV3::new("🏠".repeat(MAX_TITLE_CHARS + 1), "example.org", 0).is_err());
+    }
+
+    #[test]
+    fn user_agent_limit_counts_utf8_bytes_and_rejects_line_breaks() {
+        let mut config = AppConfigV3::new("Example", "example.org", 0).unwrap();
+        config.user_agent = Some("a".repeat(MAX_USER_AGENT_BYTES));
+        assert!(config.normalize_and_validate().is_ok());
+
+        config.user_agent = Some("é".repeat(MAX_USER_AGENT_BYTES / 2));
+        assert!(config.normalize_and_validate().is_ok());
+
+        config.user_agent = Some("é".repeat(MAX_USER_AGENT_BYTES / 2 + 1));
+        assert!(config.normalize_and_validate().is_err());
+
+        config.user_agent = Some("Bastle\r\nInjected".to_owned());
+        assert!(config.normalize_and_validate().is_err());
     }
 
     #[test]

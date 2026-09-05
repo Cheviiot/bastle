@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-only
 
 use std::cell::{Cell, RefCell};
 
@@ -184,12 +184,13 @@ impl CreateAppDialog {
     pub fn new() -> Self {
         let dialog: Self = glib::Object::builder().build();
         dialog.imp().icon_image.set_icon_name(Some(config::APP_ID));
+        let chromium_label = gettext("Chromium (built in)");
         dialog
             .imp()
             .engine_row
             .set_model(Some(&gtk::StringList::new(&[
                 "WebKitGTK",
-                "Chromium companion",
+                chromium_label.as_str(),
             ])));
         dialog
     }

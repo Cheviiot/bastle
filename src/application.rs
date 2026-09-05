@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-only
 
 use std::{cell::RefCell, collections::HashMap, process::Command, str::FromStr};
 
@@ -85,6 +85,38 @@ mod imp {
                 "Start one opted-in web application without showing its window",
                 None,
             );
+            app.add_main_option(
+                "save-chromium-window-state",
+                glib::Char::from(0),
+                OptionFlags::HIDDEN,
+                OptionArg::String,
+                "Persist Chromium window state for one application",
+                Some("APP_ID"),
+            );
+            app.add_main_option(
+                "chromium-window-width",
+                glib::Char::from(0),
+                OptionFlags::HIDDEN,
+                OptionArg::Int,
+                "Persisted Chromium window width",
+                Some("WIDTH"),
+            );
+            app.add_main_option(
+                "chromium-window-height",
+                glib::Char::from(0),
+                OptionFlags::HIDDEN,
+                OptionArg::Int,
+                "Persisted Chromium window height",
+                Some("HEIGHT"),
+            );
+            app.add_main_option(
+                "chromium-window-maximized",
+                glib::Char::from(0),
+                OptionFlags::HIDDEN,
+                OptionArg::None,
+                "Persist a maximized Chromium window",
+                None,
+            );
             #[cfg(feature = "ui-tests")]
             app.add_main_option(
                 "ui-test-app-page",
@@ -132,6 +164,46 @@ mod imp {
             }
 
             let service = AppService::portal();
+            if let Some(id) = command_line
+                .options_dict()
+                .lookup::<String>("save-chromium-window-state")
+                .ok()
+                .flatten()
+            {
+                let result = (|| -> Result<()> {
+                    let id = AppId::from_str(&id)?;
+                    let width = command_line
+                        .options_dict()
+                        .lookup::<i32>("chromium-window-width")
+                        .context("invalid Chromium window width")?
+                        .context("missing Chromium window width")?;
+                    let height = command_line
+                        .options_dict()
+                        .lookup::<i32>("chromium-window-height")
+                        .context("invalid Chromium window height")?
+                        .context("missing Chromium window height")?;
+                    let maximized = command_line
+                        .options_dict()
+                        .lookup::<bool>("chromium-window-maximized")
+                        .context("invalid Chromium maximized state")?
+                        .unwrap_or(false);
+                    service.save_runtime_state(
+                        &id,
+                        crate::model::WindowState {
+                            width,
+                            height,
+                            maximized,
+                        },
+                    )
+                })();
+                return match result {
+                    Ok(()) => glib::ExitCode::SUCCESS,
+                    Err(error) => {
+                        eprintln!("Error: {error:#}");
+                        glib::ExitCode::FAILURE
+                    }
+                };
+            }
             if command_line
                 .options_dict()
                 .lookup::<bool>("background")
@@ -247,7 +319,7 @@ mod imp {
                                 eprintln!("Error: {error:#}");
                                 return glib::ExitCode::FAILURE;
                             }
-                            self.obj().show_companion_diagnostic(config, error);
+                            self.obj().show_chromium_diagnostic(config, error);
                         }
                     }
                 }
@@ -411,12 +483,20 @@ impl BastleApplication {
             .application_icon(config::APP_ID)
             .developer_name("Cheviiot")
             .version(config::VERSION)
-            .developers(vec!["Cheviiot", "Zaedus (original Spider author)"])
+            .developers(vec!["Cheviiot"])
             .copyright("© 2024–2026 Zaedus and Bastle contributors")
-            .license_type(gtk::License::Gpl30)
+            .license_type(gtk::License::Custom)
+            .license("GNU General Public License version 3 only (GPL-3.0-only)")
             .website("https://github.com/Cheviiot/bastle")
             .issue_url("https://github.com/Cheviiot/bastle/issues")
             .build();
+        let original_project = gettext("Original Spider project");
+        let zaedus = gettext("Zaedus — original Spider author");
+        let cameron = gettext("Cameron Radmore — Spider contributor");
+        dialog.add_acknowledgement_section(
+            Some(&original_project),
+            &[zaedus.as_str(), cameron.as_str()],
+        );
         dialog.present(self.active_window().as_ref());
     }
 
@@ -428,7 +508,7 @@ impl BastleApplication {
         spawn_app_process(&id, false)
     }
 
-    fn show_companion_diagnostic(&self, config: AppConfigV3, error: anyhow::Error) {
+    fn show_chromium_diagnostic(&self, config: AppConfigV3, error: anyhow::Error) {
         let manager = BastleWindow::new(self);
         manager.present();
         let app = self.clone();
@@ -436,16 +516,14 @@ impl BastleApplication {
             let body = format!(
                 "{error:#}\n\n{}",
                 gettext(
-                    "Install a compatible Bastle Chromium companion, or run this application once with WebKitGTK. Your engine choice and profiles will not be changed."
+                    "The built-in Chromium engine could not start. Reinstall or update Bastle, or run this application once with WebKitGTK. Your engine choice and profiles will not be changed."
                 )
             );
-            let dialog = adw::AlertDialog::new(
-                Some(&gettext("Chromium Companion Unavailable")),
-                Some(&body),
-            );
+            let dialog =
+                adw::AlertDialog::new(Some(&gettext("Chromium Engine Unavailable")), Some(&body));
             dialog.add_responses(&[
                 ("cancel", &gettext("Cancel")),
-                ("install", &gettext("Installation Help")),
+                ("report", &gettext("Report Problem")),
                 ("webkit", &gettext("Run Once with WebKit")),
             ]);
             dialog.set_response_appearance("webkit", adw::ResponseAppearance::Suggested);
@@ -456,9 +534,9 @@ impl BastleApplication {
                     manager.close();
                     AppWindow::new(&app, &config).present();
                 }
-                "install" => {
+                "report" => {
                     let _ = gio::AppInfo::launch_default_for_uri(
-                        "https://github.com/Cheviiot/bastle-chromium/releases",
+                        "https://github.com/Cheviiot/bastle/issues/new",
                         None::<&gio::AppLaunchContext>,
                     );
                 }
@@ -474,14 +552,25 @@ mod tests {
 
     #[test]
     fn app_id_is_found_independently_of_internal_options() {
-        let arguments = [
-            std::ffi::OsString::from("bastle"),
-            std::ffi::OsString::from("--start-background"),
-            std::ffi::OsString::from("abcdefghijkl"),
+        let cases = [
+            vec![
+                std::ffi::OsString::from("bastle"),
+                std::ffi::OsString::from("--start-background"),
+                std::ffi::OsString::from("abcdefghijkl"),
+            ],
+            vec![
+                std::ffi::OsString::from("bastle"),
+                std::ffi::OsString::from("--save-chromium-window-state"),
+                std::ffi::OsString::from("abcdefghijkl"),
+                std::ffi::OsString::from("--chromium-window-width"),
+                std::ffi::OsString::from("1440"),
+            ],
         ];
-        assert_eq!(
-            command_app_id(&arguments).as_ref().map(AppId::as_str),
-            Some("abcdefghijkl")
-        );
+        for arguments in cases {
+            assert_eq!(
+                command_app_id(&arguments).as_ref().map(AppId::as_str),
+                Some("abcdefghijkl")
+            );
+        }
     }
 }

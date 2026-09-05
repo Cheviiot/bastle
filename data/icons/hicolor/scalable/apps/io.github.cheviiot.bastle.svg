@@ -1,25 +1,143 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
-<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
-  <defs>
-    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#47606c"/>
-      <stop offset="1" stop-color="#344955"/>
-    </linearGradient>
-    <linearGradient id="roof" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#4b9991"/>
-      <stop offset="1" stop-color="#3a7d78"/>
-    </linearGradient>
-    <filter id="shadow" x="-.2" y="-.2" width="1.4" height="1.5">
-      <feGaussianBlur stdDeviation="3"/>
-    </filter>
-  </defs>
-  <path d="M25 105h78c7 0 11-4 11-11V57L64 18 14 57v37c0 7 4 11 11 11z" fill="#17242b" opacity=".28" filter="url(#shadow)"/>
-  <path d="M22 101h84V55L64 22 22 55z" fill="url(#wall)"/>
-  <path d="M14 58 60 21c2-2 6-2 8 0l46 37-8 10-42-34-42 34z" fill="url(#roof)"/>
-  <path d="M39 55h50a8 8 0 0 1 8 8v38H31V63a8 8 0 0 1 8-8z" fill="#2b3e48"/>
-  <rect x="45" y="67" width="38" height="27" rx="7" fill="#f2b84b"/>
-  <rect x="50" y="72" width="28" height="17" rx="4" fill="#ffd878"/>
-  <path d="M64 72v17M50 80.5h28" fill="none" stroke="#d58b20" stroke-width="3" opacity=".72"/>
-  <path d="M25 101h78" fill="none" stroke="#243740" stroke-width="6" stroke-linecap="round"/>
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="bastle-master-title bastle-master-desc" data-optical-size="master">
+<title id="bastle-master-title">Bastle · Obsidian Glass</title>
+<desc id="bastle-master-desc">Bastle: отдельные настольные веб-приложения с независимыми профилями. Три фронтальные стеклянные панели на обсидиане, тонкая бронза и красная отметка активного окна. Без перспективы и объёмных торцов.</desc>
+<defs>
+          <linearGradient id="bastle-master-obsidian" x1="0" y1="0" x2=".8" y2="1">
+            <stop stop-color="#383b40"/><stop offset=".25" stop-color="#1c1d22"/>
+            <stop offset=".65" stop-color="#0c0d12"/><stop offset="1" stop-color="#1b1c23"/>
+          </linearGradient>
+          <linearGradient id="bastle-master-rim" x1=".15" y1="0" x2=".8" y2="1">
+            <stop stop-color="#c9c3ba" stop-opacity=".8"/><stop offset=".3" stop-color="#7c7065" stop-opacity=".55"/>
+            <stop offset=".62" stop-color="#65564c" stop-opacity=".2"/><stop offset="1" stop-color="#b6a08a" stop-opacity=".65"/>
+          </linearGradient>
+          <linearGradient id="bastle-master-bronze" x1="0" y1="0" x2=".7" y2="1">
+            <stop stop-color="#dac4a6"/><stop offset=".35" stop-color="#ad8a63"/>
+            <stop offset=".65" stop-color="#73583f"/><stop offset="1" stop-color="#bb9872"/>
+          </linearGradient>
+          <linearGradient id="bastle-master-glass" x1=".05" y1="0" x2=".9" y2="1">
+            <stop stop-color="#ced5df" stop-opacity=".26"/><stop offset=".3" stop-color="#8a93a5" stop-opacity=".08"/>
+            <stop offset=".62" stop-color="#0b0c13" stop-opacity=".12"/><stop offset="1" stop-color="#94a0b6" stop-opacity=".22"/>
+          </linearGradient>
+          <linearGradient id="bastle-master-reflection" x1="0" y1="0" x2=".65" y2="1">
+            <stop stop-color="#edf1f5" stop-opacity=".13"/><stop offset=".4" stop-color="#e0e7f0" stop-opacity=".04"/>
+            <stop offset=".65" stop-color="#e0e7f0" stop-opacity="0"/>
+          </linearGradient>
+          <linearGradient id="bastle-master-glassEdge" x1="0" y1="0" x2=".7" y2="1">
+            <stop stop-color="#d0d4db" stop-opacity=".7"/><stop offset=".24" stop-color="#a6aab8" stop-opacity=".3"/>
+            <stop offset=".55" stop-color="#5a5b6c" stop-opacity=".15"/><stop offset="1" stop-color="#b0b4c2" stop-opacity=".43"/>
+          </linearGradient>
+          <linearGradient id="bastle-master-red" x1="0" y1="0" x2="1" y2="1">
+            <stop stop-color="#f06d68"/><stop offset=".45" stop-color="#dc494a"/><stop offset="1" stop-color="#a92738"/>
+          </linearGradient>
+          <radialGradient id="bastle-master-ambient" cx=".05" cy="0" r="1">
+            <stop stop-color="#b0b8c5" stop-opacity=".1"/><stop offset="1" stop-color="#b0b8c5" stop-opacity="0"/>
+          </radialGradient>
+          <clipPath id="bastle-master-faceClip"><path d="M337 136H687C824 136 888 200 888 337V687C888 824 824 888 687 888H337C200 888 136 824 136 687V337C136 200 200 136 337 136Z"/></clipPath>
+        </defs>
+<g id="bastle-master-obsidian-glass-face" >
+<path d="M337 136H687C824 136 888 200 888 337V687C888 824 824 888 687 888H337C200 888 136 824 136 687V337C136 200 200 136 337 136Z" fill="url(#bastle-master-obsidian)" stroke="url(#bastle-master-rim)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+<g id="bastle-master-surface-light" clip-path="url(#bastle-master-faceClip)">
+<rect x="136" y="136" width="752" height="752" rx="0" fill="url(#bastle-master-ambient)" />
+<path d="M136 136H888V264C698 278 343 398 136 535Z" fill="url(#bastle-master-reflection)" />
+<path d="M163 508C369 380 686 283 869 281" fill="none" stroke="#d1d6df" stroke-width="0.65" stroke-linecap="round" stroke-linejoin="round" opacity=".07"/>
+<path d="M302 865C483 859 711 783 867 692" fill="none" stroke="#b3a6b0" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" opacity=".045"/>
+</g>
+<path d="M160 351C160 218 218 160 351 160H673" fill="none" stroke="#dce2e9" stroke-width="0.85" stroke-linecap="round" stroke-linejoin="round" opacity=".19"/>
+<path d="M864 673C864 806 806 864 673 864H351" fill="none" stroke="#a99b90" stroke-width="0.75" stroke-linecap="round" stroke-linejoin="round" opacity=".16"/>
+<g id="bastle-master-polished-perimeter" >
+<path d="M200 214C231 174 277 151 351 151H519" fill="none" stroke="#e8e1d8" stroke-width="0.7" stroke-linecap="round" stroke-linejoin="round" opacity=".2"/>
+<path d="M873 507V673C873 739 856 786 820 821" fill="none" stroke="#c5b4a4" stroke-width="0.6" stroke-linecap="round" stroke-linejoin="round" opacity=".17"/>
+</g>
+</g>
+<g id="bastle-master-independent-session-windows" >
+<g id="bastle-master-session-1" >
+<rect x="269" y="270" width="364" height="339" rx="31" fill="#1a1b23" />
+<g id="bastle-master-session-1-glass" >
+<rect x="269" y="270" width="364" height="339" rx="31" fill="url(#bastle-master-glass)" stroke="url(#bastle-master-glassEdge)" stroke-width="3" />
+<path d="M300 276H602" fill="none" stroke="#d3d8e2" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round" opacity=".4"/>
+<path d="M275 301V578" fill="none" stroke="#d5dbe4" stroke-width="0.6" stroke-linecap="round" stroke-linejoin="round" opacity=".18"/>
+<path d="M300 603H602" fill="none" stroke="#a8afc2" stroke-width="0.7" stroke-linecap="round" stroke-linejoin="round" opacity=".2"/>
+<path d="M627 301V578" fill="none" stroke="#8b93a6" stroke-width="0.6" stroke-linecap="round" stroke-linejoin="round" opacity=".15"/>
+</g>
+<g id="bastle-master-header-269-270" >
+<path d="M283 313H619" fill="none" stroke="#a99480" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" opacity=".3"/>
+<rect x="288" y="287" width="27" height="5" rx="2.5" fill="url(#bastle-master-bronze)" />
+<circle cx="610" cy="290" r="2.5" fill="#b4a394" opacity=".6"/>
+<path d="M348 289H577" fill="none" stroke="#b1b2bf" stroke-width="0.7" stroke-linecap="round" stroke-linejoin="round" opacity=".24"/>
+<path d="M348 293h34" fill="none" stroke="#b1b2bf" stroke-width="0.7" stroke-linecap="round" stroke-linejoin="round" opacity=".12"/>
+</g>
+<path d="M289 335v235" fill="none" stroke="#bfc4d0" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round" opacity=".22"/>
+<path d="M295 357h12" fill="none" stroke="#aaa3a0" stroke-width="0.7" stroke-linecap="round" stroke-linejoin="round" opacity=".25"/>
+<path d="M295 395h12" fill="none" stroke="#aaa3a0" stroke-width="0.7" stroke-linecap="round" stroke-linejoin="round" opacity=".25"/>
+<path d="M295 433h12" fill="none" stroke="#aaa3a0" stroke-width="0.7" stroke-linecap="round" stroke-linejoin="round" opacity=".25"/>
+<path d="M295 471h12" fill="none" stroke="#aaa3a0" stroke-width="0.7" stroke-linecap="round" stroke-linejoin="round" opacity=".25"/>
+<path d="M295 509h12" fill="none" stroke="#aaa3a0" stroke-width="0.7" stroke-linecap="round" stroke-linejoin="round" opacity=".25"/>
+<path d="M304 594h44M358 594h8" fill="none" stroke="#b29d89" stroke-width="0.7" stroke-linecap="round" stroke-linejoin="round" opacity=".42"/>
+</g>
+<g id="bastle-master-session-2" >
+<rect x="330" y="333" width="364" height="339" rx="31" fill="#1a1b23" />
+<g id="bastle-master-session-2-glass" >
+<rect x="330" y="333" width="364" height="339" rx="31" fill="url(#bastle-master-glass)" stroke="url(#bastle-master-glassEdge)" stroke-width="3" />
+<path d="M361 339H663" fill="none" stroke="#d3d8e2" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round" opacity=".4"/>
+<path d="M336 364V641" fill="none" stroke="#d5dbe4" stroke-width="0.6" stroke-linecap="round" stroke-linejoin="round" opacity=".18"/>
+<path d="M361 666H663" fill="none" stroke="#a8afc2" stroke-width="0.7" stroke-linecap="round" stroke-linejoin="round" opacity=".2"/>
+<path d="M688 364V641" fill="none" stroke="#8b93a6" stroke-width="0.6" stroke-linecap="round" stroke-linejoin="round" opacity=".15"/>
+</g>
+<g id="bastle-master-header-330-333" >
+<path d="M344 376H680" fill="none" stroke="#a99480" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" opacity=".3"/>
+<rect x="349" y="350" width="27" height="5" rx="2.5" fill="url(#bastle-master-bronze)" />
+<circle cx="671" cy="353" r="2.5" fill="#b4a394" opacity=".6"/>
+<path d="M409 352H638" fill="none" stroke="#b1b2bf" stroke-width="0.7" stroke-linecap="round" stroke-linejoin="round" opacity=".24"/>
+<path d="M409 356h34" fill="none" stroke="#b1b2bf" stroke-width="0.7" stroke-linecap="round" stroke-linejoin="round" opacity=".12"/>
+</g>
+<path d="M350 398v235" fill="none" stroke="#bfc4d0" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round" opacity=".22"/>
+<path d="M356 420h12" fill="none" stroke="#aaa3a0" stroke-width="0.7" stroke-linecap="round" stroke-linejoin="round" opacity=".25"/>
+<path d="M356 458h12" fill="none" stroke="#aaa3a0" stroke-width="0.7" stroke-linecap="round" stroke-linejoin="round" opacity=".25"/>
+<path d="M356 496h12" fill="none" stroke="#aaa3a0" stroke-width="0.7" stroke-linecap="round" stroke-linejoin="round" opacity=".25"/>
+<path d="M356 534h12" fill="none" stroke="#aaa3a0" stroke-width="0.7" stroke-linecap="round" stroke-linejoin="round" opacity=".25"/>
+<path d="M356 572h12" fill="none" stroke="#aaa3a0" stroke-width="0.7" stroke-linecap="round" stroke-linejoin="round" opacity=".25"/>
+<path d="M365 657h44M419 657h8" fill="none" stroke="#b29d89" stroke-width="0.7" stroke-linecap="round" stroke-linejoin="round" opacity=".42"/>
+</g>
+<g id="bastle-master-session-3" >
+<rect x="391" y="396" width="364" height="339" rx="31" fill="#1a1b23" />
+<g id="bastle-master-session-3-glass" >
+<rect x="391" y="396" width="364" height="339" rx="31" fill="url(#bastle-master-glass)" stroke="url(#bastle-master-bronze)" stroke-width="3" />
+<path d="M422 402H724" fill="none" stroke="#d3d8e2" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round" opacity=".4"/>
+<path d="M397 427V704" fill="none" stroke="#d5dbe4" stroke-width="0.6" stroke-linecap="round" stroke-linejoin="round" opacity=".18"/>
+<path d="M422 729H724" fill="none" stroke="#a8afc2" stroke-width="0.7" stroke-linecap="round" stroke-linejoin="round" opacity=".2"/>
+<path d="M749 427V704" fill="none" stroke="#8b93a6" stroke-width="0.6" stroke-linecap="round" stroke-linejoin="round" opacity=".15"/>
+</g>
+<g id="bastle-master-header-391-396" >
+<path d="M405 439H741" fill="none" stroke="#a99480" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" opacity=".3"/>
+<rect x="410" y="413" width="61" height="5" rx="2.5" fill="url(#bastle-master-red)" />
+<circle cx="732" cy="416" r="2.5" fill="#b4a394" opacity=".6"/>
+<path d="M470 415H699" fill="none" stroke="#b1b2bf" stroke-width="0.7" stroke-linecap="round" stroke-linejoin="round" opacity=".24"/>
+<path d="M470 419h34" fill="none" stroke="#b1b2bf" stroke-width="0.7" stroke-linecap="round" stroke-linejoin="round" opacity=".12"/>
+</g>
+<g id="bastle-master-active-window-content" >
+<rect x="415" y="461" width="73" height="229" rx="10" fill="url(#bastle-master-glass)" stroke="#d4c1ac" stroke-width="0.7" stroke-opacity=".1"/>
+<rect x="430" y="479" width="13" height="13" rx="4" fill="url(#bastle-master-bronze)" opacity=".6"/>
+<path d="M452 486h21" fill="none" stroke="#b9becc" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" opacity=".35"/>
+<rect x="430" y="516" width="13" height="13" rx="4" fill="#b2b4c2" opacity=".2"/>
+<path d="M452 523h21" fill="none" stroke="#b9becc" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" opacity=".35"/>
+<rect x="430" y="553" width="13" height="13" rx="4" fill="#b2b4c2" opacity=".2"/>
+<path d="M452 560h21" fill="none" stroke="#b9becc" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" opacity=".35"/>
+<rect x="430" y="590" width="13" height="13" rx="4" fill="#b2b4c2" opacity=".2"/>
+<path d="M452 597h21" fill="none" stroke="#b9becc" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" opacity=".35"/>
+<rect x="430" y="627" width="13" height="13" rx="4" fill="#b2b4c2" opacity=".2"/>
+<path d="M452 634h21" fill="none" stroke="#b9becc" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" opacity=".35"/>
+<rect x="508" y="461" width="222" height="105" rx="12" fill="url(#bastle-master-glass)" stroke="url(#bastle-master-glassEdge)" stroke-width="0.8" />
+<path d="M526 481h89M526 496h146M526 506h117" fill="none" stroke="#c4c9d7" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" opacity=".4"/>
+<rect x="526" y="533" width="63" height="5" rx="2.5" fill="url(#bastle-master-bronze)" opacity=".65"/>
+<rect x="508" y="584" width="105" height="105" rx="10" fill="url(#bastle-master-glass)" stroke="url(#bastle-master-glassEdge)" stroke-width="0.7" />
+<path d="M524 604h48M524 620h69M524 632h52" fill="none" stroke="#b3bacb" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round" opacity=".35"/>
+<rect x="524" y="667" width="29" height="3" rx="1.5" fill="#a9937d" opacity=".5"/>
+<rect x="624" y="584" width="105" height="105" rx="10" fill="url(#bastle-master-glass)" stroke="url(#bastle-master-glassEdge)" stroke-width="0.7" />
+<path d="M640 604h48M640 620h69M640 632h52" fill="none" stroke="#b3bacb" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round" opacity=".35"/>
+<rect x="640" y="667" width="29" height="3" rx="1.5" fill="#a9937d" opacity=".5"/>
+</g>
+<path d="M426 720h44M480 720h8" fill="none" stroke="#b29d89" stroke-width="0.7" stroke-linecap="round" stroke-linejoin="round" opacity=".42"/>
+</g>
+</g>
 </svg>

@@ -1,0 +1,18 @@
+SPDX-License-Identifier: GPL-3.0-only
+
+Bastle provenance notice
+========================
+
+Bastle is based on Spider as it existed at Git commit
+dcf9d1080ce2bbd89c342b4766a94e18aaecf660.
+
+Spider was created primarily by Zaedus. The preserved history also includes a
+contribution by Cameron Radmore. Bastle retains the complete Git history,
+commit authorship, and the spider-upstream-2026-05-14 tag.
+
+Bastle is an independent continuation maintained by Cheviiot. The project does
+not claim endorsement, approval, or participation by Spider's previous authors.
+
+The current Bastle source tree is distributed under GPL-3.0-only. Historical
+license grants for earlier revisions remain unchanged. See COPYING for the full
+GNU General Public License version 3 text and AUTHORS.md for project credits.

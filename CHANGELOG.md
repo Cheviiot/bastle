@@ -5,6 +5,47 @@ Changelog and versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-09-05
+
+### Changed
+
+- Embed the Chromium engine and its broker into the main Bastle Flatpak, so
+  Chromium applications no longer require a separately installed package.
+- Keep WebKitGTK as the default while presenting Chromium as a built-in,
+  explicitly selected per-application engine.
+- Move the Chromium runtime source into the main repository and activate it
+  through an internal D-Bus service owned by `io.github.cheviiot.bastle`.
+- Publish a small, GPG-signed, multi-architecture Flatpak repository through
+  GitHub Pages while retaining direct bundles in GitHub Releases; no Flathub
+  submission is planned.
+- Clarify the `GPL-3.0-only` license, preserved Spider authorship, and Bastle's
+  status as an independent continuation without endorsement by prior authors.
+- Replace the project README with a compact Russian introduction and install
+  guide.
+- Replace the house-based icon with the Obsidian Glass identity built around
+  three independent application windows, including a matching symbolic icon.
+- Retire the idle Chromium broker automatically so Flatpak updates take effect
+  without requiring a logout.
+
+### Fixed
+
+- Apply one 4096-byte User-Agent limit before saving and at both Chromium
+  validation boundaries.
+- Restore Chromium's default User-Agent when a custom value is cleared.
+- Apply the selected User-Agent to Chromium popup and OAuth windows.
+- Require an explicit allow decision before Chromium permission checks pass.
+- Handle Electron's singular `mediaType` permission-check detail as well as
+  the request handler's `mediaTypes` array.
+- Persist Chromium window size and maximization through `AppService`.
+- Close existing Chromium connections after changing an application's proxy.
+
+### Security
+
+- Preserve separate WebKit and Chromium profiles and safe Electron defaults
+  without claiming a second Flatpak sandbox boundary.
+- Keep the single Flatpak free of host filesystem access, `--device=all`, and
+  Flatpak-control permissions.
+
 ## [0.5.0] - 2026-09-05
 
 ### Added
@@ -156,7 +197,8 @@ Changelog and versions follow Semantic Versioning.
   sanitization, validated theme colors, sandboxed glycin decoding, and safe file
   URI downloads.
 
-[Unreleased]: https://github.com/Cheviiot/bastle/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/Cheviiot/bastle/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/Cheviiot/bastle/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/Cheviiot/bastle/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/Cheviiot/bastle/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Cheviiot/bastle/compare/v0.2.0...v0.3.0

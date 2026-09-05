@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-only
 
 use std::path::PathBuf;
 
@@ -8,7 +8,7 @@ use futures::channel::oneshot;
 
 use crate::{
     background::{BackgroundBackend, PortalBackground},
-    chromium::{ChromiumBackend, ChromiumClient, CompanionCapabilities},
+    chromium::{ChromiumBackend, ChromiumCapabilities, ChromiumClient},
     launcher::{LauncherBackend, PortalLauncher, UninstallOutcome},
     model::{AppConfigV3, AppId, WindowState},
     policy::{AppPolicyV2, Origin, PermissionDecision, PermissionKind},
@@ -89,17 +89,17 @@ impl<L: LauncherBackend, B: BackgroundBackend, C: ChromiumBackend> AppService<L,
         self.repository.contains_any_data(id)
     }
 
-    pub fn has_pending_companion_deletion(&self, id: &AppId) -> Result<bool> {
-        self.repository.has_pending_companion_deletion(id)
+    pub fn has_pending_chromium_deletion(&self, id: &AppId) -> Result<bool> {
+        self.repository.has_pending_chromium_deletion(id)
     }
 
     pub fn id_is_reserved(&self, id: &AppId) -> Result<bool> {
-        Ok(self.contains_any_data(id) || self.has_pending_companion_deletion(id)?)
+        Ok(self.contains_any_data(id) || self.has_pending_chromium_deletion(id)?)
     }
 
-    pub fn chromium_capabilities(&self) -> Result<CompanionCapabilities> {
+    pub fn chromium_capabilities(&self) -> Result<ChromiumCapabilities> {
         let capabilities = self.chromium.capabilities()?;
-        self.retry_pending_companion_deletions()?;
+        self.retry_pending_chromium_deletions()?;
         Ok(capabilities)
     }
 
@@ -110,14 +110,14 @@ impl<L: LauncherBackend, B: BackgroundBackend, C: ChromiumBackend> AppService<L,
         if start_in_background {
             capabilities.require("background")?;
         }
-        let token = self.repository.companion_token(&app.id)?;
+        let token = self.repository.chromium_token(&app.id)?;
         let policy = self.repository.load_policy(&app.id)?;
         self.chromium
             .open_app(app, &policy, &token, start_in_background)
     }
 
-    fn retry_pending_companion_deletions(&self) -> Result<()> {
-        for pending in self.repository.pending_companion_deletions()? {
+    fn retry_pending_chromium_deletions(&self) -> Result<()> {
+        for pending in self.repository.pending_chromium_deletions()? {
             let Ok(id_lock) = self.repository.lock_app_id(&pending.id) else {
                 continue;
             };
@@ -130,7 +130,7 @@ impl<L: LauncherBackend, B: BackgroundBackend, C: ChromiumBackend> AppService<L,
                 .is_ok()
             {
                 self.repository
-                    .complete_companion_deletion(&id_lock, &pending.token)?;
+                    .complete_chromium_deletion(&id_lock, &pending.token)?;
             }
         }
         Ok(())
@@ -181,6 +181,7 @@ impl<L: LauncherBackend, B: BackgroundBackend, C: ChromiumBackend> AppService<L,
     pub fn save_runtime_state(&self, id: &AppId, window: WindowState) -> Result<()> {
         let mut current = self.repository.load(id)?;
         current.window = window;
+        current.normalize_and_validate()?;
         self.repository.update(&current, None)
     }
 
@@ -435,7 +436,7 @@ impl<L: LauncherBackend, B: BackgroundBackend, C: ChromiumBackend> AppService<L,
 
     pub async fn delete(&self, id: &AppId) -> Result<UninstallOutcome> {
         let id_lock = self.repository.lock_app_id(id)?;
-        let chromium_token = self.repository.companion_token_if_exists(id)?;
+        let chromium_token = self.repository.chromium_token_if_exists(id)?;
         let profile_existed = self.repository.profile_dir(id).exists();
         let profile_lock = self.repository.acquire_delete_profile_lock(id)?;
         let _background_lock = self.lock_background().await?;
@@ -467,8 +468,7 @@ impl<L: LauncherBackend, B: BackgroundBackend, C: ChromiumBackend> AppService<L,
                 }
             };
             if let Some(token) = chromium_token.as_deref() {
-                self.repository
-                    .enqueue_companion_deletion(&id_lock, token)?;
+                self.repository.enqueue_chromium_deletion(&id_lock, token)?;
             }
             self.repository
                 .delete_with_profile_lock(id, profile_lock)
@@ -476,7 +476,7 @@ impl<L: LauncherBackend, B: BackgroundBackend, C: ChromiumBackend> AppService<L,
             if let Some(token) = chromium_token.as_deref() {
                 if self.chromium.delete_profile(id, token).is_ok() {
                     self.repository
-                        .complete_companion_deletion(&id_lock, token)?;
+                        .complete_chromium_deletion(&id_lock, token)?;
                 }
             }
             Ok(outcome)
@@ -625,11 +625,11 @@ mod tests {
     }
 
     impl ChromiumBackend for FakeChromium {
-        fn capabilities(&self) -> Result<CompanionCapabilities> {
+        fn capabilities(&self) -> Result<ChromiumCapabilities> {
             if !self.available.get() {
-                bail!("companion unavailable");
+                bail!("Chromium engine unavailable");
             }
-            Ok(CompanionCapabilities {
+            Ok(ChromiumCapabilities {
                 protocol_version: crate::chromium::PROTOCOL_VERSION,
                 features: BTreeSet::from([
                     "open-app".to_owned(),
@@ -647,7 +647,7 @@ mod tests {
             start_in_background: bool,
         ) -> Result<()> {
             if !self.available.get() {
-                bail!("companion unavailable");
+                bail!("Chromium engine unavailable");
             }
             self.opened
                 .borrow_mut()
@@ -657,7 +657,7 @@ mod tests {
 
         fn delete_profile(&self, id: &AppId, _token: &str) -> Result<()> {
             if !self.available.get() {
-                bail!("companion unavailable");
+                bail!("Chromium engine unavailable");
             }
             if self
                 .repository
@@ -731,7 +731,7 @@ mod tests {
     }
 
     #[test]
-    fn missing_companion_does_not_fall_back_without_confirmation() {
+    fn missing_engine_does_not_fall_back_without_confirmation() {
         let (_temp, service, _launcher, chromium) = service_with_chromium();
         let mut app = AppConfigV3::new("Chromium", "example.org", 0).unwrap();
         app.engine = Engine::Chromium;
@@ -743,19 +743,19 @@ mod tests {
     }
 
     #[test]
-    fn unavailable_companion_profile_deletion_is_deferred_and_retried() {
+    fn unavailable_engine_profile_deletion_is_deferred_and_retried() {
         let (_temp, service, _launcher, chromium) = service_with_chromium();
         let mut app = AppConfigV3::new("Chromium", "example.org", 0).unwrap();
         app.engine = Engine::Chromium;
         block_on(service.create(app.clone(), b"icon", None)).unwrap();
-        service.repository().companion_token(&app.id).unwrap();
+        service.repository().chromium_token(&app.id).unwrap();
 
         block_on(service.delete(&app.id)).unwrap();
         assert!(!service.contains_any_data(&app.id));
         assert_eq!(
             service
                 .repository()
-                .pending_companion_deletions()
+                .pending_chromium_deletions()
                 .unwrap()
                 .len(),
             1
@@ -766,7 +766,7 @@ mod tests {
         assert_eq!(*chromium.deleted.borrow(), vec![app.id.clone()]);
         assert!(service
             .repository()
-            .pending_companion_deletions()
+            .pending_chromium_deletions()
             .unwrap()
             .is_empty());
         assert!(!chromium.deleted_while_local_present.get());
@@ -790,15 +790,15 @@ mod tests {
     }
 
     #[test]
-    fn pending_companion_deletion_never_erases_a_live_local_app() {
+    fn pending_chromium_deletion_never_erases_a_live_local_app() {
         let (_temp, service, _launcher, chromium) = service_with_chromium();
         let app = AppConfigV3::new("Local", "example.org", 0).unwrap();
         block_on(service.create(app.clone(), b"icon", None)).unwrap();
-        let token = service.repository().companion_token(&app.id).unwrap();
+        let token = service.repository().chromium_token(&app.id).unwrap();
         let id_lock = service.repository().lock_app_id(&app.id).unwrap();
         service
             .repository()
-            .enqueue_companion_deletion(&id_lock, &token)
+            .enqueue_chromium_deletion(&id_lock, &token)
             .unwrap();
         drop(id_lock);
         chromium.available.set(true);
@@ -809,7 +809,7 @@ mod tests {
         assert_eq!(
             service
                 .repository()
-                .pending_companion_deletions()
+                .pending_chromium_deletions()
                 .unwrap()
                 .len(),
             1
@@ -817,15 +817,15 @@ mod tests {
     }
 
     #[test]
-    fn pending_companion_retry_waits_for_the_app_id_lifecycle_lock() {
+    fn pending_chromium_retry_waits_for_the_app_id_lifecycle_lock() {
         let (_temp, service, _launcher, chromium) = service_with_chromium();
         let app = AppConfigV3::new("Queued", "example.org", 0).unwrap();
         block_on(service.create(app.clone(), b"icon", None)).unwrap();
-        let token = service.repository().companion_token(&app.id).unwrap();
+        let token = service.repository().chromium_token(&app.id).unwrap();
         let id_lock = service.repository().lock_app_id(&app.id).unwrap();
         service
             .repository()
-            .enqueue_companion_deletion(&id_lock, &token)
+            .enqueue_chromium_deletion(&id_lock, &token)
             .unwrap();
         service.repository().delete(&app.id).unwrap();
         chromium.available.set(true);
@@ -835,7 +835,7 @@ mod tests {
         assert_eq!(
             service
                 .repository()
-                .pending_companion_deletions()
+                .pending_chromium_deletions()
                 .unwrap()
                 .len(),
             1
@@ -846,7 +846,7 @@ mod tests {
         assert_eq!(*chromium.deleted.borrow(), vec![app.id]);
         assert!(service
             .repository()
-            .pending_companion_deletions()
+            .pending_chromium_deletions()
             .unwrap()
             .is_empty());
     }
@@ -925,6 +925,20 @@ mod tests {
         let stored = service.repository().load(&app.id).unwrap();
         assert_eq!(stored.title, "After");
         assert_eq!(stored.window, window);
+
+        service
+            .save_runtime_state(
+                &app.id,
+                WindowState {
+                    width: 1,
+                    height: 10_000,
+                    maximized: false,
+                },
+            )
+            .unwrap();
+        let normalized = service.repository().load(&app.id).unwrap();
+        assert_eq!(normalized.window.width, 320);
+        assert_eq!(normalized.window.height, 8192);
     }
 
     #[test]

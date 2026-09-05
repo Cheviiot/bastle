@@ -1,9 +1,9 @@
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-License-Identifier: GPL-3.0-only
 
 project(
 	'bastle',
 	'rust',
-	version: '0.5.0',
+	version: '0.5.1',
 	meson_version: '>= 0.62.0',
 	default_options: [
 		'warning_level=2',
