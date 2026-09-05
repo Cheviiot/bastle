@@ -1,24 +1,20 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
 <div align="center">
-  <img src="data/icons/hicolor/scalable/apps/io.github.cheviiot.bastle.svg" width="128" alt="Значок Bastle">
+  <img src="data/icons/hicolor/scalable/apps/io.github.cheviiot.bastle.svg" width="144" alt="Значок Bastle">
   <h1>Bastle</h1>
-  <p><strong>Превращает сайты в изолированные приложения GNOME.</strong></p>
+  <p><strong>Любой сайт — отдельное приложение.</strong></p>
   <p>
-    <a href="https://github.com/Cheviiot/bastle/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Cheviiot/bastle/actions/workflows/ci.yml/badge.svg"></a>
-    <a href="COPYING"><img alt="Лицензия GPL-3.0-only" src="https://img.shields.io/badge/license-GPL--3.0--only-3A7D78"></a>
-    <img alt="Flatpak" src="https://img.shields.io/badge/package-Flatpak-344955">
+    <a href="https://github.com/Cheviiot/bastle/actions/workflows/ci.yml"><img alt="Сборка" src="https://img.shields.io/github/actions/workflow/status/Cheviiot/bastle/ci.yml?branch=main&amp;style=flat-square&amp;label=сборка"></a>
+    <a href="https://github.com/Cheviiot/bastle/releases"><img alt="Последний выпуск" src="https://img.shields.io/github/v/release/Cheviiot/bastle?display_name=tag&amp;sort=semver&amp;style=flat-square&amp;label=релиз&amp;color=8f7358"></a>
+    <a href="COPYING"><img alt="Лицензия GPL-3.0-only" src="https://img.shields.io/badge/лицензия-GPL--3.0--only-6f7782?style=flat-square"></a>
+    <img alt="Flatpak" src="https://img.shields.io/badge/пакет-Flatpak-1c1d22?style=flat-square">
   </p>
 </div>
 
-Bastle создаёт для каждого веб-приложения отдельные ярлык, настройки, файлы cookie,
-профиль и кэш. По умолчанию используется WebKitGTK, а для несовместимых сайтов
-в тот же Flatpak встроен Chromium. Движок выбирает пользователь; сессии между
-профилями не переносятся.
-
-Визуальный образ Bastle — несколько самостоятельных окон: каждый сайт получает
-собственное пространство, а пользователь управляет ими из одного приложения.
-Это менеджер веб-приложений, а не обещание абсолютной безопасности сайтов.
+Bastle превращает любой корректный HTTP(S)-адрес в самостоятельное приложение
+для рабочего стола. У каждого сайта свои настройки, профиль, файлы cookie и кэш —
+без общей браузерной оболочки и смешивания сессий.
 
 ## Установка
 
@@ -26,42 +22,45 @@ Bastle создаёт для каждого веб-приложения отде
 flatpak install --user https://cheviiot.github.io/bastle/bastle.flatpakref
 ```
 
-Команда добавит подписанный удалённый репозиторий `bastle` и установит
-`io.github.cheviiot.bastle`. Новые версии будут приходить через обычный
-`flatpak update`. Готовые пакеты для `x86_64` и `aarch64` также публикуются в
-[GitHub Releases](https://github.com/Cheviiot/bastle/releases).
+Команда установит Bastle и добавит подписанный репозиторий обновлений. Дальше
+достаточно обычного `flatpak update`. Готовые пакеты для `x86_64` и `aarch64`
+также доступны в [GitHub Releases](https://github.com/Cheviiot/bastle/releases).
 
-## Возможности
+## Что умеет Bastle
 
-- Создание приложения из любого корректного HTTP(S)-адреса, даже без сети.
-- Отдельный профиль WebKitGTK или встроенного Chromium для каждого сайта.
-- Всплывающие окна и OAuth, разрешения, уведомления, загрузки, масштаб и полноэкранный режим.
-- Опциональные правила навигации, прокси, фоновый режим и фильтры содержимого.
-- Зашифрованные резервные копии с предварительным просмотром и безопасным восстановлением.
-- Интеграция с рабочим столом через порталы без широкого доступа к файловой системе хоста.
+- Создаёт приложения даже без доступных названия, иконки или сети.
+- Изолирует данные и профиль каждого сайта.
+- Поддерживает OAuth-окна, разрешения, уведомления и загрузки.
+- Управляет навигацией, прокси, фоновым режимом и фильтрами содержимого.
+- Создаёт переносимые резервные копии и шифрует архивы с данными сайтов.
+- Работает через системные порталы с минимальными разрешениями Flatpak.
 
-## Движки
+## Два движка в одном пакете
 
-| Движок | Для чего | Особенности |
-| --- | --- | --- |
-| WebKitGTK | Большинство сайтов и нативная интеграция с GNOME | Используется по умолчанию |
-| Chromium | Сайты, несовместимые с WebKitGTK | Уже встроен; включается только после подтверждения |
+- **WebKitGTK** — нативный для GNOME и используемый по умолчанию.
+- **Chromium** — встроен для сайтов, которым недостаточно WebKitGTK.
 
-DRM/Widevine, расширения браузера, обход антибот-защиты и закрытые браузерные API не
-гарантируются. Bastle показывает понятную диагностику и не переключает движок
-самостоятельно.
+Bastle никогда не меняет движок без подтверждения. Профили движков раздельны,
+поэтому файлы cookie и авторизованные сессии между ними не переносятся.
 
-## Проект
+## Границы совместимости
 
-- [Сборка и участие в разработке](CONTRIBUTING.md)
-- [Модель безопасности](docs/threat-model.md)
-- [Flatpak-репозиторий и ключ подписи](packaging/README.md)
-- [История изменений](CHANGELOG.md)
+DRM/Widevine, расширения браузера, обход антибот-защиты и закрытые браузерные
+API не поддерживаются и не входят в обещания совместимости проекта.
 
-Bastle — независимое продолжение
-[Spider](https://github.com/Zaedus/spider) от коммита
-`dcf9d1080ce2bbd89c342b4766a94e18aaecf660`. Авторство исходной работы Zaedus,
-вклад Cameron Radmore и Git-история сохранены; прежние авторы не представлены
-как участники или сторонники Bastle. Текущий код распространяется по лицензии
-`GPL-3.0-only`. Подробнее: [NOTICE](NOTICE), [AUTHORS.md](AUTHORS.md) и
-[COPYING](COPYING).
+## Подробнее
+
+[Участие в разработке](CONTRIBUTING.md) ·
+[Модель безопасности](docs/threat-model.md) ·
+[Репозиторий Flatpak](packaging/README.md) ·
+[История изменений](CHANGELOG.md)
+
+---
+
+<sub>Bastle — независимое продолжение
+<a href="https://github.com/Zaedus/spider">Spider</a> от коммита
+<code>dcf9d1080ce2bbd89c342b4766a94e18aaecf660</code>. Исходное авторство и
+Git-история сохранены; прежние авторы не участвуют в Bastle и не выражали его
+одобрения. Лицензия — GPL-3.0-only. Подробности:
+<a href="NOTICE">NOTICE</a>, <a href="AUTHORS.md">AUTHORS.md</a> и
+<a href="COPYING">COPYING</a>.</sub>
