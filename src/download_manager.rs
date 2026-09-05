@@ -121,8 +121,11 @@ impl DownloadItem {
         }
     }
 
-    fn fail(&self, error: &glib::Error) {
-        if self.state.get() == DownloadState::Cancelled {
+    fn fail(&self, error: &impl std::fmt::Display) {
+        if matches!(
+            self.state.get(),
+            DownloadState::Cancelled | DownloadState::Failed
+        ) {
             return;
         }
         self.state.set(DownloadState::Failed);
@@ -236,7 +239,18 @@ impl DownloadManager {
                                 download.set_destination(file.uri().as_str());
                                 manager.show();
                             }
-                            Err(_) => item.cancel(),
+                            Err(error) => {
+                                if let Some(error) = crate::portal::classify_file_dialog_error(
+                                    gettext("Choose download destination"),
+                                    &error,
+                                ) {
+                                    item.fail(&error);
+                                    download.cancel();
+                                    manager.show();
+                                } else {
+                                    item.cancel();
+                                }
+                            }
                         }
                     }
                 ));

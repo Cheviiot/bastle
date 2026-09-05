@@ -18,6 +18,7 @@ mod launcher;
 mod model;
 mod permissions_dialog;
 mod policy;
+mod portal;
 mod privacy_dialog;
 mod repository;
 mod service;

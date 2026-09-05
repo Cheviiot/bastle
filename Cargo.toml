@@ -33,7 +33,14 @@ zstd = "0.13.3"
 [dependencies.ashpd]
 package = "ashpd"
 version = "0.13.13"
-features = ["async-io", "gtk4", "background", "dynamic_launcher"]
+features = [
+  "async-io",
+  "gtk4",
+  "background",
+  "documents",
+  "dynamic_launcher",
+  "file_chooser",
+]
 default-features = false
 
 [dependencies.gtk]

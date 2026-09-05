@@ -427,7 +427,11 @@ async fn import_filter(parent: Option<&gtk::Window>) -> Result<ContentFilterRule
         .build()
         .open_future(parent)
         .await
-        .context("content filter selection was cancelled")?;
+        .map_err(|error| {
+            crate::portal::classify_file_dialog_error(gettext("Import content filter"), &error)
+                .map(anyhow::Error::from)
+                .unwrap_or_else(|| anyhow!("content filter selection was cancelled"))
+        })?;
     let path = file
         .path()
         .context("the selected content filter is not a local file")?;

@@ -8,9 +8,17 @@ use gettextrs::gettext;
 use gtk::{gio, glib};
 
 use crate::{
-    app_page::AppPage, app_row::AppRow, application::settings, background, backup_dialog,
-    create_app_dialog::CreateAppDialog, home_page::HomePage, launcher::PortalLauncher,
-    model::AppId, permissions_dialog, privacy_dialog, service::AppService,
+    app_page::AppPage,
+    app_row::AppRow,
+    application::settings,
+    background, backup_dialog,
+    create_app_dialog::CreateAppDialog,
+    home_page::HomePage,
+    model::AppId,
+    permissions_dialog,
+    portal::{self, PortalFeature},
+    privacy_dialog,
+    service::AppService,
 };
 
 mod imp {
@@ -167,37 +175,34 @@ impl BastleWindow {
                 .await
                 .map(|version| format!("{} (v{version})", gettext("Available")))
                 .unwrap_or_else(|error| format!("{} ({error})", gettext("Unavailable")));
-            let (heading, body) = match PortalLauncher::capabilities().await {
-                Ok(capabilities) => (
-                    gettext("Portal Available"),
-                    format!(
-                        "{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n\n{}",
-                        gettext("Desktop session"),
-                        capabilities.desktop,
-                        gettext("Dynamic Launcher version"),
-                        capabilities.portal_version,
-                        gettext("Application launchers"),
-                        availability(capabilities.application_launchers),
-                        gettext("Web application launchers"),
-                        availability(capabilities.web_application_launchers),
-                        gettext("Background activity"),
-                        background_capability,
-                        gettext("Bastle uses portals only and never writes launchers directly to the host."),
-                    ),
-                ),
-                Err(error) => (
-                    gettext("Portal Unavailable"),
-                    format!(
-                        "{error:#}\n\n{}",
-                        gettext("Creating, repairing, and restoring applications requires a Dynamic Launcher Portal implementation for this desktop session.")
-                    ),
-                ),
-            };
-            let dialog = adw::AlertDialog::new(Some(&heading), Some(&body));
-            dialog.add_response("close", &gettext("Close"));
+            let capabilities = portal::probe_capabilities().await;
+            let body = format!(
+                "{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n\n{}\n{}",
+                gettext("Desktop session"),
+                capabilities.desktop,
+                gettext("Dynamic Launcher"),
+                portal_feature(&capabilities.dynamic_launcher.interface),
+                gettext("Application launchers"),
+                optional_availability(capabilities.dynamic_launcher.application_launchers),
+                gettext("Web application launchers"),
+                optional_availability(capabilities.dynamic_launcher.web_application_launchers),
+                gettext("File Chooser"),
+                portal_feature(&capabilities.file_chooser),
+                gettext("Documents access"),
+                portal_feature(&capabilities.documents),
+                gettext("Background activity"),
+                background_capability,
+                gettext("Creating and repairing applications requires Application launcher support. Backup restore also requires File Chooser and Documents portal access."),
+                gettext("Bastle uses portals only and never writes launchers directly to the host."),
+            );
+            let dialog = adw::AlertDialog::new(Some(&gettext("System Capabilities")), Some(&body));
+            dialog.add_responses(&[("close", &gettext("Close")), ("retry", &gettext("Retry"))]);
+            dialog.set_response_appearance("retry", adw::ResponseAppearance::Suggested);
             dialog.set_default_response(Some("close"));
             dialog.set_close_response("close");
-            dialog.present(Some(&window));
+            if dialog.choose_future(Some(&window)).await == "retry" {
+                window.show_capabilities();
+            }
         });
     }
 
@@ -277,11 +282,18 @@ impl BastleWindow {
     }
 }
 
-fn availability(available: bool) -> String {
-    if available {
-        gettext("Available")
-    } else {
-        gettext("Unavailable")
+fn optional_availability(available: Option<bool>) -> String {
+    match available {
+        Some(true) => gettext("Available"),
+        Some(false) => gettext("Unsupported"),
+        None => gettext("Unknown (interface unavailable)"),
+    }
+}
+
+fn portal_feature(feature: &PortalFeature) -> String {
+    match feature {
+        PortalFeature::Available { version } => format!("{} (v{version})", gettext("Available")),
+        PortalFeature::Problem(error) => error.to_string(),
     }
 }
 

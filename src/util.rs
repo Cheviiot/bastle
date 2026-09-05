@@ -225,7 +225,11 @@ pub async fn icon_from_dialog(
         .build()
         .open_future(window)
         .await
-        .context("icon selection was cancelled")
+        .map_err(|error| {
+            crate::portal::classify_file_dialog_error(gettext("Select application icon"), &error)
+                .map(anyhow::Error::from)
+                .unwrap_or_else(|| anyhow::anyhow!("icon selection was cancelled"))
+        })
 }
 
 #[cfg(test)]
