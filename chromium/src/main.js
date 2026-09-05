@@ -9,9 +9,11 @@ const {
   quarantinePendingPopupNavigation,
   wireNavigationPolicy,
 } = require('./navigation-policy');
+const { permissionAllowed } = require('./permission-policy');
 const { configureProxy } = require('./proxy');
 const { applyUserAgent } = require('./user-agent');
 const { validateConfig, webUrl } = require('./validate');
+const { persistWindowState } = require('./window-state');
 
 function readRequest() {
   const prefix = '--bastle-config=';
@@ -136,8 +138,10 @@ function configurePermissions(browserSession) {
     catch { callback(false); return; }
     const decisions = current.policy.permissions[origin] || {};
     if (kinds.some((kind) => decisions[kind] === 'block')) { callback(false); return; }
-    if (kinds.every((kind) => decisions[kind] === 'allow' ||
-        sessionAllows.has(`${origin}\0${kind}`))) { callback(true); return; }
+    if (permissionAllowed(origin, kinds, decisions, sessionAllows)) {
+      callback(true);
+      return;
+    }
     const allowed = await askPermission(origin, kinds);
     if (allowed) kinds.forEach((kind) => sessionAllows.add(`${origin}\0${kind}`));
     callback(allowed);
@@ -148,7 +152,7 @@ function configurePermissions(browserSession) {
     let origin;
     try { origin = originOf(requestingOrigin); } catch { return false; }
     const decisions = current.policy.permissions[origin] || {};
-    return kinds.every((kind) => decisions[kind] !== 'block');
+    return permissionAllowed(origin, kinds, decisions, sessionAllows);
   });
 }
 
@@ -191,6 +195,7 @@ function safePopup(details, openerContents) {
 }
 
 function handleCreatedPopup(window, details, openerContents) {
+  applyUserAgent(isolatedSession, window.webContents, current.user_agent, defaultUserAgent);
   let requiresApproval = false;
   try {
     const target = new URL(details.url);
@@ -228,6 +233,7 @@ function handleCreatedPopup(window, details, openerContents) {
 }
 
 let isolatedSession;
+let defaultUserAgent;
 function safeWebPreferences() {
   return {
     session: isolatedSession,
@@ -289,10 +295,21 @@ async function createWindow(config) {
           notification.on('click', () => { mainWindow.show(); mainWindow.focus(); });
           notification.show();
         }
+        return;
+      }
+      try {
+        persistWindowState(mainWindow, current.id);
+      } catch (error) {
+        console.error('Failed to persist Chromium window state:', error);
       }
     });
   }
-  applyUserAgent(mainWindow.webContents, isolatedSession, current.user_agent);
+  applyUserAgent(
+    isolatedSession,
+    mainWindow.webContents,
+    current.user_agent,
+    defaultUserAgent,
+  );
   await configureProxy(isolatedSession, current.policy.proxy);
   await mainWindow.loadURL(current.url).catch((error) => console.error(error));
   if (!current.start_in_background) { mainWindow.show(); mainWindow.focus(); }
@@ -338,6 +355,7 @@ if (gotLock) {
       ],
     }]));
     isolatedSession = session.fromPartition(`persist:bastle-${current.id}`, { cache: true });
+    defaultUserAgent = isolatedSession.getUserAgent();
     configurePermissions(isolatedSession);
     configureDownloads(isolatedSession);
     await createWindow(current);

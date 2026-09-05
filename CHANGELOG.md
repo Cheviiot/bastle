@@ -30,6 +30,9 @@ Changelog and versions follow Semantic Versioning.
 - Apply one 4096-byte User-Agent limit before saving and at both Chromium
   validation boundaries.
 - Restore Chromium's default User-Agent when a custom value is cleared.
+- Apply the selected User-Agent to Chromium popup and OAuth windows.
+- Require an explicit allow decision before Chromium permission checks pass.
+- Persist Chromium window size and maximization through `AppService`.
 - Close existing Chromium connections after changing an application's proxy.
 
 ### Security

@@ -48,7 +48,7 @@
         "install -Dm755 bastle-chromium-service /app/bin/bastle-chromium-service",
         "install -d /app/lib/bastle-chromium /app/share/dbus-1/services",
         "cp -a electron/. /app/lib/bastle-chromium/",
-        "install -Dm644 src/main.js src/validate.js src/navigation-policy.js src/proxy.js src/user-agent.js /app/lib/bastle-chromium/",
+        "install -Dm644 src/main.js src/validate.js src/navigation-policy.js src/permission-policy.js src/proxy.js src/user-agent.js src/window-state.js /app/lib/bastle-chromium/",
         "install -Dm644 data/io.github.cheviiot.bastle.Chromium.service /app/share/dbus-1/services/io.github.cheviiot.bastle.Chromium.service"
       ],
       "sources": [

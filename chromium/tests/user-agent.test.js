@@ -4,11 +4,13 @@
 const assert = require('node:assert/strict');
 const { applyUserAgent } = require('../src/user-agent');
 
-const applied = [];
-const webContents = { setUserAgent(value) { applied.push(value); } };
-const browserSession = { getUserAgent() { return 'Default Chromium Agent'; } };
+const sessionValues = [];
+const contentsValues = [];
+const browserSession = { setUserAgent(value) { sessionValues.push(value); } };
+const webContents = { setUserAgent(value) { contentsValues.push(value); } };
 
-applyUserAgent(webContents, browserSession, 'Custom Agent');
-applyUserAgent(webContents, browserSession, '');
+applyUserAgent(browserSession, webContents, 'Custom Agent', 'Default Chromium Agent');
+applyUserAgent(browserSession, webContents, '', 'Default Chromium Agent');
 
-assert.deepEqual(applied, ['Custom Agent', 'Default Chromium Agent']);
+assert.deepEqual(sessionValues, ['Custom Agent', 'Default Chromium Agent']);
+assert.deepEqual(contentsValues, ['Custom Agent', 'Default Chromium Agent']);

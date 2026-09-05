@@ -85,6 +85,38 @@ mod imp {
                 "Start one opted-in web application without showing its window",
                 None,
             );
+            app.add_main_option(
+                "save-chromium-window-state",
+                glib::Char::from(0),
+                OptionFlags::HIDDEN,
+                OptionArg::String,
+                "Persist Chromium window state for one application",
+                Some("APP_ID"),
+            );
+            app.add_main_option(
+                "chromium-window-width",
+                glib::Char::from(0),
+                OptionFlags::HIDDEN,
+                OptionArg::Int,
+                "Persisted Chromium window width",
+                Some("WIDTH"),
+            );
+            app.add_main_option(
+                "chromium-window-height",
+                glib::Char::from(0),
+                OptionFlags::HIDDEN,
+                OptionArg::Int,
+                "Persisted Chromium window height",
+                Some("HEIGHT"),
+            );
+            app.add_main_option(
+                "chromium-window-maximized",
+                glib::Char::from(0),
+                OptionFlags::HIDDEN,
+                OptionArg::None,
+                "Persist a maximized Chromium window",
+                None,
+            );
             #[cfg(feature = "ui-tests")]
             app.add_main_option(
                 "ui-test-app-page",
@@ -132,6 +164,46 @@ mod imp {
             }
 
             let service = AppService::portal();
+            if let Some(id) = command_line
+                .options_dict()
+                .lookup::<String>("save-chromium-window-state")
+                .ok()
+                .flatten()
+            {
+                let result = (|| -> Result<()> {
+                    let id = AppId::from_str(&id)?;
+                    let width = command_line
+                        .options_dict()
+                        .lookup::<i32>("chromium-window-width")
+                        .context("invalid Chromium window width")?
+                        .context("missing Chromium window width")?;
+                    let height = command_line
+                        .options_dict()
+                        .lookup::<i32>("chromium-window-height")
+                        .context("invalid Chromium window height")?
+                        .context("missing Chromium window height")?;
+                    let maximized = command_line
+                        .options_dict()
+                        .lookup::<bool>("chromium-window-maximized")
+                        .context("invalid Chromium maximized state")?
+                        .unwrap_or(false);
+                    service.save_runtime_state(
+                        &id,
+                        crate::model::WindowState {
+                            width,
+                            height,
+                            maximized,
+                        },
+                    )
+                })();
+                return match result {
+                    Ok(()) => glib::ExitCode::SUCCESS,
+                    Err(error) => {
+                        eprintln!("Error: {error:#}");
+                        glib::ExitCode::FAILURE
+                    }
+                };
+            }
             if command_line
                 .options_dict()
                 .lookup::<bool>("background")
@@ -480,14 +552,25 @@ mod tests {
 
     #[test]
     fn app_id_is_found_independently_of_internal_options() {
-        let arguments = [
-            std::ffi::OsString::from("bastle"),
-            std::ffi::OsString::from("--start-background"),
-            std::ffi::OsString::from("abcdefghijkl"),
+        let cases = [
+            vec![
+                std::ffi::OsString::from("bastle"),
+                std::ffi::OsString::from("--start-background"),
+                std::ffi::OsString::from("abcdefghijkl"),
+            ],
+            vec![
+                std::ffi::OsString::from("bastle"),
+                std::ffi::OsString::from("--save-chromium-window-state"),
+                std::ffi::OsString::from("abcdefghijkl"),
+                std::ffi::OsString::from("--chromium-window-width"),
+                std::ffi::OsString::from("1440"),
+            ],
         ];
-        assert_eq!(
-            command_app_id(&arguments).as_ref().map(AppId::as_str),
-            Some("abcdefghijkl")
-        );
+        for arguments in cases {
+            assert_eq!(
+                command_app_id(&arguments).as_ref().map(AppId::as_str),
+                Some("abcdefghijkl")
+            );
+        }
     }
 }

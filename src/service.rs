@@ -181,6 +181,7 @@ impl<L: LauncherBackend, B: BackgroundBackend, C: ChromiumBackend> AppService<L,
     pub fn save_runtime_state(&self, id: &AppId, window: WindowState) -> Result<()> {
         let mut current = self.repository.load(id)?;
         current.window = window;
+        current.normalize_and_validate()?;
         self.repository.update(&current, None)
     }
 
@@ -924,6 +925,20 @@ mod tests {
         let stored = service.repository().load(&app.id).unwrap();
         assert_eq!(stored.title, "After");
         assert_eq!(stored.window, window);
+
+        service
+            .save_runtime_state(
+                &app.id,
+                WindowState {
+                    width: 1,
+                    height: 10_000,
+                    maximized: false,
+                },
+            )
+            .unwrap();
+        let normalized = service.repository().load(&app.id).unwrap();
+        assert_eq!(normalized.window.width, 320);
+        assert_eq!(normalized.window.height, 8192);
     }
 
     #[test]
