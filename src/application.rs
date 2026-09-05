@@ -247,7 +247,7 @@ mod imp {
                                 eprintln!("Error: {error:#}");
                                 return glib::ExitCode::FAILURE;
                             }
-                            self.obj().show_companion_diagnostic(config, error);
+                            self.obj().show_chromium_diagnostic(config, error);
                         }
                     }
                 }
@@ -428,7 +428,7 @@ impl BastleApplication {
         spawn_app_process(&id, false)
     }
 
-    fn show_companion_diagnostic(&self, config: AppConfigV3, error: anyhow::Error) {
+    fn show_chromium_diagnostic(&self, config: AppConfigV3, error: anyhow::Error) {
         let manager = BastleWindow::new(self);
         manager.present();
         let app = self.clone();
@@ -436,16 +436,14 @@ impl BastleApplication {
             let body = format!(
                 "{error:#}\n\n{}",
                 gettext(
-                    "Install a compatible Bastle Chromium companion, or run this application once with WebKitGTK. Your engine choice and profiles will not be changed."
+                    "The built-in Chromium engine could not start. Reinstall or update Bastle, or run this application once with WebKitGTK. Your engine choice and profiles will not be changed."
                 )
             );
-            let dialog = adw::AlertDialog::new(
-                Some(&gettext("Chromium Companion Unavailable")),
-                Some(&body),
-            );
+            let dialog =
+                adw::AlertDialog::new(Some(&gettext("Chromium Engine Unavailable")), Some(&body));
             dialog.add_responses(&[
                 ("cancel", &gettext("Cancel")),
-                ("install", &gettext("Installation Help")),
+                ("report", &gettext("Report Problem")),
                 ("webkit", &gettext("Run Once with WebKit")),
             ]);
             dialog.set_response_appearance("webkit", adw::ResponseAppearance::Suggested);
@@ -456,9 +454,9 @@ impl BastleApplication {
                     manager.close();
                     AppWindow::new(&app, &config).present();
                 }
-                "install" => {
+                "report" => {
                     let _ = gio::AppInfo::launch_default_for_uri(
-                        "https://github.com/Cheviiot/bastle-chromium/releases",
+                        "https://github.com/Cheviiot/bastle/issues/new",
                         None::<&gio::AppLaunchContext>,
                     );
                 }

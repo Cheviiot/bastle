@@ -2,10 +2,10 @@
 
 # Bastle threat model
 
-This document covers Bastle's WebKit runtime, per-application data, portal
-calls, backups, and the trust boundary of the optional Chromium
-companion. It describes security goals, not a claim that arbitrary websites
-are safe or fully compatible.
+This document covers Bastle's WebKit and Chromium runtimes, per-application
+data, portal calls, backups, and internal engine process boundary. It describes
+security goals, not a claim that arbitrary websites are safe or fully
+compatible.
 
 ## Assets and trust boundaries
 
@@ -21,9 +21,10 @@ are safe or fully compatible.
 - A `.bastle-backup` is untrusted until its archive structure, size limits,
   manifest, IDs, configuration, and policy have all been validated. Site data
   is sensitive and is exported only in a passphrase-encrypted archive.
-- The Chromium companion is a separate Flatpak, profile store, process,
-  and D-Bus trust domain. Selecting Chromium will never copy WebKit cookies or
-  silently expand either application's permissions.
+- The Chromium engine is included in the Bastle Flatpak and therefore shares
+  its sandbox permissions. It still runs in a separate process with a separate
+  profile and cache per app ID. Selecting Chromium never copies WebKit cookies
+  or silently changes the selected engine.
 
 ## Security and privacy goals
 
@@ -58,7 +59,7 @@ are safe or fully compatible.
 | Proxy credential disclosure | Credentials, query strings, fragments, and paths are rejected in custom proxy URIs; Bastle stores only a normalized endpoint. |
 | Over-broad content blocking | Imported WebKit content-extension rules are opt-in and scoped to one app; no implicit third-party-resource blocking is added. |
 | Hidden background activity | Per-app opt-in state, portal authorization, a system status message, and an explicit Stop action. The portal grant belongs to the Bastle Flatpak as a whole, while Bastle keeps the enabled-app list in each app's policy. |
-| Companion privilege escalation | Separate Flatpak identity, minimal D-Bus protocol, pinned/offline build inputs, no host filesystem or Flatpak-control permission, and safe Electron defaults. |
+| Chromium engine compromise | One Flatpak sandbox with no host filesystem or Flatpak-control permission, a narrow internal D-Bus protocol, pinned/offline build inputs, validated inputs, separate per-app Electron processes and profiles, and safe Electron defaults. |
 
 ## Availability and compatibility limits
 
@@ -77,6 +78,11 @@ are safe or fully compatible.
   logout, process termination, and portal implementation differences.
 
 ## Review triggers
+
+The embedded engine is not a separate Flatpak security boundary. A compromise
+of either native runtime must be evaluated against the permissions of the
+single Bastle sandbox. Process and profile separation reduce accidental
+cross-application access, but are not equivalent to separate sandboxes.
 
 Update this model before adding new Flatpak permissions, transferring site data
 between engines, persisting secrets, changing archive formats, enabling remote

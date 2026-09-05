@@ -5,6 +5,24 @@ Changelog and versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-09-05
+
+### Changed
+
+- Embed the Chromium engine and its broker into the main Bastle Flatpak, so
+  Chromium applications no longer require a separately installed package.
+- Keep WebKitGTK as the default while presenting Chromium as a built-in,
+  explicitly selected per-application engine.
+- Move the Chromium runtime source into the main repository and activate it
+  through an internal D-Bus service owned by `io.github.cheviiot.bastle`.
+
+### Security
+
+- Preserve separate WebKit and Chromium profiles and safe Electron defaults
+  without claiming a second Flatpak sandbox boundary.
+- Keep the single Flatpak free of host filesystem access, `--device=all`, and
+  Flatpak-control permissions.
+
 ## [0.5.0] - 2026-09-05
 
 ### Added
@@ -156,7 +174,8 @@ Changelog and versions follow Semantic Versioning.
   sanitization, validated theme colors, sandboxed glycin decoding, and safe file
   URI downloads.
 
-[Unreleased]: https://github.com/Cheviiot/bastle/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/Cheviiot/bastle/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/Cheviiot/bastle/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/Cheviiot/bastle/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/Cheviiot/bastle/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Cheviiot/bastle/compare/v0.2.0...v0.3.0

@@ -212,7 +212,7 @@ impl BastleWindow {
             let dialog = adw::AlertDialog::new(
                 Some(&gettext("Delete this application?")),
                 Some(&gettext(
-                    "Its launcher, settings, WebKit data, and any Chromium companion profile—including cookies and caches—will be removed.",
+                    "Its launcher, settings, and WebKit or Chromium profile—including cookies and caches—will be removed.",
                 )),
             );
             dialog.add_responses(&[

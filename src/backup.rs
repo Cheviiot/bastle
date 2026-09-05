@@ -213,7 +213,7 @@ impl<L: LauncherBackend + Clone> BackupService<L> {
             if include_site_data {
                 ensure!(
                     snapshot.config.engine == Engine::WebKit,
-                    "Chromium site data must be exported by the optional companion and is not available in this backup"
+                    "Chromium site data export is not supported by Bastle backup yet"
                 );
                 profile_locks.push(self.service.try_acquire_profile_snapshot_lock(id)?);
             }
@@ -937,7 +937,7 @@ mod tests {
                 &options,
             )
             .unwrap_err();
-        assert!(error.to_string().contains("optional companion"));
+        assert!(error.to_string().contains("not supported"));
     }
 
     #[test]

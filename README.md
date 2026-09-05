@@ -2,10 +2,10 @@
 
 ![Bastle icon](data/icons/hicolor/scalable/apps/io.github.cheviiot.bastle.svg)
 
-Bastle is a GNOME-native manager for isolated web applications powered by the
-system WebKitGTK engine, with an optional separately sandboxed Chromium
-companion for explicitly selected sites. It creates desktop launchers through
-the Dynamic Launcher Portal and keeps each application's metadata, profile,
+Bastle is a GNOME-native manager for isolated web applications. WebKitGTK is
+the default engine, and a Chromium engine is included in the same Bastle
+Flatpak for sites that need it. Bastle creates desktop launchers through the
+Dynamic Launcher Portal and keeps each application's metadata, profile,
 cookies, and cache separate.
 
 The name *bastle* means a detached fortified house: each website gets its own
@@ -21,9 +21,9 @@ zoom, fullscreen, runtime permissions, managed downloads, and native
 notifications. The v0.4 policy layer adds optional top-level origin
 restrictions, per-app WebKit proxy selection, portal-authorized background
 activity, and user-imported WebKit content filters. v0.5 adds an explicit
-per-app engine choice, a local compatibility catalog, and the optional
-separately sandboxed Bastle Chromium companion; unknown sites continue to use
-WebKitGTK.
+per-app engine choice and a local compatibility catalog; v0.5.1 embeds the
+Chromium engine into the single Bastle package. Unknown sites continue to use
+WebKitGTK, and Chromium is used only after explicit confirmation.
 
 Flathub submission is intentionally deferred until Bastle has an independent
 release history and enough differentiation from Spider.
@@ -50,8 +50,9 @@ Bastle backups use the versioned `.bastle-backup` format: a deterministic
 policies. Cache and downloads are never exported. Cookies and WebKit site
 storage are optional for WebKitGTK apps; selecting them requires passphrase
 encryption with `age`, and the application must not be running while its
-profile is copied. Chromium profile data remains inside the companion sandbox
-and is never mistaken for a local WebKit profile.
+profile is copied. Chromium data stays in separate per-engine profile and cache
+directories inside the Bastle sandbox and is never mistaken for WebKit data.
+Chromium site-data export is not supported yet.
 
 Restore shows a preview before making changes. Identical applications are
 skipped, ID conflicts receive a fresh Bastle ID, and each launcher is installed
@@ -61,8 +62,8 @@ path traversal, links, duplicate entries, or unexpected files are rejected.
 ## Development environment
 
 Security boundaries and known limitations are documented in the
-[threat model](docs/threat-model.md). The optional companion boundary is
-specified in the [Chromium protocol](docs/chromium-companion-protocol.md).
+[threat model](docs/threat-model.md). The internal engine process boundary is
+specified in the [Chromium protocol](docs/chromium-engine-protocol.md).
 Desktop integration requirements, detected interface versions, and isolated
 GNOME/KDE smoke procedures are in the
 [portal compatibility guide](docs/portal-compatibility.md).
@@ -71,7 +72,7 @@ Development is reproducible in the Fedora 44 Distrobox named `bastle-dev`:
 
 ```sh
 distrobox create --name bastle-dev --image registry.fedoraproject.org/fedora:44 --yes
-distrobox enter bastle-dev -- sudo dnf install -y rust cargo rustfmt clippy cargo-deny gcc pkgconf-pkg-config meson ninja-build blueprint-compiler gtk4-devel libadwaita-devel webkitgtk6.0-devel openssl-devel appstream desktop-file-utils flatpak-builder gettext glib2-devel librsvg2-tools xorg-x11-server-Xvfb dbus-daemon git python3-aiohttp python3-pyyaml python3-tomlkit
+distrobox enter bastle-dev -- sudo dnf install -y rust cargo rustfmt clippy cargo-deny gcc pkgconf-pkg-config meson ninja-build blueprint-compiler gtk4-devel libadwaita-devel webkitgtk6.0-devel openssl-devel appstream desktop-file-utils flatpak-builder gettext glib2-devel librsvg2-tools xorg-x11-server-Xvfb dbus-daemon git nodejs python3-aiohttp python3-pyyaml python3-tomlkit
 distrobox enter bastle-dev -- meson setup build
 distrobox enter bastle-dev -- meson compile -C build
 ```
@@ -103,7 +104,10 @@ rm -rf -- "$bastle_tools_dir"
 ```
 
 Project-specific system packages are not installed on the ALT Workstation
-host. The Flatpak manifest uses GNOME runtime 50 and the Rust SDK extension.
+host. The Flatpak manifest uses GNOME runtime 50, the compatible Electron 2
+BaseApp 25.08, and the Rust SDK extension. Chromium source lives in
+[`chromium/`](chromium/) and is built into `io.github.cheviiot.bastle`; it does
+not create another application ID, Flatpak ref, or bundle.
 
 ## Desktop portal support
 
@@ -146,7 +150,8 @@ their own IDs, metadata, launchers, and WebKit profiles.
   aarch64 bundles.
 - v0.4 — opt-in origin allowlists, per-app proxy settings, background/autostart
   through the desktop portal, content filters, and a dedicated threat model.
-- v0.5 — an optional, separately sandboxed Chromium companion for sites that
-  cannot run correctly on WebKitGTK, plus live GNOME/KDE portal diagnostics.
+- v0.5 — an optional-per-app Chromium engine for sites that cannot run
+  correctly on WebKitGTK, built into the same Flatpak since v0.5.1, plus live
+  GNOME/KDE portal diagnostics.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) before proposing changes.

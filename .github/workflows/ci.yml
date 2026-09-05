@@ -21,10 +21,15 @@ jobs:
         run: >-
           dnf install -y rust cargo rustfmt clippy gcc pkgconf-pkg-config
           gtk4-devel libadwaita-devel webkitgtk6.0-devel openssl-devel gettext
+          nodejs
       - run: cargo fmt --check
       - run: cargo check --locked
       - run: cargo clippy --locked --all-targets -- -D warnings
       - run: cargo test --locked
+      - name: Chromium engine tests
+        run: |
+          node chromium/tests/validate.test.js
+          node chromium/tests/navigation-policy.test.js
 
   metadata:
     name: Metadata

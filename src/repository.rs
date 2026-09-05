@@ -795,7 +795,7 @@ fn validate_companion_token(token: &str) -> Result<()> {
             .bytes()
             .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
     {
-        bail!("invalid Chromium companion capability token");
+        bail!("invalid Chromium engine capability token");
     }
     Ok(())
 }

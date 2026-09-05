@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+[D-BUS Service]
+Name=io.github.cheviiot.bastle.Chromium
+Exec=/app/bin/bastle-chromium-service

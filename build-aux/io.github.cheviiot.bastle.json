@@ -43,21 +43,16 @@
       "name": "bastle-chromium-engine",
       "buildsystem": "simple",
       "build-commands": [
-        "sed -i 's#/io/github/cheviiot/bastle_chromium/Engine1#/io/github/cheviiot/bastle/Chromium/Engine1#g; s/io.github.cheviiot.bastle_chromium/io.github.cheviiot.bastle.Chromium/g' src/broker.c data/io.github.cheviiot.bastle_chromium.service",
         "cc -std=c17 -O2 -Wall -Wextra -Werror src/broker.c -o bastle-chromium-service $(pkg-config --cflags --libs gio-2.0 json-glib-1.0)",
         "./bastle-chromium-service --self-test",
         "install -Dm755 bastle-chromium-service /app/bin/bastle-chromium-service",
         "install -d /app/lib/bastle-chromium /app/share/dbus-1/services",
         "cp -a electron/. /app/lib/bastle-chromium/",
         "install -Dm644 src/main.js src/validate.js src/navigation-policy.js /app/lib/bastle-chromium/",
-        "install -Dm644 data/io.github.cheviiot.bastle_chromium.service /app/share/dbus-1/services/io.github.cheviiot.bastle.Chromium.service"
+        "install -Dm644 data/io.github.cheviiot.bastle.Chromium.service /app/share/dbus-1/services/io.github.cheviiot.bastle.Chromium.service"
       ],
       "sources": [
-        {
-          "type": "git",
-          "url": "https://github.com/Cheviiot/bastle-chromium.git",
-          "commit": "d03c1827c03dc87f16df2dac44df39d624ae9650"
-        },
+        { "type": "dir", "path": "../chromium" },
         {
           "type": "archive",
           "url": "https://github.com/electron/electron/releases/download/v40.1.0/electron-v40.1.0-linux-x64.zip",
@@ -90,7 +85,7 @@
         {
           "type": "git",
           "url": "https://github.com/Cheviiot/bastle.git",
-          "commit": "v0.5.0"
+          "commit": "v0.5.1"
         },
         "generated-sources.json"
       ]

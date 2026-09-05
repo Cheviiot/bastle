@@ -8,7 +8,7 @@ use futures::channel::oneshot;
 
 use crate::{
     background::{BackgroundBackend, PortalBackground},
-    chromium::{ChromiumBackend, ChromiumClient, CompanionCapabilities},
+    chromium::{ChromiumBackend, ChromiumCapabilities, ChromiumClient},
     launcher::{LauncherBackend, PortalLauncher, UninstallOutcome},
     model::{AppConfigV3, AppId, WindowState},
     policy::{AppPolicyV2, Origin, PermissionDecision, PermissionKind},
@@ -97,7 +97,7 @@ impl<L: LauncherBackend, B: BackgroundBackend, C: ChromiumBackend> AppService<L,
         Ok(self.contains_any_data(id) || self.has_pending_companion_deletion(id)?)
     }
 
-    pub fn chromium_capabilities(&self) -> Result<CompanionCapabilities> {
+    pub fn chromium_capabilities(&self) -> Result<ChromiumCapabilities> {
         let capabilities = self.chromium.capabilities()?;
         self.retry_pending_companion_deletions()?;
         Ok(capabilities)
@@ -625,11 +625,11 @@ mod tests {
     }
 
     impl ChromiumBackend for FakeChromium {
-        fn capabilities(&self) -> Result<CompanionCapabilities> {
+        fn capabilities(&self) -> Result<ChromiumCapabilities> {
             if !self.available.get() {
-                bail!("companion unavailable");
+                bail!("Chromium engine unavailable");
             }
-            Ok(CompanionCapabilities {
+            Ok(ChromiumCapabilities {
                 protocol_version: crate::chromium::PROTOCOL_VERSION,
                 features: BTreeSet::from([
                     "open-app".to_owned(),
@@ -647,7 +647,7 @@ mod tests {
             start_in_background: bool,
         ) -> Result<()> {
             if !self.available.get() {
-                bail!("companion unavailable");
+                bail!("Chromium engine unavailable");
             }
             self.opened
                 .borrow_mut()
@@ -657,7 +657,7 @@ mod tests {
 
         fn delete_profile(&self, id: &AppId, _token: &str) -> Result<()> {
             if !self.available.get() {
-                bail!("companion unavailable");
+                bail!("Chromium engine unavailable");
             }
             if self
                 .repository
@@ -731,7 +731,7 @@ mod tests {
     }
 
     #[test]
-    fn missing_companion_does_not_fall_back_without_confirmation() {
+    fn missing_engine_does_not_fall_back_without_confirmation() {
         let (_temp, service, _launcher, chromium) = service_with_chromium();
         let mut app = AppConfigV3::new("Chromium", "example.org", 0).unwrap();
         app.engine = Engine::Chromium;
@@ -743,7 +743,7 @@ mod tests {
     }
 
     #[test]
-    fn unavailable_companion_profile_deletion_is_deferred_and_retried() {
+    fn unavailable_engine_profile_deletion_is_deferred_and_retried() {
         let (_temp, service, _launcher, chromium) = service_with_chromium();
         let mut app = AppConfigV3::new("Chromium", "example.org", 0).unwrap();
         app.engine = Engine::Chromium;
