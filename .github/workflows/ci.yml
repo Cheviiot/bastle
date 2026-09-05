@@ -31,6 +31,7 @@ jobs:
           node chromium/tests/validate.test.js
           node chromium/tests/navigation-policy.test.js
           node chromium/tests/proxy.test.js
+          node chromium/tests/user-agent.test.js
 
   metadata:
     name: Metadata

@@ -34,6 +34,10 @@ assert.throws(() => validateConfig({ ...config, id: '../bad-value' }));
 assert.throws(() => validateConfig({ ...config, title: 'Bad\nTitle' }));
 assert.equal(validateConfig({ ...config, title: '🏠'.repeat(512) }).title, '🏠'.repeat(512));
 assert.throws(() => validateConfig({ ...config, title: '🏠'.repeat(513) }));
+assert.equal(validateConfig({ ...config, user_agent: 'é'.repeat(2048) }).user_agent,
+  'é'.repeat(2048));
+assert.throws(() => validateConfig({ ...config, user_agent: 'é'.repeat(2049) }));
+assert.throws(() => validateConfig({ ...config, user_agent: 'Bastle\r\nInjected' }));
 assert.throws(() => validatePolicy({ ...policy, schema_version: 99 }));
 assert.throws(() => validatePolicy({
   ...policy,

@@ -10,6 +10,7 @@ const {
   wireNavigationPolicy,
 } = require('./navigation-policy');
 const { configureProxy } = require('./proxy');
+const { applyUserAgent } = require('./user-agent');
 const { validateConfig, webUrl } = require('./validate');
 
 function readRequest() {
@@ -291,7 +292,7 @@ async function createWindow(config) {
       }
     });
   }
-  if (current.user_agent) mainWindow.webContents.setUserAgent(current.user_agent);
+  applyUserAgent(mainWindow.webContents, isolatedSession, current.user_agent);
   await configureProxy(isolatedSession, current.policy.proxy);
   await mainWindow.loadURL(current.url).catch((error) => console.error(error));
   if (!current.start_in_background) { mainWindow.show(); mainWindow.focus(); }

@@ -20,6 +20,8 @@
 #define INTERFACE_NAME "io.github.cheviiot.bastle.Chromium.Engine1"
 #define PROTOCOL_VERSION 1U
 #define MAX_POLICY_SIZE (32U * 1024U * 1024U)
+#define MAX_USER_AGENT_BYTES 4096U
+#define BROKER_IDLE_SECONDS 30U
 
 static const gchar introspection_xml[] =
     "<node>"
@@ -48,6 +50,26 @@ static const gchar introspection_xml[] =
     "</node>";
 
 static GMainLoop *main_loop;
+static guint idle_source_id;
+
+static gboolean
+idle_shutdown(gpointer user_data)
+{
+    (void) user_data;
+    idle_source_id = 0;
+    if (main_loop != NULL)
+        g_main_loop_quit(main_loop);
+    return G_SOURCE_REMOVE;
+}
+
+static void
+schedule_idle_shutdown(void)
+{
+    if (idle_source_id != 0)
+        g_source_remove(idle_source_id);
+    idle_source_id = g_timeout_add_seconds(
+        BROKER_IDLE_SECONDS, idle_shutdown, NULL);
+}
 
 typedef struct {
     GSubprocess *child;
@@ -117,7 +139,7 @@ valid_title(const gchar *value)
 static gboolean
 valid_user_agent(const gchar *value)
 {
-    return value != NULL && strlen(value) <= 4096 &&
+    return value != NULL && strlen(value) <= MAX_USER_AGENT_BYTES &&
            g_utf8_validate(value, -1, NULL) && strchr(value, '\n') == NULL &&
            strchr(value, '\r') == NULL;
 }
@@ -519,6 +541,7 @@ handle_method_call(GDBusConnection *connection, const gchar *sender,
     (void) user_data;
     (void) connection;
     (void) sender;
+    schedule_idle_shutdown();
     g_autoptr(GError) error = NULL;
     if (g_str_equal(method_name, "GetCapabilities")) {
         const gchar *features[] = {
@@ -684,11 +707,18 @@ self_test(void)
     gboolean max_title_valid = valid_title(max_title->str);
     g_string_append_unichar(max_title, 0x1f3e0);
     gboolean oversized_title_valid = valid_title(max_title->str);
+    g_autofree gchar *max_user_agent =
+        g_strnfill(MAX_USER_AGENT_BYTES, 'a');
+    g_autofree gchar *oversized_user_agent =
+        g_strconcat(max_user_agent, "a", NULL);
     if (!valid_app_id("abcdefghijkl") || valid_app_id("../bad-value") ||
         !valid_token("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef") ||
         valid_token("../bad") || !valid_http_url("https://example.org/path") ||
         valid_http_url("file:///etc/passwd") || !valid_title("Example") ||
         valid_title("Bad\nTitle") || !max_title_valid || oversized_title_valid ||
+        !valid_user_agent(max_user_agent) ||
+        valid_user_agent(oversized_user_agent) ||
+        valid_user_agent("Bastle\r\nInjected") ||
         !valid_policy("{\"schema_version\":2}", &policy, &error)) {
         g_printerr("Chromium engine validation self-test failed\n");
         return 1;
@@ -749,7 +779,10 @@ main(int argc, char **argv)
         G_BUS_TYPE_SESSION, BUS_NAME,
         G_BUS_NAME_OWNER_FLAGS_NONE,
         on_bus_acquired, NULL, on_name_lost, NULL, NULL);
+    schedule_idle_shutdown();
     g_main_loop_run(main_loop);
+    if (idle_source_id != 0)
+        g_source_remove(idle_source_id);
     g_bus_unown_name(owner_id);
     g_main_loop_unref(main_loop);
     return 0;

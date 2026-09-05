@@ -63,8 +63,8 @@ function validateConfig(config) {
   if (!config || typeof config !== 'object' || config.schema_version !== 1 ||
       !APP_ID.test(config.id) || typeof config.title !== 'string' || !config.title.trim() ||
       /[\u0000-\u001f\u007f]/u.test(config.title) || [...config.title].length > 512 ||
-      typeof config.user_agent !== 'string' || /[\r\n]/u.test(config.user_agent) ||
-      config.user_agent.length > 4096 || !Number.isInteger(config.width) ||
+      typeof config.user_agent !== 'string' || /[\u0000\r\n]/u.test(config.user_agent) ||
+      Buffer.byteLength(config.user_agent, 'utf8') > 4096 || !Number.isInteger(config.width) ||
       config.width < 320 || config.width > 8192 || !Number.isInteger(config.height) ||
       config.height < 200 || config.height > 8192 ||
       typeof config.maximized !== 'boolean' ||

@@ -22,6 +22,15 @@ Changelog and versions follow Semantic Versioning.
   status as an independent continuation without endorsement by prior authors.
 - Replace the project README with a compact Russian introduction and install
   guide.
+- Retire the idle Chromium broker automatically so Flatpak updates take effect
+  without requiring a logout.
+
+### Fixed
+
+- Apply one 4096-byte User-Agent limit before saving and at both Chromium
+  validation boundaries.
+- Restore Chromium's default User-Agent when a custom value is cleared.
+- Close existing Chromium connections after changing an application's proxy.
 
 ### Security
 
