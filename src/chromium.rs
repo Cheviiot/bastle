@@ -10,9 +10,9 @@ use crate::{
     policy::AppPolicyV2,
 };
 
-pub const BUS_NAME: &str = "io.github.cheviiot.bastle_chromium";
-pub const OBJECT_PATH: &str = "/io/github/cheviiot/bastle_chromium/Engine1";
-pub const INTERFACE_NAME: &str = "io.github.cheviiot.bastle_chromium.Engine1";
+pub const BUS_NAME: &str = "io.github.cheviiot.bastle.Chromium";
+pub const OBJECT_PATH: &str = "/io/github/cheviiot/bastle/Chromium/Engine1";
+pub const INTERFACE_NAME: &str = "io.github.cheviiot.bastle.Chromium.Engine1";
 pub const PROTOCOL_VERSION: u32 = 1;
 const CALL_TIMEOUT_MSEC: i32 = 10_000;
 
@@ -106,7 +106,7 @@ impl ChromiumClient {
             INTERFACE_NAME,
             gio::Cancellable::NONE,
         )
-        .context("Chromium companion is not installed or could not be activated")?;
+        .context("the bundled Chromium engine could not be activated")?;
         proxy
             .call_sync(
                 method,
