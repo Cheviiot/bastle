@@ -22,6 +22,8 @@ Changelog and versions follow Semantic Versioning.
   status as an independent continuation without endorsement by prior authors.
 - Replace the project README with a compact Russian introduction and install
   guide.
+- Replace the house-based icon with the Obsidian Glass identity built around
+  three independent application windows, including a matching symbolic icon.
 - Retire the idle Chromium broker automatically so Flatpak updates take effect
   without requiring a logout.
 
@@ -32,6 +34,8 @@ Changelog and versions follow Semantic Versioning.
 - Restore Chromium's default User-Agent when a custom value is cleared.
 - Apply the selected User-Agent to Chromium popup and OAuth windows.
 - Require an explicit allow decision before Chromium permission checks pass.
+- Handle Electron's singular `mediaType` permission-check detail as well as
+  the request handler's `mediaTypes` array.
 - Persist Chromium window size and maximization through `AppService`.
 - Close existing Chromium connections after changing an application's proxy.
 

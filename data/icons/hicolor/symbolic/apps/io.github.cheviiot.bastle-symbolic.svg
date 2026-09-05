@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
-  <path d="M1 7.1 7.1 2.2a1.45 1.45 0 0 1 1.8 0L15 7.1 13.8 8.6 8 4 2.2 8.6z"/>
-  <path d="M3 7.6 8 3.7l5 3.9V14H3zm3 1.9v3h4v-3z"/>
+  <g fill="none" stroke="#2e3436" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M1.75 8.75V3.5c0-1 .75-1.75 1.75-1.75h5.25c1 0 1.75.75 1.75 1.75v.5"/>
+    <path d="M3.75 10.75V5.5c0-1 .75-1.75 1.75-1.75h5.25c1 0 1.75.75 1.75 1.75V6"/>
+    <rect x="5.75" y="5.75" width="8.5" height="8.5" rx="1.75"/>
+    <path d="M6.75 8h6.5M8.5 9.5v3.75M10 9.75h2.75M10 11.5h2M10 13h2.5"/>
+  </g>
 </svg>

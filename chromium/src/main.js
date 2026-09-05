@@ -9,7 +9,7 @@ const {
   quarantinePendingPopupNavigation,
   wireNavigationPolicy,
 } = require('./navigation-policy');
-const { permissionAllowed } = require('./permission-policy');
+const { permissionAllowed, permissionKinds } = require('./permission-policy');
 const { configureProxy } = require('./proxy');
 const { applyUserAgent } = require('./user-agent');
 const { validateConfig, webUrl } = require('./validate');
@@ -92,24 +92,6 @@ async function handleNavigation(event, value) {
 
 function handleFrameNavigation(event) {
   quarantinePendingPopupNavigation(pendingPopupNavigations, event);
-}
-
-function permissionKinds(permission, details) {
-  switch (permission) {
-    case 'media': {
-      const requested = details.mediaTypes || [];
-      return [
-        ...(requested.includes('video') ? ['camera'] : []),
-        ...(requested.includes('audio') ? ['microphone'] : []),
-      ];
-    }
-    case 'geolocation': return ['geolocation'];
-    case 'notifications': return ['notifications'];
-    case 'clipboard-read': return ['clipboard'];
-    case 'pointerLock': return ['pointer_lock'];
-    case 'storage-access': return ['third_party_storage'];
-    default: return [];
-  }
 }
 
 async function askPermission(origin, kinds) {
