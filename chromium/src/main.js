@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-only
 'use strict';
 
 const fs = require('node:fs');
@@ -9,6 +9,7 @@ const {
   quarantinePendingPopupNavigation,
   wireNavigationPolicy,
 } = require('./navigation-policy');
+const { configureProxy } = require('./proxy');
 const { validateConfig, webUrl } = require('./validate');
 
 function readRequest() {
@@ -148,15 +149,6 @@ function configurePermissions(browserSession) {
     const decisions = current.policy.permissions[origin] || {};
     return kinds.every((kind) => decisions[kind] !== 'block');
   });
-}
-
-async function configureProxy(browserSession) {
-  const proxy = current.policy.proxy;
-  if (proxy.mode === 'no_proxy') await browserSession.setProxy({ mode: 'direct' });
-  else if (proxy.mode === 'custom') await browserSession.setProxy({
-    mode: 'fixed_servers', proxyRules: proxy.uri,
-  });
-  else await browserSession.setProxy({ mode: 'system' });
 }
 
 function configureDownloads(browserSession) {
@@ -300,7 +292,7 @@ async function createWindow(config) {
     });
   }
   if (current.user_agent) mainWindow.webContents.setUserAgent(current.user_agent);
-  await configureProxy(isolatedSession);
+  await configureProxy(isolatedSession, current.policy.proxy);
   await mainWindow.loadURL(current.url).catch((error) => console.error(error));
   if (!current.start_in_background) { mainWindow.show(); mainWindow.focus(); }
   else if (Notification.isSupported()) {

@@ -1,0 +1,11 @@
+[Flatpak Ref]
+Title=Bastle
+Name=io.github.cheviiot.bastle
+Branch=master
+Url=https://cheviiot.github.io/bastle/repo/
+SuggestRemoteName=bastle
+Homepage=https://github.com/Cheviiot/bastle
+Icon=https://cheviiot.github.io/bastle/io.github.cheviiot.bastle.svg
+RuntimeRepo=https://dl.flathub.org/repo/flathub.flatpakrepo
+IsRuntime=false
+GPGKey=@GPG_KEY@

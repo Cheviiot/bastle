@@ -1,0 +1,11 @@
+[Flatpak Repo]
+Version=1
+Title=Bastle
+Url=https://cheviiot.github.io/bastle/repo/
+Homepage=https://github.com/Cheviiot/bastle
+Comment=Official repository for the Bastle web application manager
+Description=Small GPG-signed Flatpak repository published directly by the Bastle project
+Icon=https://cheviiot.github.io/bastle/io.github.cheviiot.bastle.svg
+SuggestRemoteName=bastle
+RuntimeRepo=https://dl.flathub.org/repo/flathub.flatpakrepo
+GPGKey=@GPG_KEY@

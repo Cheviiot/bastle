@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-only
 
 use std::{
     cell::RefCell, collections::BTreeSet, fs::File, io::Read, path::Path, rc::Rc, str::FromStr,

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-only
 'use strict';
 
 const APP_ID = /^[a-z0-9]{12}$/;
@@ -62,7 +62,7 @@ function validatePolicy(policy) {
 function validateConfig(config) {
   if (!config || typeof config !== 'object' || config.schema_version !== 1 ||
       !APP_ID.test(config.id) || typeof config.title !== 'string' || !config.title.trim() ||
-      /[\u0000-\u001f\u007f]/u.test(config.title) || config.title.length > 512 ||
+      /[\u0000-\u001f\u007f]/u.test(config.title) || [...config.title].length > 512 ||
       typeof config.user_agent !== 'string' || /[\r\n]/u.test(config.user_agent) ||
       config.user_agent.length > 4096 || !Number.isInteger(config.width) ||
       config.width < 320 || config.width > 8192 || !Number.isInteger(config.height) ||

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-License-Identifier: GPL-3.0-only
 
 desktop_file = i18n.merge_file(
         input: 'io.github.cheviiot.bastle.desktop.in',

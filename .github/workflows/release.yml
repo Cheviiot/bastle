@@ -5,7 +5,11 @@ on:
     tags: ["v*"]
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: bastle-pages-release
+  cancel-in-progress: false
 
 jobs:
   flatpak-release:
@@ -24,22 +28,140 @@ jobs:
       options: --privileged
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Import repository signing key
+        env:
+          BASTLE_GPG_PRIVATE_KEY: ${{ secrets.BASTLE_FLATPAK_GPG_PRIVATE_KEY }}
+        run: printf '%s' "$BASTLE_GPG_PRIVATE_KEY" | gpg --batch --import
+      - name: Resolve signing-key fingerprint
+        id: signing-key
+        run: |
+          fingerprint="$(gpg --batch --with-colons --list-secret-keys 'Bastle Flatpak Repository' | awk -F: '$1 == "fpr" { print $10; exit }')"
+          test "$fingerprint" = A69739CC667377C3A671BD85885E0C5C26BD31E1
+          echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
       - uses: flatpak/flatpak-github-actions/flatpak-builder@aa777012a985fe1b1fd3e66ea2173609cf0c9a70
         with:
-          bundle: Bastle-${{ matrix.variant.arch }}.flatpak
+          build-bundle: false
           manifest-path: build-aux/io.github.cheviiot.bastle.json
           arch: ${{ matrix.variant.arch }}
-          artifact-name: Bastle-${{ matrix.variant.arch }}
+          gpg-sign: ${{ steps.signing-key.outputs.fingerprint }}
+          repo-dir: repo-${{ matrix.variant.arch }}
+      - name: Pack signed architecture repository
+        run: tar -C "repo-${{ matrix.variant.arch }}" -cf "Bastle-repo-${{ matrix.variant.arch }}.tar" .
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: Bastle-repo-${{ matrix.variant.arch }}
+          path: Bastle-repo-${{ matrix.variant.arch }}.tar
+          if-no-files-found: error
+
+  prepare-repository:
+    name: Prepare project repository
+    needs: flatpak-release
+    permissions:
+      contents: read
+      pages: write
+    runs-on: ubuntu-24.04
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
+      options: --privileged
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: Bastle-repo-*
+          path: repository-artifacts
+          merge-multiple: true
+      - name: Import repository signing key
+        env:
+          BASTLE_GPG_PRIVATE_KEY: ${{ secrets.BASTLE_FLATPAK_GPG_PRIVATE_KEY }}
+        run: printf '%s' "$BASTLE_GPG_PRIVATE_KEY" | gpg --batch --import
+      - name: Resolve signing-key fingerprint
+        id: signing-key
+        run: |
+          fingerprint="$(gpg --batch --with-colons --list-secret-keys 'Bastle Flatpak Repository' | awk -F: '$1 == "fpr" { print $10; exit }')"
+          test "$fingerprint" = A69739CC667377C3A671BD85885E0C5C26BD31E1
+          echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
+      - name: Assemble signed Flatpak repository
+        env:
+          GPG_FINGERPRINT: ${{ steps.signing-key.outputs.fingerprint }}
+        run: |
+          mkdir -p public/repo
+          for archive in repository-artifacts/Bastle-repo-*.tar; do
+            tar -xf "$archive" -C public/repo
+          done
+          ostree refs --repo=public/repo --delete \
+            runtime/io.github.cheviiot.bastle.Debug
+          flatpak build-update-repo \
+            --title=Bastle \
+            --comment='Official Bastle project repository' \
+            --description='GPG-signed Bastle releases published directly from GitHub' \
+            --homepage='https://github.com/Cheviiot/bastle' \
+            --icon='https://cheviiot.github.io/bastle/io.github.cheviiot.bastle.svg' \
+            --default-branch=master \
+            --gpg-sign="$GPG_FINGERPRINT" \
+            --prune \
+            public/repo
+          ostree fsck --repo=public/repo
+          ostree refs --repo=public/repo | grep -q \
+            '^app/io.github.cheviiot.bastle/x86_64/master$'
+          ostree refs --repo=public/repo | grep -q \
+            '^app/io.github.cheviiot.bastle/aarch64/master$'
+          ! ostree refs --repo=public/repo | grep -q \
+            '^runtime/io.github.cheviiot.bastle.Debug/'
+      - name: Create install descriptors and bundles
+        run: |
+          gpg_key="$(base64 --wrap=0 packaging/bastle-repository.gpg)"
+          sed "s|@GPG_KEY@|$gpg_key|" packaging/bastle.flatpakrepo.in > public/bastle.flatpakrepo
+          sed "s|@GPG_KEY@|$gpg_key|" packaging/bastle.flatpakref.in > public/bastle.flatpakref
+          install -Dm644 packaging/index.html public/index.html
+          install -Dm644 packaging/bastle-repository.gpg public/bastle-repository.gpg
+          install -Dm644 data/icons/hicolor/scalable/apps/io.github.cheviiot.bastle.svg public/io.github.cheviiot.bastle.svg
+          flatpak build-bundle \
+            --arch=x86_64 \
+            --repo-url='https://cheviiot.github.io/bastle/repo/' \
+            --runtime-repo='https://dl.flathub.org/repo/flathub.flatpakrepo' \
+            --gpg-keys=packaging/bastle-repository.gpg \
+            public/repo Bastle-x86_64.flatpak io.github.cheviiot.bastle master
+          flatpak build-bundle \
+            --arch=aarch64 \
+            --repo-url='https://cheviiot.github.io/bastle/repo/' \
+            --runtime-repo='https://dl.flathub.org/repo/flathub.flatpakrepo' \
+            --gpg-keys=packaging/bastle-repository.gpg \
+            public/repo Bastle-aarch64.flatpak io.github.cheviiot.bastle master
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: Bastle-release-bundles
+          path: Bastle-*.flatpak
+          if-no-files-found: error
+      - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b
+      - uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b
+        with:
+          path: public
+
+  deploy-repository:
+    name: Publish project repository
+    needs: prepare-repository
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e
 
   publish-release:
     name: Publish GitHub release
-    needs: flatpak-release
+    needs: [prepare-repository, deploy-repository]
+    permissions:
+      contents: write
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
-          pattern: Bastle-*
-          merge-multiple: true
+          name: Bastle-release-bundles
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}

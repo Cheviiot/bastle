@@ -15,6 +15,13 @@ Changelog and versions follow Semantic Versioning.
   explicitly selected per-application engine.
 - Move the Chromium runtime source into the main repository and activate it
   through an internal D-Bus service owned by `io.github.cheviiot.bastle`.
+- Publish a small, GPG-signed, multi-architecture Flatpak repository through
+  GitHub Pages while retaining direct bundles in GitHub Releases; no Flathub
+  submission is planned.
+- Clarify the `GPL-3.0-only` license, preserved Spider authorship, and Bastle's
+  status as an independent continuation without endorsement by prior authors.
+- Replace the project README with a compact Russian introduction and install
+  guide.
 
 ### Security
 

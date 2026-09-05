@@ -30,6 +30,7 @@ jobs:
         run: |
           node chromium/tests/validate.test.js
           node chromium/tests/navigation-policy.test.js
+          node chromium/tests/proxy.test.js
 
   metadata:
     name: Metadata
@@ -52,6 +53,16 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Verify project license and attribution
+        run: |
+          grep -qx 'license = "GPL-3.0-only"' Cargo.toml
+          grep -q '<project_license>GPL-3.0-only</project_license>' \
+            data/io.github.cheviiot.bastle.metainfo.xml.in
+          forbidden_spdx='SPDX-License-Identifier: GPL-3.0-''or-later'
+          ! git grep -n "$forbidden_spdx"
+          test -s COPYING
+          test -s NOTICE
+          test -s AUTHORS.md
       - uses: EmbarkStudios/cargo-deny-action@c3bbe7e4e3f7baeee1a3dd9aec0a3b2aded580fb
         with:
           command: check

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-only
 
 use std::{collections::HashSet, io::Cursor, sync::OnceLock, time::Duration};
 

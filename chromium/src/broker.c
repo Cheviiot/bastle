@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-only
 #define _XOPEN_SOURCE 700
 
 #include <errno.h>
@@ -678,11 +678,17 @@ self_test(void)
 {
     g_autoptr(GError) error = NULL;
     g_autoptr(JsonNode) policy = NULL;
+    g_autoptr(GString) max_title = g_string_sized_new(512 * 4);
+    for (guint index = 0; index < 512; index++)
+        g_string_append_unichar(max_title, 0x1f3e0);
+    gboolean max_title_valid = valid_title(max_title->str);
+    g_string_append_unichar(max_title, 0x1f3e0);
+    gboolean oversized_title_valid = valid_title(max_title->str);
     if (!valid_app_id("abcdefghijkl") || valid_app_id("../bad-value") ||
         !valid_token("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef") ||
         valid_token("../bad") || !valid_http_url("https://example.org/path") ||
         valid_http_url("file:///etc/passwd") || !valid_title("Example") ||
-        valid_title("Bad\nTitle") ||
+        valid_title("Bad\nTitle") || !max_title_valid || oversized_title_valid ||
         !valid_policy("{\"schema_version\":2}", &policy, &error)) {
         g_printerr("Chromium engine validation self-test failed\n");
         return 1;

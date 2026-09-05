@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-only
 
 use std::{
     collections::{BTreeSet, HashSet},
@@ -317,10 +317,10 @@ impl<L: LauncherBackend + Clone> BackupService<L> {
         let mut entries = Vec::new();
         for manifest_app in &manifest.apps {
             let archived = read_archived_app(extracted.path(), &manifest_app.id)?;
-            let pending_companion_deletion = self
+            let pending_chromium_deletion = self
                 .service
-                .has_pending_companion_deletion(&manifest_app.id)?;
-            let (target_id, disposition) = if pending_companion_deletion {
+                .has_pending_chromium_deletion(&manifest_app.id)?;
+            let (target_id, disposition) = if pending_chromium_deletion {
                 (
                     self.generate_restore_id(&reserved)?,
                     RestoreDisposition::RestoreWithNewId,
@@ -1083,7 +1083,7 @@ mod tests {
     }
 
     #[test]
-    fn pending_companion_deletion_reserves_the_restore_id() {
+    fn pending_chromium_deletion_reserves_the_restore_id() {
         let source = tempfile::tempdir().unwrap();
         let source_service = backup_service(source.path());
         let app = AppConfigV3::new("Source", "example.org", 0).unwrap();
@@ -1107,7 +1107,7 @@ mod tests {
         target_service
             .service
             .repository()
-            .enqueue_companion_deletion(
+            .enqueue_chromium_deletion(
                 &id_lock,
                 "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
             )
@@ -1129,7 +1129,7 @@ mod tests {
         assert!(target_service.service.contains(&restored_id));
         assert!(target_service
             .service
-            .has_pending_companion_deletion(&app.id)
+            .has_pending_chromium_deletion(&app.id)
             .unwrap());
     }
 
@@ -1160,7 +1160,7 @@ mod tests {
         target_service
             .service
             .repository()
-            .enqueue_companion_deletion(
+            .enqueue_chromium_deletion(
                 &id_lock,
                 "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
             )

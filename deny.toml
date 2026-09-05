@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-License-Identifier: GPL-3.0-only
 
 [advisories]
 ignore = [
@@ -14,7 +14,7 @@ allow = [
   "Apache-2.0 WITH LLVM-exception",
   "BSD-2-Clause",
   "BSD-3-Clause",
-  "GPL-3.0-or-later",
+  "GPL-3.0-only",
   "ISC",
   "LGPL-2.1-or-later",
   "MIT",

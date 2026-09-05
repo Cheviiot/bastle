@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-only
 
 use std::{fmt, str::FromStr};
 
@@ -10,6 +10,7 @@ use url::Url;
 
 pub const SCHEMA_VERSION: u32 = 3;
 pub const APP_ID_LENGTH: usize = 12;
+pub const MAX_TITLE_CHARS: usize = 512;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
 #[serde(transparent)]
@@ -157,6 +158,9 @@ impl AppConfigV3 {
         if self.title.is_empty() {
             bail!("application title cannot be empty");
         }
+        if self.title.chars().count() > MAX_TITLE_CHARS {
+            bail!("application title cannot exceed {MAX_TITLE_CHARS} characters");
+        }
 
         let url = parse_web_url(&self.start_url)?;
         self.start_url = url.to_string();
@@ -263,6 +267,12 @@ mod tests {
             sanitize_title("Example\nExec=malware\r\n"),
             "Example Exec=malware"
         );
+    }
+
+    #[test]
+    fn title_limit_counts_unicode_characters() {
+        assert!(AppConfigV3::new("🏠".repeat(MAX_TITLE_CHARS), "example.org", 0).is_ok());
+        assert!(AppConfigV3::new("🏠".repeat(MAX_TITLE_CHARS + 1), "example.org", 0).is_err());
     }
 
     #[test]

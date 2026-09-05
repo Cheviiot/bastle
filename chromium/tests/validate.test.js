@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-only
 'use strict';
 
 const assert = require('node:assert/strict');
@@ -32,6 +32,8 @@ assert.throws(() => webUrl('//example.org'));
 assert.throws(() => validateOrigin('https://example.org/path'));
 assert.throws(() => validateConfig({ ...config, id: '../bad-value' }));
 assert.throws(() => validateConfig({ ...config, title: 'Bad\nTitle' }));
+assert.equal(validateConfig({ ...config, title: '🏠'.repeat(512) }).title, '🏠'.repeat(512));
+assert.throws(() => validateConfig({ ...config, title: '🏠'.repeat(513) }));
 assert.throws(() => validatePolicy({ ...policy, schema_version: 99 }));
 assert.throws(() => validatePolicy({
   ...policy,

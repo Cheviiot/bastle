@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-only
 
 use std::{cell::RefCell, collections::HashMap, process::Command, str::FromStr};
 
@@ -411,12 +411,20 @@ impl BastleApplication {
             .application_icon(config::APP_ID)
             .developer_name("Cheviiot")
             .version(config::VERSION)
-            .developers(vec!["Cheviiot", "Zaedus (original Spider author)"])
+            .developers(vec!["Cheviiot"])
             .copyright("© 2024–2026 Zaedus and Bastle contributors")
-            .license_type(gtk::License::Gpl30)
+            .license_type(gtk::License::Custom)
+            .license("GNU General Public License version 3 only (GPL-3.0-only)")
             .website("https://github.com/Cheviiot/bastle")
             .issue_url("https://github.com/Cheviiot/bastle/issues")
             .build();
+        let original_project = gettext("Original Spider project");
+        let zaedus = gettext("Zaedus — original Spider author");
+        let cameron = gettext("Cameron Radmore — Spider contributor");
+        dialog.add_acknowledgement_section(
+            Some(&original_project),
+            &[zaedus.as_str(), cameron.as_str()],
+        );
         dialog.present(self.active_window().as_ref());
     }
 

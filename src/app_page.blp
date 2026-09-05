@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-only
 
 using Gtk 4.0;
 using Adw 1;
@@ -68,6 +68,7 @@ template $BastleAppPage: Adw.NavigationPage {
 
             Adw.EntryRow title_entry {
               title: _("Title");
+              max-length: 512;
               show-apply-button: true;
               apply => $update_unsaved_details_cb() swapped;
             }
@@ -102,7 +103,7 @@ template $BastleAppPage: Adw.NavigationPage {
 
             Adw.ComboRow engine_row {
               title: _("Browser Engine");
-              subtitle: _("Chromium is optional; profiles and cookies are never transferred between engines");
+              subtitle: _("Chromium is built into Bastle; profiles and cookies are never transferred between engines");
             }
 
             Adw.ActionRow recommendation_row {

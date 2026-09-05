@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
 
 # Bastle Chromium engine
 
@@ -21,6 +21,7 @@ Run the non-rendered engine tests inside `bastle-dev`:
 ```sh
 node chromium/tests/validate.test.js
 node chromium/tests/navigation-policy.test.js
+node chromium/tests/proxy.test.js
 ```
 
 Rendered checks must use Xvfb with the Wayland socket disabled.
