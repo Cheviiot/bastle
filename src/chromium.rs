@@ -42,7 +42,7 @@ impl ChromiumBackend for ChromiumClient {
         let response = self.call("GetCapabilities", None)?;
         let (protocol_version, features) = response
             .get::<(u32, Vec<String>)>()
-            .context("the built-in Chromium engine returned malformed capabilities")?;
+            .context("the Chromium add-on returned malformed capabilities")?;
         let capabilities = ChromiumCapabilities {
             protocol_version,
             features: features.into_iter().collect(),
@@ -89,7 +89,7 @@ impl ChromiumBackend for ChromiumClient {
 impl ChromiumCapabilities {
     pub fn require(&self, feature: &str) -> Result<()> {
         if !self.features.contains(feature) {
-            bail!("the built-in Chromium engine does not support required feature {feature}");
+            bail!("the Chromium add-on does not support required feature {feature}");
         }
         Ok(())
     }
@@ -106,7 +106,7 @@ impl ChromiumClient {
             INTERFACE_NAME,
             gio::Cancellable::NONE,
         )
-        .context("the bundled Chromium engine could not be activated")?;
+        .context("the Chromium add-on service could not be activated")?;
         proxy
             .call_sync(
                 method,
@@ -115,14 +115,14 @@ impl ChromiumClient {
                 CALL_TIMEOUT_MSEC,
                 gio::Cancellable::NONE,
             )
-            .with_context(|| format!("built-in Chromium engine {method} call failed"))
+            .with_context(|| format!("Chromium add-on {method} call failed"))
     }
 }
 
 fn validate_capabilities(capabilities: &ChromiumCapabilities) -> Result<()> {
     if capabilities.protocol_version != PROTOCOL_VERSION {
         bail!(
-            "incompatible built-in Chromium engine protocol {}; Bastle requires {}",
+            "incompatible Chromium add-on protocol {}; Bastle requires {}",
             capabilities.protocol_version,
             PROTOCOL_VERSION
         );

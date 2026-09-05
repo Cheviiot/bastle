@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<component type="addon">
+  <id>io.github.cheviiot.bastle.Chromium</id>
+  <extends>io.github.cheviiot.bastle</extends>
+  <name>Chromium Engine for Bastle</name>
+  <name xml:lang="ru">Движок Chromium для Bastle</name>
+  <summary>Optional Chromium compatibility engine</summary>
+  <summary xml:lang="ru">Дополнительный движок Chromium для совместимости</summary>
+  <metadata_license>FSFAP</metadata_license>
+  <project_license>GPL-3.0-only</project_license>
+  <description>
+    <p>
+      Adds the Chromium engine to Bastle for websites that do not work well
+      with the default WebKitGTK engine. Engine profiles remain isolated and
+      Bastle never switches engines without confirmation.
+    </p>
+    <p xml:lang="ru">
+      Добавляет в Bastle движок Chromium для сайтов, которые плохо работают с
+      WebKitGTK. Профили движков остаются изолированными, а переключение всегда
+      требует подтверждения пользователя.
+    </p>
+  </description>
+  <url type="homepage">https://github.com/Cheviiot/bastle</url>
+  <url type="bugtracker">https://github.com/Cheviiot/bastle/issues</url>
+  <releases>
+    <release version="0.5.2" date="2026-09-05" />
+  </releases>
+</component>

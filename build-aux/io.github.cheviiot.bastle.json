@@ -3,11 +3,18 @@
   "runtime": "org.gnome.Platform",
   "runtime-version": "50",
   "sdk": "org.gnome.Sdk",
-  "base": "org.electronjs.Electron2.BaseApp",
-  "base-version": "25.08",
   "sdk-extensions": ["org.freedesktop.Sdk.Extension.rust-stable"],
   "command": "bastle",
   "separate-locales": false,
+  "add-extensions": {
+    "io.github.cheviiot.bastle.Chromium": {
+      "version": "master",
+      "directory": "extensions/chromium",
+      "bundle": true,
+      "no-autodownload": false,
+      "autodelete": true
+    }
+  },
   "finish-args": [
     "--share=network",
     "--share=ipc",
@@ -40,16 +47,44 @@
       ]
     },
     {
-      "name": "bastle-chromium-engine",
+      "name": "bastle-chromium-broker",
       "buildsystem": "simple",
       "build-commands": [
         "cc -std=c17 -O2 -Wall -Wextra -Werror src/broker.c -o bastle-chromium-service $(pkg-config --cflags --libs gio-2.0 json-glib-1.0)",
         "./bastle-chromium-service --self-test",
         "install -Dm755 bastle-chromium-service /app/bin/bastle-chromium-service",
-        "install -d /app/lib/bastle-chromium /app/share/dbus-1/services",
-        "cp -a electron/. /app/lib/bastle-chromium/",
-        "install -Dm644 src/main.js src/validate.js src/navigation-policy.js src/permission-policy.js src/proxy.js src/user-agent.js src/window-state.js /app/lib/bastle-chromium/",
+        "install -d /app/extensions/chromium /app/share/dbus-1/services",
         "install -Dm644 data/io.github.cheviiot.bastle.Chromium.service /app/share/dbus-1/services/io.github.cheviiot.bastle.Chromium.service"
+      ],
+      "sources": [{ "type": "dir", "path": "../chromium" }]
+    },
+    {
+      "name": "zypak",
+      "buildsystem": "simple",
+      "build-commands": [
+        "./configure",
+        "make -j${FLATPAK_BUILDER_N_JOBS}",
+        "make FLATPAK_DEST=/app/extensions/chromium install"
+      ],
+      "sources": [
+        {
+          "type": "git",
+          "url": "https://github.com/refi64/zypak",
+          "tag": "v2025.09",
+          "commit": "693a71c5ffa80ec9c9ce2ae03b1ccc493c698e53"
+        }
+      ]
+    },
+    {
+      "name": "bastle-chromium-addon",
+      "buildsystem": "simple",
+      "build-commands": [
+        "cp -a electron/. /app/extensions/chromium/",
+        "install -Dm644 src/main.js src/validate.js src/navigation-policy.js src/permission-policy.js src/proxy.js src/user-agent.js src/window-state.js /app/extensions/chromium/",
+        "install -Dm644 data/io.github.cheviiot.bastle.Chromium.metainfo.xml -t /app/extensions/chromium/share/metainfo",
+        "install -d /app/extensions/chromium/share/licenses",
+        "mv /app/share/licenses/io.github.cheviiot.bastle/zypak /app/extensions/chromium/share/licenses/",
+        "rmdir --ignore-fail-on-non-empty /app/share/licenses/io.github.cheviiot.bastle /app/share/licenses"
       ],
       "sources": [
         { "type": "dir", "path": "../chromium" },
@@ -85,7 +120,7 @@
         {
           "type": "git",
           "url": "https://github.com/Cheviiot/bastle.git",
-          "commit": "v0.5.1"
+          "commit": "v0.5.2"
         },
         "generated-sources.json"
       ]

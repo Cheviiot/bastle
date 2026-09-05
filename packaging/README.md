@@ -15,6 +15,11 @@ only in the `BASTLE_FLATPAK_GPG_PRIVATE_KEY` GitHub Actions secret and the
 owner's protected local release-key directory. Never commit or print it.
 
 GitHub Pages receives an Actions deployment artifact, so publishing does not
-create a persistent deployment branch. GNOME Platform is intentionally not
-mirrored: the generated `.flatpakref` points Flatpak to the upstream runtime
-repository while Bastle itself comes only from the project-owned remote.
+create a persistent deployment branch. The repository contains the Bastle app
+and its `io.github.cheviiot.bastle.Chromium` add-on for both supported
+architectures. The add-on is mounted by Flatpak at
+`/app/extensions/chromium`; it is not a second application.
+
+GNOME Platform is intentionally not mirrored: `bastle.flatpakref` points
+Flatpak to the upstream runtime repository, while Bastle and its Chromium
+add-on come only from the project-owned remote.

@@ -22,6 +22,10 @@
 #define MAX_POLICY_SIZE (32U * 1024U * 1024U)
 #define MAX_USER_AGENT_BYTES 4096U
 #define BROKER_IDLE_SECONDS 30U
+#define CHROMIUM_ROOT "/app/extensions/chromium"
+#define CHROMIUM_BINARY CHROMIUM_ROOT "/electron"
+#define CHROMIUM_ENTRYPOINT CHROMIUM_ROOT "/main.js"
+#define ZYPAK_WRAPPER CHROMIUM_ROOT "/bin/zypak-wrapper"
 
 static const gchar introspection_xml[] =
     "<node>"
@@ -142,6 +146,19 @@ valid_user_agent(const gchar *value)
     return value != NULL && strlen(value) <= MAX_USER_AGENT_BYTES &&
            g_utf8_validate(value, -1, NULL) && strchr(value, '\n') == NULL &&
            strchr(value, '\r') == NULL;
+}
+
+static gboolean
+engine_available(GError **error)
+{
+    if (!g_file_test(CHROMIUM_BINARY, G_FILE_TEST_IS_EXECUTABLE) ||
+        !g_file_test(CHROMIUM_ENTRYPOINT, G_FILE_TEST_IS_REGULAR) ||
+        !g_file_test(ZYPAK_WRAPPER, G_FILE_TEST_IS_EXECUTABLE)) {
+        g_set_error_literal(error, G_IO_ERROR, G_IO_ERROR_NOT_FOUND,
+                            "the Bastle Chromium add-on is not installed");
+        return FALSE;
+    }
+    return TRUE;
 }
 
 static gboolean
@@ -544,6 +561,10 @@ handle_method_call(GDBusConnection *connection, const gchar *sender,
     schedule_idle_shutdown();
     g_autoptr(GError) error = NULL;
     if (g_str_equal(method_name, "GetCapabilities")) {
+        if (!engine_available(&error)) {
+            return_error(invocation, error);
+            return;
+        }
         const gchar *features[] = {
             "open-app", "policy-v2", "profile-delete", "permissions",
             "navigation-allowlist", "proxy", "background",
@@ -556,6 +577,10 @@ handle_method_call(GDBusConnection *connection, const gchar *sender,
         return;
     }
     if (g_str_equal(method_name, "OpenApp")) {
+        if (!engine_available(&error)) {
+            return_error(invocation, error);
+            return;
+        }
         const gchar *id, *url, *title, *user_agent, *token, *policy_json;
         gint width, height;
         gboolean maximized, start_in_background;
@@ -655,6 +680,11 @@ on_name_lost(GDBusConnection *connection, const gchar *name, gpointer user_data)
 static int
 run_runtime(const gchar *id, const gchar *config_path)
 {
+    g_autoptr(GError) engine_error = NULL;
+    if (!engine_available(&engine_error)) {
+        g_printerr("%s\n", engine_error->message);
+        return 1;
+    }
     if (!valid_app_id(id)) {
         g_printerr("Invalid Bastle app ID\n");
         return 2;
@@ -688,9 +718,8 @@ run_runtime(const gchar *id, const gchar *config_path)
         wayland_display != NULL && *wayland_display != '\0'
             ? "--ozone-platform=wayland"
             : "--ozone-platform=x11";
-    execlp("zypak-wrapper", "zypak-wrapper",
-           "/app/lib/bastle-chromium/electron",
-           ozone_platform, "/app/lib/bastle-chromium/main.js", argument, NULL);
+    execl(ZYPAK_WRAPPER, ZYPAK_WRAPPER, CHROMIUM_BINARY,
+          ozone_platform, CHROMIUM_ENTRYPOINT, argument, NULL);
     g_printerr("Cannot start Electron: %s\n", g_strerror(errno));
     close(lock_fd);
     return 1;
