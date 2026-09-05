@@ -5,6 +5,8 @@ Changelog and versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-05
+
 ### Added
 
 - `AppConfigV3` with an explicit `WebKit` or `Chromium` engine and an atomic
@@ -15,6 +17,15 @@ Changelog and versions follow Semantic Versioning.
   `bastle-chromium` companion, including delayed profile-deletion cleanup.
 - Explicit Chromium recommendations during creation, editing, and recognized
   WebKitGTK load failures; the engine changes only after user confirmation.
+- Live Dynamic Launcher, File Chooser, and Documents capability diagnostics,
+  including interface versions and supported launcher types.
+
+### Fixed
+
+- Distinguish unavailable, unsupported, cancelled, denied, and failed portal
+  outcomes without weakening create, repair, delete, or restore transactions.
+- Cancel the underlying WebKit download when destination selection fails so a
+  retry cannot retain an abandoned transfer.
 
 ### Security
 
@@ -145,7 +156,8 @@ Changelog and versions follow Semantic Versioning.
   sanitization, validated theme colors, sandboxed glycin decoding, and safe file
   URI downloads.
 
-[Unreleased]: https://github.com/Cheviiot/bastle/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/Cheviiot/bastle/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/Cheviiot/bastle/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/Cheviiot/bastle/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Cheviiot/bastle/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Cheviiot/bastle/compare/v0.1.1...v0.2.0
