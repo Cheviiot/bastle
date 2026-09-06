@@ -7,9 +7,12 @@ template $BastleAppWindow : Adw.ApplicationWindow {
   default-width: 500;
   default-height: 500;
   Adw.ToastOverlay toast_overlay {
-    Adw.ToolbarView {
+    Adw.ToolbarView toolbar_view {
+      extend-content-to-top-edge: true;
+      reveal-top-bars: true;
+
       [top]
-      Adw.HeaderBar {
+      Adw.HeaderBar header_bar {
         [start]
         Box {
           orientation: horizontal;
@@ -23,8 +26,17 @@ template $BastleAppWindow : Adw.ApplicationWindow {
             clicked => $on_forward_clicked() swapped;
           }
         }
+
+        [title]
+        Label runtime_title {
+          ellipsize: end;
+          max-width-chars: 32;
+
+          styles ["heading"]
+        }
+
         [end]
-        MenuButton {
+        MenuButton runtime_menu_button {
           primary: true;
           icon-name: "open-menu-symbolic";
           tooltip-text: _("Menu");
@@ -37,8 +49,18 @@ template $BastleAppWindow : Adw.ApplicationWindow {
         [overlay]
         ProgressBar progress_bar {
           fraction: 0;
+          valign: start;
+          height-request: 2;
           styles ["osd"]
           can-target: false;
+        }
+
+        [overlay]
+        Box hot_zone {
+          valign: start;
+          height-request: 6;
+          hexpand: true;
+          can-target: true;
         }
 
         Adw.Bin webview_container {

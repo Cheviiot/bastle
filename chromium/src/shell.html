@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+    <title>Bastle</title>
+    <link rel="stylesheet" href="/shell.css">
+  </head>
+  <body>
+    <div id="hot-zone" aria-hidden="true"></div>
+    <header id="toolbar" aria-label="Bastle navigation">
+      <div class="navigation">
+        <button data-command="back" id="back" aria-label="Back">‹</button>
+        <button data-command="forward" id="forward" aria-label="Forward">›</button>
+      </div>
+      <div id="title" role="status">Bastle</div>
+      <button id="menu-button" aria-label="Menu" aria-expanded="false">⋮</button>
+      <div id="menu" role="menu" hidden>
+        <button role="menuitem" data-command="reload" id="menu-reload">Reload</button>
+        <button role="menuitem" data-command="reload-bypass-cache" id="menu-reload-bypass-cache">Reload without cache</button>
+        <button role="menuitem" data-command="stop" id="menu-stop">Stop loading</button>
+        <button role="menuitem" data-command="home" id="menu-home">Home</button>
+        <button role="menuitem" data-command="zoom-in" id="menu-zoom-in">Zoom in</button>
+        <button role="menuitem" data-command="zoom-out" id="menu-zoom-out">Zoom out</button>
+        <button role="menuitem" data-command="zoom-reset" id="menu-zoom-reset">Reset zoom</button>
+        <button role="menuitem" data-command="toggle-fullscreen" id="menu-fullscreen">Fullscreen</button>
+        <button role="menuitem" data-command="quit" id="menu-quit">Stop application</button>
+      </div>
+      <div id="progress" aria-hidden="true"></div>
+    </header>
+    <script src="/shell.js"></script>
+  </body>
+</html>

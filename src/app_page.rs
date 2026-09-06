@@ -5,20 +5,15 @@ use std::cell::{Cell, RefCell};
 use adw::{prelude::*, subclass::prelude::*};
 use ashpd::WindowIdentifier;
 use gettextrs::gettext;
-use gtk::{gio, glib};
+use gtk::glib;
 
 use crate::{
+    chromium::EngineAvailability,
     compatibility::{reason_description, CompatibilityCatalogV1},
     model::{AppConfigV3, Engine},
     service::AppService,
     util,
 };
-
-fn menu_item(label: &str, action: &str, target: &str) -> gio::MenuItem {
-    let item = gio::MenuItem::new(Some(label), None);
-    item.set_action_and_target_value(Some(action), Some(&target.to_variant()));
-    item
-}
 
 mod imp {
     use super::*;
@@ -27,8 +22,32 @@ mod imp {
     #[template(resource = "/io/github/cheviiot/bastle/app_page.ui")]
     pub struct AppPage {
         pub config: RefCell<Option<AppConfigV3>>,
+        pub availability: RefCell<Option<EngineAvailability>>,
         pub pending_icon: RefCell<Option<Vec<u8>>>,
         pub populating: Cell<bool>,
+        pub dirty: Cell<bool>,
+        #[template_child]
+        pub details_icon: TemplateChild<gtk::Image>,
+        #[template_child]
+        pub details_title: TemplateChild<gtk::Label>,
+        #[template_child]
+        pub details_domain: TemplateChild<gtk::Label>,
+        #[template_child]
+        pub engine_status: TemplateChild<gtk::Label>,
+        #[template_child]
+        pub engine_banner: TemplateChild<adw::Banner>,
+        #[template_child]
+        pub launch_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub permissions_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub privacy_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub repair_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub delete_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub content_stack: TemplateChild<adw::ViewStack>,
         #[template_child]
         pub icon_image: TemplateChild<gtk::Image>,
         #[template_child]
@@ -42,7 +61,11 @@ mod imp {
         #[template_child]
         pub edit_headerbar: TemplateChild<adw::HeaderBar>,
         #[template_child]
+        pub save_button: TemplateChild<gtk::Button>,
+        #[template_child]
         pub titlebar_color: TemplateChild<adw::SwitchRow>,
+        #[template_child]
+        pub engine_group: TemplateChild<adw::PreferencesGroup>,
         #[template_child]
         pub engine_row: TemplateChild<adw::ComboRow>,
         #[template_child]
@@ -51,8 +74,6 @@ mod imp {
         pub user_agent_expander: TemplateChild<adw::ExpanderRow>,
         #[template_child]
         pub user_agent_entry: TemplateChild<adw::EntryRow>,
-        #[template_child]
-        pub page_menu: TemplateChild<gio::Menu>,
     }
 
     #[glib::object_subclass]
@@ -101,6 +122,16 @@ mod imp {
     #[gtk::template_callbacks]
     impl AppPage {
         #[template_callback]
+        fn on_edit_clicked(&self, _button: gtk::Button) {
+            self.obj().begin_edit();
+        }
+
+        #[template_callback]
+        fn on_addons_clicked(&self, _banner: adw::Banner) {
+            let _ = self.obj().activate_action("win.addons", None);
+        }
+
+        #[template_callback]
         fn on_cancel_clicked(&self, _button: gtk::Button) {
             self.obj().cancel_changes();
         }
@@ -139,10 +170,10 @@ mod imp {
                 .await
             {
                 Ok(saved) => {
-                    self.config.replace(Some(saved));
+                    self.config.replace(Some(saved.clone()));
                     self.pending_icon.replace(None);
-                    self.headerbar_stack
-                        .set_visible_child(&self.normal_headerbar.get());
+                    self.obj().show_config(&saved);
+                    self.obj().finish_edit();
                     let _ = self.obj().activate_action("win.refresh", None);
                 }
                 Err(error) => self.obj().notify_error(&error.to_string()),
@@ -164,6 +195,7 @@ mod imp {
                 Ok((icon, texture)) => {
                     self.pending_icon.replace(Some(icon));
                     self.icon_image.set_paintable(Some(&texture));
+                    self.details_icon.set_paintable(Some(&texture));
                     self.obj().mark_dirty();
                 }
                 Err(error) => self.obj().notify_error(&error.to_string()),
@@ -190,9 +222,10 @@ glib::wrapper! {
 }
 
 impl AppPage {
-    pub fn new(config: AppConfigV3) -> Self {
+    pub fn new(config: AppConfigV3, availability: EngineAvailability) -> Self {
         let page: Self = glib::Object::builder().build();
         page.imp().populating.set(true);
+        page.imp().availability.replace(Some(availability));
         let chromium_label = gettext("Chromium (add-on)");
         page.imp()
             .engine_row
@@ -201,29 +234,10 @@ impl AppPage {
                 chromium_label.as_str(),
             ])));
         page.show_config(&config);
-        let id = config.id.clone();
-        page.imp().page_menu.append_item(&menu_item(
-            &gettext("Permissions"),
-            "win.permissions",
-            id.as_str(),
-        ));
-        page.imp().page_menu.append_item(&menu_item(
-            &gettext("Privacy & Power"),
-            "win.privacy",
-            id.as_str(),
-        ));
-        page.imp().page_menu.append_item(&menu_item(
-            &gettext("Repair Launcher"),
-            "win.repair",
-            id.as_str(),
-        ));
-        page.imp().page_menu.append_item(&menu_item(
-            &gettext("Delete Application"),
-            "win.delete",
-            id.as_str(),
-        ));
-        page.imp().config.replace(Some(config));
+        page.set_action_targets(&config);
+        page.imp().config.replace(Some(config.clone()));
 
+        let id = config.id;
         glib::spawn_future_local(glib::clone!(
             #[weak]
             page,
@@ -231,6 +245,7 @@ impl AppPage {
                 if let Ok(bytes) = AppService::portal().read_icon(&id) {
                     if let Ok(texture) = util::load_texture(bytes).await {
                         page.imp().icon_image.set_paintable(Some(&texture));
+                        page.imp().details_icon.set_paintable(Some(&texture));
                     }
                 }
             }
@@ -238,10 +253,48 @@ impl AppPage {
         page
     }
 
+    fn set_action_targets(&self, config: &AppConfigV3) {
+        let target = config.id.as_str().to_variant();
+        for (button, action) in [
+            (
+                self.imp().launch_button.get().upcast::<gtk::Actionable>(),
+                "app.open-app",
+            ),
+            (
+                self.imp()
+                    .permissions_button
+                    .get()
+                    .upcast::<gtk::Actionable>(),
+                "win.permissions",
+            ),
+            (
+                self.imp().privacy_button.get().upcast::<gtk::Actionable>(),
+                "win.privacy",
+            ),
+            (
+                self.imp().repair_button.get().upcast::<gtk::Actionable>(),
+                "win.repair",
+            ),
+            (
+                self.imp().delete_button.get().upcast::<gtk::Actionable>(),
+                "win.delete",
+            ),
+        ] {
+            button.set_action_name(Some(action));
+            button.set_action_target_value(Some(&target));
+        }
+    }
+
     fn show_config(&self, config: &AppConfigV3) {
         let imp = self.imp();
         imp.populating.set(true);
         self.set_title(&config.title);
+        imp.details_title.set_label(&config.title);
+        let domain = url::Url::parse(&config.start_url)
+            .ok()
+            .and_then(|url| url.host_str().map(ToOwned::to_owned))
+            .unwrap_or_else(|| config.start_url.clone());
+        imp.details_domain.set_label(&domain);
         imp.url_entry.set_text(&config.start_url);
         imp.title_entry.set_text(&config.title);
         imp.titlebar_color.set_active(config.use_theme_color);
@@ -249,12 +302,30 @@ impl AppPage {
             Engine::WebKit => 0,
             Engine::Chromium => 1,
         });
+        let availability = imp
+            .availability
+            .borrow()
+            .clone()
+            .unwrap_or(EngineAvailability::Missing);
+        let show_engine = availability.is_available() || config.engine == Engine::Chromium;
+        imp.engine_group.set_visible(show_engine);
+        imp.engine_status.set_visible(show_engine);
+        let engine_available = config.engine == Engine::WebKit || availability.is_available();
+        let engine_status = match config.engine {
+            Engine::WebKit => "WebKitGTK".to_owned(),
+            Engine::Chromium if engine_available => gettext("Chromium · Ready"),
+            Engine::Chromium => gettext("Chromium · Add-on Required"),
+        };
+        imp.engine_status.set_label(&engine_status);
+        imp.engine_banner
+            .set_revealed(config.engine == Engine::Chromium && !engine_available);
         imp.user_agent_expander
             .set_enable_expansion(config.user_agent.is_some());
         imp.user_agent_entry
             .set_text(config.user_agent.as_deref().unwrap_or_default());
         self.refresh_recommendation();
         imp.populating.set(false);
+        self.set_dirty(false);
     }
 
     fn refresh_recommendation(&self) {
@@ -280,20 +351,37 @@ impl AppPage {
         }
     }
 
+    fn begin_edit(&self) {
+        self.imp().headerbar_stack.set_visible_child_name("edit");
+        self.imp().content_stack.set_visible_child_name("edit");
+        self.set_dirty(false);
+        self.imp().title_entry.grab_focus();
+    }
+
+    fn finish_edit(&self) {
+        self.imp().headerbar_stack.set_visible_child_name("details");
+        self.imp().content_stack.set_visible_child_name("details");
+        self.set_dirty(false);
+    }
+
     fn cancel_changes(&self) {
-        let imp = self.imp();
-        if let Some(config) = imp.config.borrow().as_ref() {
+        let config = self.imp().config.borrow().clone();
+        if let Some(config) = config.as_ref() {
             self.show_config(config);
         }
-        imp.pending_icon.replace(None);
-        imp.headerbar_stack
-            .set_visible_child(&imp.normal_headerbar.get());
+        self.imp().pending_icon.replace(None);
+        self.finish_edit();
     }
 
     fn mark_dirty(&self) {
-        self.imp()
-            .headerbar_stack
-            .set_visible_child(&self.imp().edit_headerbar.get());
+        if !self.imp().populating.get() {
+            self.set_dirty(true);
+        }
+    }
+
+    fn set_dirty(&self, dirty: bool) {
+        self.imp().dirty.set(dirty);
+        self.imp().save_button.set_sensitive(dirty);
     }
 
     fn notify_error(&self, message: &str) {
@@ -302,21 +390,31 @@ impl AppPage {
 
     #[cfg(feature = "ui-tests")]
     fn is_dirty(&self) -> bool {
-        self.imp().headerbar_stack.visible_child().as_ref()
-            == Some(self.imp().edit_headerbar.get().upcast_ref())
+        self.imp().dirty.get()
     }
 }
 
 #[cfg(feature = "ui-tests")]
 pub(crate) fn run_ui_smoke_test() -> anyhow::Result<()> {
+    use std::collections::BTreeSet;
+
     use anyhow::ensure;
 
+    let availability = EngineAvailability::Available(crate::chromium::ChromiumCapabilities {
+        protocol_version: crate::chromium::PROTOCOL_VERSION,
+        features: BTreeSet::from([crate::chromium::RUNTIME_SHELL_FEATURE.to_owned()]),
+    });
     for user_agent in [None, Some("Bastle UI smoke test".to_owned())] {
         let mut config = AppConfigV3::new("UI smoke test", "https://example.org", 0)?;
         config.user_agent = user_agent;
-        let page = AppPage::new(config);
-        ensure!(!page.is_dirty(), "opening the editor marked it as dirty");
+        let page = AppPage::new(config, availability.clone());
+        ensure!(
+            !page.is_dirty(),
+            "opening the details page marked it as dirty"
+        );
 
+        page.begin_edit();
+        ensure!(!page.is_dirty(), "opening the editor marked it as dirty");
         let enabled = page.imp().user_agent_expander.enables_expansion();
         page.imp()
             .user_agent_expander
@@ -328,7 +426,7 @@ pub(crate) fn run_ui_smoke_test() -> anyhow::Result<()> {
 
         page.cancel_changes();
         ensure!(!page.is_dirty(), "cancelling the edit stayed dirty");
-
+        page.begin_edit();
         page.imp().engine_row.set_selected(1);
         ensure!(page.is_dirty(), "changing the browser engine stayed clean");
         page.cancel_changes();

@@ -2,45 +2,80 @@
 
 using Gtk 4.0;
 
-template $BastleAppRow: ListBoxRow {
-  activatable: true;
-  focusable: false;
-  halign: fill;
-  hexpand: true;
-  margin-top: 1;
+template $BastleAppRow: Box {
+  name: "app-tile";
+  orientation: vertical;
+  spacing: 9;
+  margin-top: 6;
+  margin-bottom: 6;
+  margin-start: 6;
+  margin-end: 6;
 
-  Box {
-    orientation: horizontal;
-    spacing: 10;
-    halign: start;
-    hexpand: true;
+  Overlay {
+    Button details_button {
+      width-request: 156;
+      height-request: 156;
+      overflow: hidden;
+      tooltip-text: _("View Application");
 
-    Image icon {
-      halign: start;
-      hexpand: false;
-      pixel-size: 32;
+      styles ["card"]
+
+      Image icon {
+        icon-name: "io.github.cheviiot.bastle";
+        pixel-size: 96;
+        margin-top: 24;
+        margin-bottom: 24;
+        margin-start: 24;
+        margin-end: 24;
+      }
     }
-    Box {
-      orientation: vertical;
+
+    [overlay]
+    Revealer actions_revealer {
+      transition-type: crossfade;
+      reveal-child: false;
       halign: fill;
-      valign: center;
-      vexpand: true;
-      spacing: 2;
-      margin-top: 6;
-      margin-bottom: 6;
+      valign: fill;
 
-      Label title {
-        halign: start;
-        valign: start;
-        ellipsize: end;
-        styles ["title"]
-      }
-      Label subtitle {
-        halign: start;
-        valign: end;
-        ellipsize: end;
-        styles ["subtitle"]
+      Overlay {
+        [overlay]
+        MenuButton menu_button {
+          icon-name: "view-more-symbolic";
+          tooltip-text: _("Application Menu");
+          halign: end;
+          valign: start;
+          margin-top: 8;
+          margin-end: 8;
+
+          styles ["circular", "osd"]
+        }
+
+        [overlay]
+        Button launch_button {
+          label: _("Launch");
+          halign: center;
+          valign: end;
+          margin-bottom: 10;
+
+          styles ["pill", "osd"]
+        }
       }
     }
+  }
+
+  Label title {
+    halign: center;
+    max-width-chars: 20;
+    ellipsize: end;
+
+    styles ["heading"]
+  }
+
+  Label subtitle {
+    halign: center;
+    max-width-chars: 22;
+    ellipsize: middle;
+
+    styles ["dim-label", "caption"]
   }
 }

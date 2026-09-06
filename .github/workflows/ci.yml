@@ -34,6 +34,7 @@ jobs:
           node chromium/tests/proxy.test.js
           node chromium/tests/user-agent.test.js
           node chromium/tests/window-state.test.js
+          node chromium/tests/shell-security.test.js
 
   metadata:
     name: Metadata

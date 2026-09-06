@@ -11,7 +11,7 @@
       "version": "master",
       "directory": "extensions/chromium",
       "bundle": true,
-      "no-autodownload": false,
+      "no-autodownload": true,
       "autodelete": true
     }
   },
@@ -80,7 +80,7 @@
       "buildsystem": "simple",
       "build-commands": [
         "cp -a electron/. /app/extensions/chromium/",
-        "install -Dm644 src/main.js src/validate.js src/navigation-policy.js src/permission-policy.js src/proxy.js src/user-agent.js src/window-state.js /app/extensions/chromium/",
+        "install -Dm644 src/main.js src/validate.js src/navigation-policy.js src/permission-policy.js src/proxy.js src/user-agent.js src/window-state.js src/shell-security.js src/shell-preload.js src/shell.html src/shell.css src/shell.js /app/extensions/chromium/",
         "install -Dm644 data/io.github.cheviiot.bastle.Chromium.metainfo.xml -t /app/extensions/chromium/share/metainfo",
         "install -d /app/extensions/chromium/share/licenses",
         "mv /app/share/licenses/io.github.cheviiot.bastle/zypak /app/extensions/chromium/share/licenses/",

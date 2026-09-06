@@ -24,6 +24,7 @@
   <url type="homepage">https://github.com/Cheviiot/bastle</url>
   <url type="bugtracker">https://github.com/Cheviiot/bastle/issues</url>
   <releases>
+    <release version="0.6.0" date="2026-09-06" />
     <release version="0.5.2" date="2026-09-05" />
   </releases>
 </component>

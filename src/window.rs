@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-use std::str::FromStr;
+use std::{
+    cell::{Cell, RefCell},
+    cmp::Ordering,
+    str::FromStr,
+};
 
 use adw::{prelude::*, subclass::prelude::*};
 use ashpd::WindowIdentifier;
@@ -8,18 +12,64 @@ use gettextrs::gettext;
 use gtk::{gio, glib};
 
 use crate::{
+    addons_dialog,
     app_page::AppPage,
     app_row::AppRow,
     application::settings,
     background, backup_dialog,
+    chromium::EngineAvailability,
     create_app_dialog::CreateAppDialog,
-    home_page::HomePage,
-    model::AppId,
+    model::{AppConfigV3, AppId},
     permissions_dialog,
     portal::{self, PortalFeature},
     privacy_dialog,
+    repository::RepositoryWarning,
     service::AppService,
 };
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+enum LibrarySort {
+    #[default]
+    TitleAscending,
+    TitleDescending,
+    Newest,
+    Oldest,
+}
+
+impl LibrarySort {
+    fn from_key(value: &str) -> Self {
+        match value {
+            "title-desc" => Self::TitleDescending,
+            "newest" => Self::Newest,
+            "oldest" => Self::Oldest,
+            _ => Self::TitleAscending,
+        }
+    }
+
+    fn key(self) -> &'static str {
+        match self {
+            Self::TitleAscending => "title-asc",
+            Self::TitleDescending => "title-desc",
+            Self::Newest => "newest",
+            Self::Oldest => "oldest",
+        }
+    }
+
+    fn compare(self, left: &AppConfigV3, right: &AppConfigV3) -> Ordering {
+        let title = || {
+            left.title
+                .to_lowercase()
+                .cmp(&right.title.to_lowercase())
+                .then_with(|| left.id.as_str().cmp(right.id.as_str()))
+        };
+        match self {
+            Self::TitleAscending => title(),
+            Self::TitleDescending => title().reverse(),
+            Self::Newest => right.sort_order.cmp(&left.sort_order).then_with(title),
+            Self::Oldest => left.sort_order.cmp(&right.sort_order).then_with(title),
+        }
+    }
+}
 
 mod imp {
     use super::*;
@@ -27,10 +77,27 @@ mod imp {
     #[derive(Debug, Default, gtk::CompositeTemplate)]
     #[template(resource = "/io/github/cheviiot/bastle/window.ui")]
     pub struct BastleWindow {
+        pub apps: RefCell<Vec<AppConfigV3>>,
+        pub warnings: RefCell<Vec<RepositoryWarning>>,
+        pub store: RefCell<Option<gio::ListStore>>,
+        pub engine_availability: RefCell<Option<EngineAvailability>>,
+        pub search_text: RefCell<String>,
+        pub(super) sort_mode: Cell<LibrarySort>,
+        pub syncing_search: Cell<bool>,
         #[template_child]
-        pub split_view: TemplateChild<adw::NavigationSplitView>,
+        pub navigation_view: TemplateChild<adw::NavigationView>,
         #[template_child]
-        pub apps_listbox: TemplateChild<gtk::ListBox>,
+        pub apps_grid: TemplateChild<gtk::GridView>,
+        #[template_child]
+        pub view_stack: TemplateChild<adw::ViewStack>,
+        #[template_child]
+        pub search_entry: TemplateChild<gtk::SearchEntry>,
+        #[template_child]
+        pub compact_search_entry: TemplateChild<gtk::SearchEntry>,
+        #[template_child]
+        pub compact_search_bar: TemplateChild<gtk::SearchBar>,
+        #[template_child]
+        pub diagnostics_banner: TemplateChild<adw::Banner>,
         #[template_child]
         pub toast_overlay: TemplateChild<adw::ToastOverlay>,
     }
@@ -55,8 +122,11 @@ mod imp {
         fn constructed(&self) {
             self.parent_constructed();
             let window = self.obj();
+            window.setup_grid();
+            window.setup_search();
             window.setup_gactions();
             window.load_window_size();
+            window.refresh_engine_availability();
             window.refresh();
         }
     }
@@ -80,16 +150,8 @@ mod imp {
     #[gtk::template_callbacks]
     impl BastleWindow {
         #[template_callback]
-        fn on_add_clicked(&self, _button: gtk::Button) {
-            CreateAppDialog::new().present(Some(&*self.obj()));
-        }
-
-        #[template_callback]
-        fn on_app_selected(&self, row: Option<AppRow>) {
-            if let Some(config) = row.and_then(|row| row.config()) {
-                self.split_view.set_content(Some(&AppPage::new(config)));
-                self.split_view.set_show_content(true);
-            }
+        fn on_diagnostics_clicked(&self, _banner: adw::Banner) {
+            self.obj().show_repository_warnings();
         }
     }
 }
@@ -103,16 +165,69 @@ glib::wrapper! {
 
 impl BastleWindow {
     pub fn new<P: IsA<gtk::Application>>(application: &P) -> Self {
-        // The window template constructs this custom widget by its GType name,
-        // so register it before GTK parses the template.
-        let _ = HomePage::static_type();
         glib::Object::builder()
             .property("application", application)
             .build()
     }
 
+    fn setup_grid(&self) {
+        let store = gio::ListStore::new::<glib::BoxedAnyObject>();
+        let selection = gtk::NoSelection::new(Some(store.clone()));
+        self.imp().apps_grid.set_model(Some(&selection));
+        let factory = gtk::SignalListItemFactory::new();
+        factory.connect_setup(|_, object| {
+            if let Some(item) = object.downcast_ref::<gtk::ListItem>() {
+                item.set_child(Some(&AppRow::new()));
+            }
+        });
+        factory.connect_bind(|_, object| {
+            let Some(item) = object.downcast_ref::<gtk::ListItem>() else {
+                return;
+            };
+            let Some(row) = item.child().and_downcast::<AppRow>() else {
+                return;
+            };
+            let Some(value) = item.item().and_downcast::<glib::BoxedAnyObject>() else {
+                return;
+            };
+            row.set_config(value.borrow::<AppConfigV3>().clone());
+        });
+        self.imp().apps_grid.set_factory(Some(&factory));
+        self.imp().store.replace(Some(store));
+    }
+
+    fn setup_search(&self) {
+        self.imp().search_entry.connect_search_changed(glib::clone!(
+            #[weak(rename_to = window)]
+            self,
+            move |entry| window.set_search_text(entry.text().as_str(), false)
+        ));
+        self.imp()
+            .compact_search_entry
+            .connect_search_changed(glib::clone!(
+                #[weak(rename_to = window)]
+                self,
+                move |entry| window.set_search_text(entry.text().as_str(), true)
+            ));
+    }
+
     fn setup_gactions(&self) {
+        let saved_sort = LibrarySort::from_key(&settings().string("library-sort-mode"));
+        self.imp().sort_mode.set(saved_sort);
         self.add_action_entries([
+            gio::ActionEntry::builder("add")
+                .activate(|window: &Self, _, _| {
+                    CreateAppDialog::new(window.engine_availability()).present(Some(window));
+                })
+                .build(),
+            gio::ActionEntry::builder("show-details")
+                .parameter_type(Some(&String::static_variant_type()))
+                .activate(|window: &Self, _, parameter| {
+                    if let Some(id) = parse_action_id(parameter) {
+                        window.show_details(&id);
+                    }
+                })
+                .build(),
             gio::ActionEntry::builder("refresh")
                 .activate(|window: &Self, _, _| window.refresh())
                 .build(),
@@ -122,6 +237,20 @@ impl BastleWindow {
                     if let Some(message) = parameter.and_then(|value| value.get::<String>()) {
                         window.toast(&message);
                     }
+                })
+                .build(),
+            gio::ActionEntry::builder("sort")
+                .parameter_type(Some(&String::static_variant_type()))
+                .state(saved_sort.key().to_variant())
+                .change_state(|window: &Self, action, value| {
+                    let Some(value) = value.and_then(|value| value.get::<String>()) else {
+                        return;
+                    };
+                    let mode = LibrarySort::from_key(&value);
+                    action.set_state(&mode.key().to_variant());
+                    window.imp().sort_mode.set(mode);
+                    let _ = settings().set_string("library-sort-mode", mode.key());
+                    window.rebuild_grid();
                 })
                 .build(),
             gio::ActionEntry::builder("delete")
@@ -156,6 +285,11 @@ impl BastleWindow {
                     }
                 })
                 .build(),
+            gio::ActionEntry::builder("addons")
+                .activate(|window: &Self, _, _| {
+                    addons_dialog::present(window.upcast_ref(), &window.engine_availability());
+                })
+                .build(),
             gio::ActionEntry::builder("backup")
                 .activate(|window: &Self, _, _| backup_dialog::start_backup(window))
                 .build(),
@@ -166,6 +300,89 @@ impl BastleWindow {
                 .activate(|window: &Self, _, _| window.show_capabilities())
                 .build(),
         ]);
+    }
+
+    fn set_search_text(&self, value: &str, from_compact: bool) {
+        if self.imp().syncing_search.replace(true) {
+            return;
+        }
+        let value = value.to_owned();
+        self.imp().search_text.replace(value.clone());
+        if from_compact {
+            self.imp().search_entry.set_text(&value);
+        } else {
+            self.imp().compact_search_entry.set_text(&value);
+        }
+        self.imp().syncing_search.set(false);
+        self.rebuild_grid();
+    }
+
+    fn rebuild_grid(&self) {
+        let Some(store) = self.imp().store.borrow().clone() else {
+            return;
+        };
+        store.remove_all();
+        let query = self.imp().search_text.borrow().trim().to_lowercase();
+        let mut visible = self
+            .imp()
+            .apps
+            .borrow()
+            .iter()
+            .filter(|app| matches_search(app, &query))
+            .cloned()
+            .collect::<Vec<_>>();
+        let mode = self.imp().sort_mode.get();
+        visible.sort_by(|left, right| mode.compare(left, right));
+        for app in visible {
+            store.append(&glib::BoxedAnyObject::new(app));
+        }
+        let page = if self.imp().apps.borrow().is_empty() {
+            "empty"
+        } else if store.n_items() == 0 {
+            "no-results"
+        } else {
+            "grid"
+        };
+        self.imp().view_stack.set_visible_child_name(page);
+    }
+
+    fn refresh_engine_availability(&self) {
+        self.imp()
+            .engine_availability
+            .replace(Some(AppService::portal().chromium_availability()));
+    }
+
+    pub(crate) fn engine_availability(&self) -> EngineAvailability {
+        self.imp()
+            .engine_availability
+            .borrow()
+            .clone()
+            .unwrap_or(EngineAvailability::Missing)
+    }
+
+    fn show_details(&self, id: &AppId) {
+        match AppService::portal().load(id) {
+            Ok(config) => self
+                .imp()
+                .navigation_view
+                .push(&AppPage::new(config, self.engine_availability())),
+            Err(error) => self.toast(&error.to_string()),
+        }
+    }
+
+    fn show_repository_warnings(&self) {
+        let body = self
+            .imp()
+            .warnings
+            .borrow()
+            .iter()
+            .map(|warning| format!("{}\n{}", warning.path.display(), warning.message))
+            .collect::<Vec<_>>()
+            .join("\n\n");
+        let dialog =
+            adw::AlertDialog::new(Some(&gettext("Application Data Diagnostics")), Some(&body));
+        dialog.add_response("close", &gettext("Close"));
+        dialog.present(Some(self));
     }
 
     fn show_capabilities(&self) {
@@ -223,9 +440,18 @@ impl BastleWindow {
             dialog.set_default_response(Some("cancel"));
             dialog.set_close_response("cancel");
             if dialog.choose_future(Some(&window)).await == "delete" {
-                let result = AppService::portal().delete(&id).await;
-                match result {
+                match AppService::portal().delete(&id).await {
                     Ok(_) => {
+                        if window
+                            .imp()
+                            .navigation_view
+                            .visible_page()
+                            .and_then(|page| page.tag())
+                            .as_deref()
+                            != Some("library")
+                        {
+                            window.imp().navigation_view.pop();
+                        }
                         window.refresh();
                         window.toast(&gettext("Application deleted"));
                     }
@@ -247,28 +473,16 @@ impl BastleWindow {
     }
 
     pub(crate) fn refresh(&self) {
-        let list = &self.imp().apps_listbox;
-        list.remove_all();
         match AppService::portal().list() {
             Ok(report) => {
-                for app in report.apps {
-                    list.append(&AppRow::new(app));
-                }
-                if let Some(warning) = report.warnings.first() {
-                    self.toast(&format!(
-                        "{}: {}",
-                        gettext("Some application data could not be loaded"),
-                        warning.path.display()
-                    ));
-                }
+                self.imp().apps.replace(report.apps);
+                self.imp().warnings.replace(report.warnings);
+                self.imp()
+                    .diagnostics_banner
+                    .set_revealed(!self.imp().warnings.borrow().is_empty());
+                self.rebuild_grid();
             }
             Err(error) => self.toast(&error.to_string()),
-        }
-        if list.row_at_index(0).is_none() {
-            self.imp()
-                .split_view
-                .set_content(Some(&HomePage::default()));
-            self.imp().split_view.set_show_content(false);
         }
     }
 
@@ -280,6 +494,62 @@ impl BastleWindow {
     pub(crate) fn toast(&self, message: &str) {
         self.imp().toast_overlay.add_toast(adw::Toast::new(message));
     }
+}
+
+#[cfg(feature = "ui-tests")]
+pub(crate) fn run_ui_smoke_test<P: IsA<gtk::Application>>(application: &P) -> anyhow::Result<()> {
+    use anyhow::ensure;
+
+    let window = BastleWindow::new(application);
+    window.set_default_size(360, 640);
+    window.imp().apps.replace(Vec::new());
+    window.rebuild_grid();
+    ensure!(
+        window.imp().view_stack.visible_child_name().as_deref() == Some("empty"),
+        "empty library state was not shown"
+    );
+
+    let first = AppConfigV3::new("Alpha", "https://alpha.example", 0)?;
+    let second = AppConfigV3::new("Beta", "https://beta.example", 1)?;
+    window.imp().apps.replace(vec![first, second]);
+    window.rebuild_grid();
+    ensure!(
+        window
+            .imp()
+            .store
+            .borrow()
+            .as_ref()
+            .is_some_and(|store| store.n_items() == 2),
+        "filled library did not populate the grid"
+    );
+
+    window.set_search_text("beta", false);
+    ensure!(
+        window
+            .imp()
+            .store
+            .borrow()
+            .as_ref()
+            .is_some_and(|store| store.n_items() == 1),
+        "search did not filter by title"
+    );
+    window.set_search_text("missing.example", false);
+    ensure!(
+        window.imp().view_stack.visible_child_name().as_deref() == Some("no-results"),
+        "empty search state was not shown"
+    );
+    window.destroy();
+    Ok(())
+}
+
+fn matches_search(app: &AppConfigV3, query: &str) -> bool {
+    if query.is_empty() || app.title.to_lowercase().contains(query) {
+        return true;
+    }
+    url::Url::parse(&app.start_url)
+        .ok()
+        .and_then(|url| url.host_str().map(str::to_lowercase))
+        .is_some_and(|host| host.contains(query))
 }
 
 fn optional_availability(available: Option<bool>) -> String {
@@ -301,4 +571,40 @@ fn parse_action_id(parameter: Option<&glib::Variant>) -> Option<AppId> {
     parameter
         .and_then(|value| value.get::<String>())
         .and_then(|value| AppId::from_str(&value).ok())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn app(title: &str, url: &str, order: u32) -> AppConfigV3 {
+        AppConfigV3::new(title, url, order).unwrap()
+    }
+
+    #[test]
+    fn library_sort_modes_are_stable() {
+        let alpha = app("Alpha", "https://alpha.example", 1);
+        let zulu = app("Zulu", "https://zulu.example", 2);
+        assert_eq!(
+            LibrarySort::TitleAscending.compare(&alpha, &zulu),
+            Ordering::Less
+        );
+        assert_eq!(
+            LibrarySort::TitleDescending.compare(&alpha, &zulu),
+            Ordering::Greater
+        );
+        assert_eq!(
+            LibrarySort::Newest.compare(&alpha, &zulu),
+            Ordering::Greater
+        );
+        assert_eq!(LibrarySort::Oldest.compare(&alpha, &zulu), Ordering::Less);
+    }
+
+    #[test]
+    fn search_matches_titles_and_domains() {
+        let app = app("Example Workspace", "https://office.example.org/path", 0);
+        assert!(matches_search(&app, "workspace"));
+        assert!(matches_search(&app, "office.example"));
+        assert!(!matches_search(&app, "missing"));
+    }
 }

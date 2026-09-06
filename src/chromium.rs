@@ -14,6 +14,8 @@ pub const BUS_NAME: &str = "io.github.cheviiot.bastle.Chromium";
 pub const OBJECT_PATH: &str = "/io/github/cheviiot/bastle/Chromium/Engine1";
 pub const INTERFACE_NAME: &str = "io.github.cheviiot.bastle.Chromium.Engine1";
 pub const PROTOCOL_VERSION: u32 = 1;
+pub const RUNTIME_SHELL_FEATURE: &str = "runtime-shell-v1";
+pub const EXTENSION_ROOT: &str = "/app/extensions/chromium";
 const CALL_TIMEOUT_MSEC: i32 = 10_000;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -22,10 +24,32 @@ pub struct ChromiumCapabilities {
     pub features: BTreeSet<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EngineAvailability {
+    Missing,
+    Available(ChromiumCapabilities),
+    Incompatible(String),
+    Broken(String),
+}
+
+impl EngineAvailability {
+    pub fn is_available(&self) -> bool {
+        matches!(self, Self::Available(_))
+    }
+
+    pub fn diagnostic(&self) -> Option<&str> {
+        match self {
+            Self::Incompatible(message) | Self::Broken(message) => Some(message),
+            Self::Missing | Self::Available(_) => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ChromiumClient;
 
 pub trait ChromiumBackend: Clone {
+    fn installed(&self) -> bool;
     fn capabilities(&self) -> Result<ChromiumCapabilities>;
     fn open_app(
         &self,
@@ -38,6 +62,12 @@ pub trait ChromiumBackend: Clone {
 }
 
 impl ChromiumBackend for ChromiumClient {
+    fn installed(&self) -> bool {
+        ["electron", "main.js", "bin/zypak-wrapper"]
+            .iter()
+            .all(|entry| std::path::Path::new(EXTENSION_ROOT).join(entry).is_file())
+    }
+
     fn capabilities(&self) -> Result<ChromiumCapabilities> {
         let response = self.call("GetCapabilities", None)?;
         let (protocol_version, features) = response
@@ -144,5 +174,13 @@ mod tests {
             .unwrap_err()
             .to_string()
             .contains("incompatible"));
+    }
+
+    #[test]
+    fn availability_distinguishes_user_visible_states() {
+        assert!(!EngineAvailability::Missing.is_available());
+        assert_eq!(EngineAvailability::Missing.diagnostic(), None);
+        let broken = EngineAvailability::Broken("failed".to_owned());
+        assert_eq!(broken.diagnostic(), Some("failed"));
     }
 }

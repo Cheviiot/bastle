@@ -8,5 +8,15 @@
     <key name="window-height" type="i">
       <default>600</default>
     </key>
+    <key name="library-sort-mode" type="s">
+      <default>'title-asc'</default>
+      <choices>
+        <choice value="title-asc"/>
+        <choice value="title-desc"/>
+        <choice value="newest"/>
+        <choice value="oldest"/>
+      </choices>
+      <summary>Application library sorting mode</summary>
+    </key>
   </schema>
 </schemalist>

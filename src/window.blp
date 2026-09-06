@@ -4,69 +4,177 @@ using Gtk 4.0;
 using Adw 1;
 
 template $BastleWindow: Adw.ApplicationWindow {
-  default-width: 800;
-  default-height: 600;
+  title: _("Bastle");
+  default-width: 920;
+  default-height: 680;
   width-request: 360;
-  height-request: 200;
+  height-request: 240;
 
   Adw.Breakpoint {
-    condition ("max-width: 600px")
+    condition ("max-width: 560px")
 
     setters {
-      split_view.collapsed: true;
+      search_entry.visible: false;
+      search_button.visible: true;
     }
   }
 
   content: Adw.ToastOverlay toast_overlay {
-    Adw.NavigationSplitView split_view {
-      min-sidebar-width: 250;
-      show-content: false;
-      [sidebar]
-      Adw.NavigationPage {
+    Adw.NavigationView navigation_view {
+      Adw.NavigationPage library_page {
         title: _("Applications");
+        tag: "library";
+
         Adw.ToolbarView {
-          
           [top]
           Adw.HeaderBar {
             [start]
             Button {
-              icon-name: "list-add";
-
-              clicked => $on_add_clicked() swapped;
+              action-name: "win.add";
+              icon-name: "list-add-symbolic";
+              tooltip-text: _("Add Application");
             }
+
+            title-widget: Adw.Clamp {
+              maximum-size: 430;
+              tightening-threshold: 320;
+
+              SearchEntry search_entry {
+                hexpand: true;
+                placeholder-text: _("Search applications");
+                tooltip-text: _("Search by title or domain");
+              }
+            };
+
+            [end]
+            ToggleButton search_button {
+              visible: false;
+              icon-name: "system-search-symbolic";
+              tooltip-text: _("Search");
+            }
+
+            [end]
+            MenuButton {
+              icon-name: "view-sort-ascending-symbolic";
+              tooltip-text: _("Sort Applications");
+              menu-model: sort_menu;
+            }
+
             [end]
             MenuButton {
               primary: true;
               icon-name: "open-menu-symbolic";
-              tooltip-text: _("Menu");
+              tooltip-text: _("Main Menu");
               menu-model: primary_menu;
             }
           }
 
-          ScrolledWindow {
-            ListBox apps_listbox {
-              selection-mode: single;
-              activate-on-single-click: true;
-              focusable: false;
+          [top]
+          SearchBar compact_search_bar {
+            search-mode-enabled: bind search_button.active bidirectional;
+            key-capture-widget: template;
 
-              row-selected => $on_app_selected() swapped;
-
-              styles ["navigation-sidebar"]
+            SearchEntry compact_search_entry {
+              hexpand: true;
+              placeholder-text: _("Search applications");
             }
           }
+
+          [top]
+          Adw.Banner diagnostics_banner {
+            revealed: false;
+            button-label: _("Details");
+            title: _("Some application data could not be loaded");
+            button-clicked => $on_diagnostics_clicked() swapped;
+          }
+
+          content: Adw.ViewStack view_stack {
+            enable-transitions: true;
+
+            Adw.ViewStackPage {
+              name: "grid";
+
+              child: ScrolledWindow {
+                hscrollbar-policy: never;
+
+                GridView apps_grid {
+                  name: "apps-grid";
+                  max-columns: 10;
+                  min-columns: 1;
+                  single-click-activate: true;
+                  margin-top: 12;
+                  margin-bottom: 18;
+                  margin-start: 12;
+                  margin-end: 12;
+                }
+              };
+            }
+
+            Adw.ViewStackPage {
+              name: "empty";
+
+              child: Adw.StatusPage {
+                icon-name: "io.github.cheviiot.bastle-symbolic";
+                title: _("No Applications Yet");
+                description: _("Add a website to give it an isolated space.");
+
+                Button {
+                  action-name: "win.add";
+                  label: _("Add Application");
+                  halign: center;
+
+                  styles ["pill", "suggested-action"]
+                }
+              };
+            }
+
+            Adw.ViewStackPage {
+              name: "no-results";
+
+              child: Adw.StatusPage {
+                icon-name: "system-search-symbolic";
+                title: _("No Applications Found");
+                description: _("Try a different title or domain.");
+              };
+            }
+          };
         }
       }
-      [content]
-      $BastleHomePage home_page {}
     }
   };
 }
 
-
+menu sort_menu {
+  section {
+    item {
+      label: _("A–Z");
+      action: "win.sort";
+      target: "title-asc";
+    }
+    item {
+      label: _("Z–A");
+      action: "win.sort";
+      target: "title-desc";
+    }
+    item {
+      label: _("Newest First");
+      action: "win.sort";
+      target: "newest";
+    }
+    item {
+      label: _("Oldest First");
+      action: "win.sort";
+      target: "oldest";
+    }
+  }
+}
 
 menu primary_menu {
-  item (_("_Back Up…"), "win.backup")
-  item (_("_Restore…"), "win.restore")
+  item (_("_Add-ons"), "win.addons")
+  section {
+    item (_("_Back Up…"), "win.backup")
+    item (_("_Restore…"), "win.restore")
+  }
   section {
     item (_("System _Capabilities"), "win.capabilities")
     item (_("_Keyboard Shortcuts"), "win.show-help-overlay")

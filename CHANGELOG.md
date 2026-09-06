@@ -5,6 +5,24 @@ Changelog and versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-06
+
+### Added
+
+- Redesign the library as an adaptive card grid with search, sorting, empty
+  states, diagnostics, and a dedicated application details page.
+- Keep Chromium as an optional Flatpak extension with explicit availability,
+  restart guidance, and a one-time WebKit fallback for existing cards.
+- Add a trusted local Chromium toolbar backed by secure `WebContentsView`
+  isolation, strict CSP, sender validation, and a narrow IPC allowlist.
+- Add the four library sort modes and persist the selection in GSettings.
+
+### Changed
+
+- Keep WebKitGTK as the default engine and never install Chromium implicitly.
+- Refresh the application editor so opening and cancelling remain clean while
+  only real user edits enable Save.
+
 ## [0.5.2] - 2026-09-05
 
 ### Changed
