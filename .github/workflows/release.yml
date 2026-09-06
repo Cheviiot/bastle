@@ -38,7 +38,7 @@ jobs:
           fingerprint="$(gpg --batch --with-colons --list-secret-keys 'Bastle Flatpak Repository' | awk -F: '$1 == "fpr" { print $10; exit }')"
           test "$fingerprint" = A69739CC667377C3A671BD85885E0C5C26BD31E1
           echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
-      - uses: flatpak/flatpak-github-actions/flatpak-builder@aa777012a985fe1b1fd3e66ea2173609cf0c9a70
+      - uses: flatpak/flatpak-github-actions/flatpak-builder@79327416609af08178ad73b352877e51450790b3
         with:
           build-bundle: false
           manifest-path: build-aux/io.github.cheviiot.bastle.json
