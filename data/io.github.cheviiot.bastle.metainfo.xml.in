@@ -39,7 +39,7 @@
     </p>
     <ul>
       <li>Create, edit, repair, and remove portal-installed launchers</li>
-      <li>Fetch and safely normalize website icons with an offline fallback</li>
+      <li>Fetch and safely normalize website icons with an offline fallback; an optional Icon Horse request is made only by explicit user action</li>
       <li>Keep each application's configuration, policy, profile, and cache separate</li>
     </ul>
   </description>
@@ -52,6 +52,16 @@
   </categories>
   <launchable type="desktop-id">io.github.cheviiot.bastle.desktop</launchable>
   <releases>
+    <release version="0.7.0" date="2026-09-07">
+      <description>
+        <ul>
+          <li>Replace the library grid with an adaptive GNOME list, search, sorting, and keyboard navigation</li>
+          <li>Add a site-only Icon Horse favicon fallback with safe hostname checks, cache, and PNG normalization</li>
+          <li>Add accessible application details actions and explicit site-icon controls for creation and editing</li>
+        </ul>
+      </description>
+      <url>https://github.com/Cheviiot/bastle/releases/tag/v0.7.0</url>
+    </release>
     <release version="0.6.0" date="2026-09-06">
       <description>
         <ul>

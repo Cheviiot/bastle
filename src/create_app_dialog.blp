@@ -4,8 +4,8 @@ using Gtk 4.0;
 using Adw 1;
 
 template $BastleCreateAppDialog: Adw.Dialog {
-  content-width: 400;
-  content-height: 430;
+  content-width: 720;
+  content-height: 680;
   title: _("Add a New Application");
 
   Adw.ToastOverlay toast_overlay {
@@ -13,15 +13,19 @@ template $BastleCreateAppDialog: Adw.Dialog {
       [top]
       Adw.HeaderBar {}
 
-      Box {
-        orientation: vertical;
-        spacing: 15;
-        margin-end: 10;
-        margin-start: 10;
-        margin-top: 5;
-        margin-bottom: 15;
+      Adw.Clamp {
+        maximum-size: 640;
+        tightening-threshold: 560;
+        margin-end: 18;
+        margin-start: 18;
+        margin-top: 12;
+        margin-bottom: 18;
 
-        ListBox {
+        Box {
+          orientation: vertical;
+          spacing: 15;
+
+          ListBox {
           styles [
             "boxed-list"
           ]
@@ -54,17 +58,51 @@ template $BastleCreateAppDialog: Adw.Dialog {
 
           Adw.ActionRow {
             title: _("Icon");
-            subtitle: _("Automatically normalized to 256×256");
+            subtitle: _("Website favicon, Icon Horse, or a local file");
             sensitive: bind template.loading inverted;
 
-            Button {
-              icon-name: "image-symbolic";
+            Box {
+              orientation: horizontal;
+              spacing: 6;
               valign: center;
-              sensitive: bind template.loading inverted;
-              clicked => $on_icon_clicked() swapped;
 
-              Image icon_image {}
+              Button site_icon_button {
+                valign: center;
+                sensitive: bind template.loading inverted;
+                clicked => $on_site_icon_clicked() swapped;
+
+                Stack {
+                  Label {
+                    label: _("Get Site Icon");
+                    visible: bind template.provider-loading inverted;
+                  }
+
+                  Adw.Spinner {
+                    visible: bind template.provider-loading;
+                  }
+                }
+              }
+
+              Button {
+                icon-name: "image-symbolic";
+                valign: center;
+                sensitive: bind template.loading inverted;
+                tooltip-text: _("Choose Icon File");
+                clicked => $on_icon_clicked() swapped;
+
+                Image icon_image {}
+              }
             }
+          }
+
+          Label icon_provider_status {
+            visible: false;
+            wrap: true;
+            xalign: 0;
+            margin-start: 12;
+            margin-end: 12;
+
+            styles ["dim-label", "caption"]
           }
 
           Adw.ComboRow engine_row {
@@ -85,29 +123,30 @@ template $BastleCreateAppDialog: Adw.Dialog {
               styles ["flat"]
             }
           }
-        }
-
-        Button button {
-          halign: center;
-          valign: end;
-          vexpand: true;
-
-          styles [
-            "pill",
-            "suggested-action"
-          ]
-
-          sensitive: false;
-
-          Stack button_stack {
-            Label button_label {
-              label: _("Create");
-            }
-
-            Adw.Spinner button_spinner {}
           }
 
-          clicked => $on_create_clicked() swapped;
+          Button button {
+            halign: center;
+            valign: end;
+            vexpand: true;
+
+            styles [
+              "pill",
+              "suggested-action"
+            ]
+
+            sensitive: false;
+
+            Stack button_stack {
+              Label button_label {
+                label: _("Create");
+              }
+
+              Adw.Spinner button_spinner {}
+            }
+
+            clicked => $on_create_clicked() swapped;
+          }
         }
       }
     }

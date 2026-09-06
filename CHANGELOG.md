@@ -5,6 +5,24 @@ Changelog and versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-09-07
+
+### Added
+
+- Replace the library grid with an adaptive GNOME list and keyboard navigation.
+- Add shared library state models, search, sorting, empty states, and detail actions.
+- Add an explicit, site-only Icon Horse favicon fallback with hostname checks,
+  a 30-day local cache, PNG normalization, and offline-safe fallback behavior.
+- Add site-icon actions to creation and editing, including loading, error, and
+  retry-friendly inline status.
+
+### Changed
+
+- Keep WebKitGTK as the default engine and Chromium as an optional add-on.
+- Use accessible text actions on application details and support Esc/Alt+Left
+  navigation.
+- Credit Icon Horse as the optional website favicon provider.
+
 ## [0.6.0] - 2026-09-06
 
 ### Added
