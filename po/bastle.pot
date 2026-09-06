@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: bastle\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-06 21:59+1000\n"
+"POT-Creation-Date: 2026-09-07 00:05+1000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -56,7 +56,9 @@ msgid "Create, edit, repair, and remove portal-installed launchers"
 msgstr ""
 
 #: data/io.github.cheviiot.bastle.metainfo.xml.in:42
-msgid "Fetch and safely normalize website icons with an offline fallback"
+msgid ""
+"Fetch and safely normalize website icons with an offline fallback; an "
+"optional Icon Horse request is made only by explicit user action"
 msgstr ""
 
 #: data/io.github.cheviiot.bastle.metainfo.xml.in:43
@@ -66,189 +68,207 @@ msgstr ""
 
 #: data/io.github.cheviiot.bastle.metainfo.xml.in:58
 msgid ""
+"Replace the library grid with an adaptive GNOME list, search, sorting, and "
+"keyboard navigation"
+msgstr ""
+
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:59
+msgid ""
+"Add a site-only Icon Horse favicon fallback with safe hostname checks, "
+"cache, and PNG normalization"
+msgstr ""
+
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:60
+msgid ""
+"Add accessible application details actions and explicit site-icon controls "
+"for creation and editing"
+msgstr ""
+
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:68
+msgid ""
 "Redesign the library as an adaptive card grid with search, sorting, and "
 "application details"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:59
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:69
 msgid ""
 "Keep WebKitGTK as the default and make Chromium an optional, manually "
 "installed add-on"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:60
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:70
 msgid ""
 "Add a trusted local Chromium toolbar built with secure WebContentsView "
 "isolation"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:61
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:71
 msgid ""
 "Add explicit add-on diagnostics, restart guidance, and one-time WebKit "
 "fallback"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:69
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:79
 msgid "Move the Chromium payload from the main app into a Flatpak add-on"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:70
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:80
 msgid "Publish the app and add-on together from the signed Bastle repository"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:71
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:81
 msgid "Keep WebKitGTK usable when the Chromium add-on is not installed"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:72
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:82
 msgid "Add clear installation and compatibility diagnostics for the add-on"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:80
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:90
 msgid "Embed the Chromium engine into the single Bastle Flatpak"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:81
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:91
 msgid "Remove the need to install or update a separate Chromium package"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:82
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:92
 msgid "Keep WebKitGTK as the default and retain separate per-engine profiles"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:83
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:93
 msgid ""
 "Activate Chromium through an internal service owned by the Bastle app ID"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:84
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:94
 msgid "Publish a GPG-signed project Flatpak repository for x86_64 and aarch64"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:85
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:95
 msgid "Clarify the GPL-3.0-only license and preserved Spider authorship"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:93
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:103
 msgid ""
 "Add an explicit WebKitGTK or Chromium engine choice with local compatibility "
 "recommendations"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:94
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:104
 msgid ""
 "Integrate the separately sandboxed Chromium companion through an "
 "authenticated D-Bus protocol"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:95
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:105
 msgid ""
 "Keep engine profiles separate and safely retry deferred companion profile "
 "cleanup"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:96
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:106
 msgid ""
 "Diagnose Dynamic Launcher, File Chooser, and Documents portal capabilities "
 "independently"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:97
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:107
 msgid ""
 "Distinguish unavailable, unsupported, cancelled, denied, and failed portal "
 "operations"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:105
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:115
 msgid ""
 "Add opt-in navigation allowlists, proxy settings, background mode, "
 "autostart, and content filters"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:106
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:116
 msgid ""
 "Add a threat model for websites, profiles, portals, backups, and the future "
 "companion boundary"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:107
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:117
 msgid ""
 "Keep every new privacy and power feature disabled until the user enables it"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:108
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:118
 msgid ""
 "Serialize portal reconciliation and safely merge concurrent policy edits"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:109
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:119
 msgid ""
 "Require fresh background authorization after restore while preserving other "
 "policy"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:117
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:127
 msgid ""
 "Add versioned metadata backups with transactional per-application restore"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:118
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:128
 msgid "Add optional passphrase-encrypted transfer of cookies and site storage"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:119
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:129
 msgid ""
 "Add conflict preview, partial-failure reporting, and runtime profile locks"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:120
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:130
 msgid "Add portal capability diagnostics and native aarch64 release bundles"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:121
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:131
 msgid ""
 "Harden archive extraction, resource limits, and concurrent profile operations"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:129
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:139
 msgid "Add per-origin website permissions with session and persistent choices"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:130
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:140
 msgid ""
 "Add popup and OAuth windows, native notifications, and managed downloads"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:131
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:141
 msgid "Add navigation, zoom, and fullscreen runtime controls"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:132
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:142
 msgid ""
 "Migrate Bastle data to schema v2 and remove Spider runtime compatibility"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:140
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:150
 msgid "Prevent a crash when opening an application card for editing"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:141
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:151
 msgid "Add a headless regression test for editor state changes"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:149
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:159
 msgid "Introduce the Bastle identity and isolated JSON-based storage"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:150
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:160
 msgid "Add transactional launcher operations and repair support"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:151
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:161
 msgid "Add an explicit, settings-only Spider importer"
 msgstr ""
 
-#: data/io.github.cheviiot.bastle.metainfo.xml.in:152
+#: data/io.github.cheviiot.bastle.metainfo.xml.in:162
 msgid "Harden URL, metadata, icon, download, and theme-color handling"
 msgstr ""
 
@@ -256,120 +276,153 @@ msgstr ""
 msgid "Application library sorting mode"
 msgstr ""
 
-#: src/app_page.blp:21 src/backup_dialog.rs:39 src/backup_dialog.rs:200
-#: src/backup_dialog.rs:233 src/application.rs:528 src/window.rs:436
+#: src/app_page.blp:28 src/backup_dialog.rs:39 src/backup_dialog.rs:200
+#: src/backup_dialog.rs:233 src/application.rs:532 src/window.rs:459
 msgid "Cancel"
 msgstr ""
 
-#: src/app_page.blp:27 src/permissions_dialog.rs:38 src/privacy_dialog.rs:56
+#: src/app_page.blp:34 src/permissions_dialog.rs:38 src/privacy_dialog.rs:56
 msgid "Save"
 msgstr ""
 
-#: src/app_page.blp:92
+#: src/app_page.blp:100
 msgid "This application needs the optional Chromium add-on."
 msgstr ""
 
-#: src/app_page.blp:93 src/app_page.blp:213 src/create_app_dialog.blp:82
+#: src/app_page.blp:101 src/app_page.blp:242 src/create_app_dialog.blp:120
 msgid "Add-ons"
 msgstr ""
 
-#: src/app_page.blp:98
+#: src/app_page.blp:106
 msgid "Launch"
 msgstr ""
 
-#: src/app_page.blp:112
+#: src/app_page.blp:119 src/app_page.blp:120
 msgid "Edit"
 msgstr ""
 
-#: src/app_page.blp:120 src/permissions_dialog.rs:28
+#: src/app_page.blp:127 src/app_page.blp:128 src/permissions_dialog.rs:28
 msgid "Permissions"
 msgstr ""
 
-#: src/app_page.blp:127 src/privacy_dialog.rs:50 src/privacy_dialog.rs:477
+#: src/app_page.blp:134 src/app_page.blp:135 src/privacy_dialog.rs:50
+#: src/privacy_dialog.rs:477
 msgid "Privacy & Power"
 msgstr ""
 
-#: src/app_page.blp:134
+#: src/app_page.blp:141 src/app_page.blp:142
 msgid "Repair Launcher"
 msgstr ""
 
-#: src/app_page.blp:141
+#: src/app_page.blp:148 src/window.rs:460
+msgid "Delete"
+msgstr ""
+
+#: src/app_page.blp:149
 msgid "Delete Application"
 msgstr ""
 
-#: src/app_page.blp:157
+#: src/app_page.blp:165
 msgid "Application"
 msgstr ""
 
-#: src/app_page.blp:158
+#: src/app_page.blp:166
 msgid "Identity and start address"
 msgstr ""
 
-#: src/app_page.blp:161 src/create_app_dialog.blp:32
+#: src/app_page.blp:169 src/create_app_dialog.blp:36
 msgid "URL"
 msgstr ""
 
-#: src/app_page.blp:167 src/create_app_dialog.blp:44
+#: src/app_page.blp:175 src/create_app_dialog.blp:48
 msgid "Title"
 msgstr ""
 
-#: src/app_page.blp:173 src/create_app_dialog.blp:56
+#: src/app_page.blp:181 src/create_app_dialog.blp:60
 msgid "Icon"
 msgstr ""
 
-#: src/app_page.blp:174 src/create_app_dialog.blp:57
-msgid "Automatically normalized to 256×256"
+#: src/app_page.blp:182 src/create_app_dialog.blp:61
+msgid "Website favicon, Icon Horse, or a local file"
 msgstr ""
 
-#: src/app_page.blp:189
+#: src/app_page.blp:190 src/create_app_dialog.blp:76
+msgid "Get Site Icon"
+msgstr ""
+
+#: src/app_page.blp:198 src/create_app_dialog.blp:90
+msgid "Choose Icon File"
+msgstr ""
+
+#: src/app_page.blp:218
 msgid "Window"
 msgstr ""
 
-#: src/app_page.blp:192
+#: src/app_page.blp:221
 msgid "Website Titlebar Color"
 msgstr ""
 
-#: src/app_page.blp:193
+#: src/app_page.blp:222
 msgid "Use a valid theme color supplied by the website"
 msgstr ""
 
-#: src/app_page.blp:199 src/create_app_dialog.blp:71
+#: src/app_page.blp:228 src/create_app_dialog.blp:109
 msgid "Browser Engine"
 msgstr ""
 
-#: src/app_page.blp:200
+#: src/app_page.blp:229
 msgid "Profiles and cookies are never transferred between engines"
 msgstr ""
 
-#: src/app_page.blp:203
+#: src/app_page.blp:232
 msgid "Engine"
 msgstr ""
 
-#: src/app_page.blp:208 src/create_app_dialog.blp:77
+#: src/app_page.blp:237 src/create_app_dialog.blp:115
 msgid "Chromium Recommended"
 msgstr ""
 
-#: src/app_page.blp:222
+#: src/app_page.blp:251
 msgid "Advanced"
 msgstr ""
 
-#: src/app_page.blp:227
+#: src/app_page.blp:256
 msgid "Custom User Agent"
 msgstr ""
 
-#: src/app_page.blp:230
+#: src/app_page.blp:259
 msgid "User Agent"
 msgstr ""
 
-#: src/app_page.rs:229 src/create_app_dialog.rs:199
+#: src/app_page.rs:222 src/create_app_dialog.rs:139
+msgid "Enter a valid website URL first."
+msgstr ""
+
+#: src/app_page.rs:227 src/create_app_dialog.rs:144
+msgid "The website URL has no hostname."
+msgstr ""
+
+#: src/app_page.rs:232 src/create_app_dialog.rs:149
+msgid "Getting the website icon…"
+msgstr ""
+
+#: src/app_page.rs:241 src/create_app_dialog.rs:157
+msgid "Icon from Icon Horse"
+msgstr ""
+
+#: src/app_page.rs:248 src/create_app_dialog.rs:163
+msgid "The site icon provider is unavailable."
+msgstr ""
+
+#: src/app_page.rs:278 src/create_app_dialog.rs:240
 msgid "Chromium (add-on)"
 msgstr ""
 
-#: src/app_page.rs:316
+#: src/app_page.rs:366
 msgid "Chromium · Ready"
 msgstr ""
 
-#: src/app_page.rs:317
+#: src/app_page.rs:367
 msgid "Chromium · Add-on Required"
 msgstr ""
 
@@ -417,7 +470,7 @@ msgstr ""
 msgid "Stop Background Activity"
 msgstr ""
 
-#: src/app_window.blp:85 src/window.blp:180
+#: src/app_window.blp:85 src/window.blp:185
 msgid "_Keyboard Shortcuts"
 msgstr ""
 
@@ -757,7 +810,7 @@ msgstr ""
 msgid "Restore Finished with Errors"
 msgstr ""
 
-#: src/backup_dialog.rs:330 src/window.rs:384 src/window.rs:416
+#: src/backup_dialog.rs:330 src/window.rs:407 src/window.rs:439
 msgid "Close"
 msgstr ""
 
@@ -765,50 +818,58 @@ msgstr ""
 msgid "Keep selected Bastle web applications running in the background"
 msgstr ""
 
-#: src/application.rs:426
+#: src/application.rs:427
 msgid "Website Notification"
 msgstr ""
 
-#: src/application.rs:493
+#: src/application.rs:494
 msgid "Original Spider project"
 msgstr ""
 
-#: src/application.rs:494
+#: src/application.rs:495
 msgid "Zaedus — original Spider author"
 msgstr ""
 
-#: src/application.rs:495
+#: src/application.rs:496
 msgid "Cameron Radmore — Spider contributor"
 msgstr ""
 
-#: src/application.rs:500
+#: src/application.rs:501
 msgid "UX inspiration"
 msgstr ""
 
-#: src/application.rs:501
+#: src/application.rs:502
 msgid "Cartridges — interface inspiration"
 msgstr ""
 
-#: src/application.rs:522
+#: src/application.rs:504
+msgid "Website icon provider"
+msgstr ""
+
+#: src/application.rs:505
+msgid "Icon Horse — website favicon fallback"
+msgstr ""
+
+#: src/application.rs:526
 msgid ""
 "The Chromium add-on could not start. Install or update the add-on, or run "
 "this application once with WebKitGTK. Your engine choice and profiles will "
 "not be changed."
 msgstr ""
 
-#: src/application.rs:526
+#: src/application.rs:530
 msgid "Chromium Engine Unavailable"
 msgstr ""
 
-#: src/application.rs:529
+#: src/application.rs:533
 msgid "Get Chromium Add-on"
 msgstr ""
 
-#: src/application.rs:530
+#: src/application.rs:534
 msgid "Report Problem"
 msgstr ""
 
-#: src/application.rs:531
+#: src/application.rs:535
 msgid "Run Once with WebKit"
 msgstr ""
 
@@ -816,15 +877,15 @@ msgstr ""
 msgid "Add a New Application"
 msgstr ""
 
-#: src/create_app_dialog.blp:72
+#: src/create_app_dialog.blp:110
 msgid "WebKitGTK is the default; Chromium is available as a Bastle add-on"
 msgstr ""
 
-#: src/create_app_dialog.blp:104
+#: src/create_app_dialog.blp:142
 msgid "Create"
 msgstr ""
 
-#: src/create_app_dialog.rs:98
+#: src/create_app_dialog.rs:103
 msgid ""
 "The website could not be reached. You can still create this application."
 msgstr ""
@@ -975,7 +1036,7 @@ msgstr ""
 msgid "Give each website its own isolated space."
 msgstr ""
 
-#: src/launcher.rs:61 src/launcher.rs:69 src/portal.rs:151 src/window.rs:400
+#: src/launcher.rs:61 src/launcher.rs:69 src/portal.rs:151 src/window.rs:423
 msgid "Dynamic Launcher"
 msgstr ""
 
@@ -1079,7 +1140,7 @@ msgstr ""
 msgid "portal request failed"
 msgstr ""
 
-#: src/portal.rs:167 src/window.rs:406
+#: src/portal.rs:167 src/window.rs:429
 msgid "File Chooser"
 msgstr ""
 
@@ -1231,19 +1292,19 @@ msgstr ""
 msgid "Imported Filter"
 msgstr ""
 
-#: src/util.rs:216
+#: src/util.rs:219
 msgid "Images"
 msgstr ""
 
-#: src/util.rs:221
+#: src/util.rs:224
 msgid "Select"
 msgstr ""
 
-#: src/util.rs:223
+#: src/util.rs:226
 msgid "App Icon"
 msgstr ""
 
-#: src/util.rs:229
+#: src/util.rs:232
 msgid "Select application icon"
 msgstr ""
 
@@ -1251,7 +1312,7 @@ msgstr ""
 msgid "Applications"
 msgstr ""
 
-#: src/window.blp:35 src/window.blp:123
+#: src/window.blp:35 src/window.blp:128
 msgid "Add Application"
 msgstr ""
 
@@ -1283,135 +1344,131 @@ msgstr ""
 msgid "Some application data could not be loaded"
 msgstr ""
 
-#: src/window.blp:118
+#: src/window.blp:123
 msgid "No Applications Yet"
 msgstr ""
 
-#: src/window.blp:119
+#: src/window.blp:124
 msgid "Add a website to give it an isolated space."
 msgstr ""
 
-#: src/window.blp:136
+#: src/window.blp:141
 msgid "No Applications Found"
 msgstr ""
 
-#: src/window.blp:137
+#: src/window.blp:142
 msgid "Try a different title or domain."
 msgstr ""
 
-#: src/window.blp:150
+#: src/window.blp:155
 msgid "A–Z"
 msgstr ""
 
-#: src/window.blp:155
+#: src/window.blp:160
 msgid "Z–A"
 msgstr ""
 
-#: src/window.blp:160
+#: src/window.blp:165
 msgid "Newest First"
 msgstr ""
 
-#: src/window.blp:165
+#: src/window.blp:170
 msgid "Oldest First"
 msgstr ""
 
-#: src/window.blp:173
+#: src/window.blp:178
 msgid "_Add-ons"
 msgstr ""
 
-#: src/window.blp:175
+#: src/window.blp:180
 msgid "_Back Up…"
 msgstr ""
 
-#: src/window.blp:176
+#: src/window.blp:181
 msgid "_Restore…"
 msgstr ""
 
-#: src/window.blp:179
+#: src/window.blp:184
 msgid "System _Capabilities"
 msgstr ""
 
-#: src/window.blp:181
+#: src/window.blp:186
 msgid "_About Bastle"
 msgstr ""
 
-#: src/window.rs:383
+#: src/window.rs:406
 msgid "Application Data Diagnostics"
 msgstr ""
 
-#: src/window.rs:393 src/window.rs:511 src/window.rs:519
+#: src/window.rs:416 src/window.rs:589 src/window.rs:597
 msgid "Available"
 msgstr ""
 
-#: src/window.rs:394
+#: src/window.rs:417
 msgid "Unavailable"
 msgstr ""
 
-#: src/window.rs:398
+#: src/window.rs:421
 msgid "Desktop session"
 msgstr ""
 
-#: src/window.rs:402
+#: src/window.rs:425
 msgid "Application launchers"
 msgstr ""
 
-#: src/window.rs:404
+#: src/window.rs:427
 msgid "Web application launchers"
 msgstr ""
 
-#: src/window.rs:408
+#: src/window.rs:431
 msgid "Documents access"
 msgstr ""
 
-#: src/window.rs:410
+#: src/window.rs:433
 msgid "Background activity"
 msgstr ""
 
-#: src/window.rs:412
+#: src/window.rs:435
 msgid ""
 "Creating and repairing applications requires Application launcher support. "
 "Backup restore also requires File Chooser and Documents portal access."
 msgstr ""
 
-#: src/window.rs:413
+#: src/window.rs:436
 msgid ""
 "Bastle uses portals only and never writes launchers directly to the host."
 msgstr ""
 
-#: src/window.rs:415
+#: src/window.rs:438
 msgid "System Capabilities"
 msgstr ""
 
-#: src/window.rs:416
+#: src/window.rs:439
 msgid "Retry"
 msgstr ""
 
-#: src/window.rs:430
+#: src/window.rs:453
 msgid "Delete this application?"
 msgstr ""
 
-#: src/window.rs:432
+#: src/window.rs:455
 msgid ""
 "Its launcher, settings, and WebKit or Chromium add-on profile—including "
 "cookies and caches—will be removed."
 msgstr ""
 
-#: src/window.rs:437
-msgid "Delete"
-msgstr ""
-
-#: src/window.rs:456
+#: src/window.rs:479
 msgid "Application deleted"
 msgstr ""
 
-#: src/window.rs:469
+#: src/window.rs:492
 msgid "Launcher repaired"
 msgstr ""
 
-#: src/window.rs:512
+#: src/window.rs:590
 msgid "Unsupported"
 msgstr ""
 
-#: src/window.rs:513
+#: src/window.rs:591
 msgid "Unknown (interface unavailable)"
 msgstr ""

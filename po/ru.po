@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 msgid ""
 msgstr ""
-"Project-Id-Version: bastle 0.6.0\n"
+"Project-Id-Version: bastle 0.7.0\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-09-06 21:59+1000\n"
 "PO-Revision-Date: 2026-09-06 00:00+1000\n"
@@ -1490,3 +1490,55 @@ msgstr "Не поддерживается"
 #: src/window.rs:513
 msgid "Unknown (interface unavailable)"
 msgstr "Неизвестно (интерфейс недоступен)"
+
+#: src/app_page.blp src/create_app_dialog.blp
+msgid "Website favicon, Icon Horse, or a local file"
+msgstr "Favicon сайта, Icon Horse или локальный файл"
+
+#: src/app_page.blp src/create_app_dialog.blp
+msgid "Get Site Icon"
+msgstr "Получить иконку сайта"
+
+#: src/create_app_dialog.blp
+msgid "Choose Icon File"
+msgstr "Выбрать файл иконки"
+
+#: src/app_row.blp
+msgid "Launch Application"
+msgstr "Запустить приложение"
+
+#: src/app_page.rs src/create_app_dialog.rs
+msgid "Enter a valid website URL first."
+msgstr "Сначала укажите корректный адрес сайта."
+
+#: src/app_page.rs src/create_app_dialog.rs
+msgid "The website URL has no hostname."
+msgstr "В адресе сайта отсутствует имя хоста."
+
+#: src/app_page.rs src/create_app_dialog.rs
+msgid "Getting the website icon…"
+msgstr "Получение иконки сайта…"
+
+#: src/app_page.rs src/create_app_dialog.rs
+msgid "Icon from Icon Horse"
+msgstr "Иконка из Icon Horse"
+
+#: src/app_page.rs src/create_app_dialog.rs
+msgid "The site icon provider is unavailable."
+msgstr "Провайдер иконок сайта недоступен."
+
+#: src/application.rs
+msgid "Website icon provider"
+msgstr "Провайдер иконок сайтов"
+
+#: src/application.rs
+msgid "Icon Horse — website favicon fallback"
+msgstr "Icon Horse — резервный источник favicon сайтов"
+
+#: src/app_row.rs
+msgid "WebKitGTK"
+msgstr "WebKitGTK"
+
+#: src/app_row.rs
+msgid "Chromium"
+msgstr "Chromium"

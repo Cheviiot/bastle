@@ -3,9 +3,10 @@
 use std::cell::{Cell, RefCell};
 
 use adw::{prelude::*, subclass::prelude::*};
+use gettextrs::gettext;
 use gtk::{gio, glib};
 
-use crate::{model::AppConfigV3, service::AppService, util};
+use crate::{chromium::EngineAvailability, model::AppConfigV3, service::AppService, util};
 
 fn menu_item(label: &str, action: &str, target: &str) -> gio::MenuItem {
     let item = gio::MenuItem::new(Some(label), None);
@@ -34,7 +35,7 @@ mod imp {
         #[template_child]
         pub menu_button: TemplateChild<gtk::MenuButton>,
         #[template_child]
-        pub actions_revealer: TemplateChild<gtk::Revealer>,
+        pub engine_status: TemplateChild<gtk::Label>,
     }
 
     #[glib::object_subclass]
@@ -55,27 +56,7 @@ mod imp {
     impl ObjectImpl for AppRow {
         fn constructed(&self) {
             self.parent_constructed();
-            let motion = gtk::EventControllerMotion::new();
-            motion.connect_enter(glib::clone!(
-                #[weak(rename_to = row)]
-                self.obj(),
-                move |_, _, _| row.set_actions_visible(true)
-            ));
-            motion.connect_leave(glib::clone!(
-                #[weak(rename_to = row)]
-                self.obj(),
-                move |_| {
-                    if !row.imp().menu_button.is_active() {
-                        row.set_actions_visible(false);
-                    }
-                }
-            ));
-            self.obj().add_controller(motion);
-            self.menu_button.connect_active_notify(glib::clone!(
-                #[weak(rename_to = row)]
-                self.obj(),
-                move |button| row.set_actions_visible(button.is_active())
-            ));
+            self.obj().set_accessible_role(gtk::AccessibleRole::Group);
         }
     }
     impl WidgetImpl for AppRow {}
@@ -93,7 +74,7 @@ impl AppRow {
         glib::Object::builder().build()
     }
 
-    pub fn set_config(&self, config: AppConfigV3) {
+    pub fn set_config(&self, config: AppConfigV3, availability: EngineAvailability) {
         let imp = self.imp();
         let generation = imp.generation.get().wrapping_add(1);
         imp.generation.set(generation);
@@ -103,6 +84,12 @@ impl AppRow {
             .and_then(|url| url.host_str().map(ToOwned::to_owned))
             .unwrap_or_else(|| config.start_url.clone());
         imp.subtitle.set_label(&host);
+        let engine = match config.engine {
+            crate::model::Engine::WebKit => gettext("WebKitGTK"),
+            crate::model::Engine::Chromium if availability.is_available() => gettext("Chromium"),
+            crate::model::Engine::Chromium => gettext("Chromium · Add-on Required"),
+        };
+        imp.engine_status.set_label(&engine);
         imp.icon.set_icon_name(Some("io.github.cheviiot.bastle"));
 
         let target = config.id.as_str().to_variant();
@@ -169,10 +156,6 @@ impl AppRow {
 
     pub fn config(&self) -> Option<AppConfigV3> {
         self.imp().config.borrow().clone()
-    }
-
-    fn set_actions_visible(&self, visible: bool) {
-        self.imp().actions_revealer.set_reveal_child(visible);
     }
 }
 

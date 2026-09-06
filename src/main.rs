@@ -23,6 +23,8 @@ mod portal;
 mod privacy_dialog;
 mod repository;
 mod service;
+mod site_icon_provider;
+mod ui_model;
 mod util;
 mod window;
 

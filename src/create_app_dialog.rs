@@ -13,6 +13,7 @@ use crate::{
     config,
     model::{parse_web_url, AppConfigV3, Engine},
     service::AppService,
+    site_icon_provider::{IconHorseProvider, SiteIconProvider},
     util,
 };
 
@@ -40,6 +41,8 @@ mod imp {
         #[template_child]
         pub icon_image: TemplateChild<gtk::Image>,
         #[template_child]
+        pub icon_provider_status: TemplateChild<gtk::Label>,
+        #[template_child]
         pub title_entry: TemplateChild<adw::EntryRow>,
         #[template_child]
         pub engine_row: TemplateChild<adw::ComboRow>,
@@ -47,6 +50,8 @@ mod imp {
         pub recommendation_row: TemplateChild<adw::ActionRow>,
         #[property(get, set)]
         pub loading: Cell<bool>,
+        #[property(get, set)]
+        pub provider_loading: Cell<bool>,
     }
 
     #[glib::object_subclass]
@@ -125,6 +130,42 @@ mod imp {
                 }
                 Err(error) => self.obj().toast(&error.to_string()),
             }
+        }
+
+        #[template_callback]
+        async fn on_site_icon_clicked(&self, _button: gtk::Button) {
+            let Ok(url) = parse_web_url(&self.url_entry.text()) else {
+                self.obj()
+                    .set_icon_provider_status(&gettext("Enter a valid website URL first."));
+                return;
+            };
+            let Some(host) = url.host_str().map(ToOwned::to_owned) else {
+                self.obj()
+                    .set_icon_provider_status(&gettext("The website URL has no hostname."));
+                return;
+            };
+            self.obj().set_provider_loading(true);
+            self.obj()
+                .set_icon_provider_status(&gettext("Getting the website icon…"));
+            let result = IconHorseProvider.fetch(&host).await;
+            match result {
+                Ok(icon) => match util::load_texture(icon.clone()).await {
+                    Ok(texture) => {
+                        self.icon_image.set_paintable(Some(&texture));
+                        self.pending_icon.replace(Some(icon));
+                        self.obj()
+                            .set_icon_provider_status(&gettext("Icon from Icon Horse"));
+                    }
+                    Err(error) => self.obj().set_icon_provider_status(&error.to_string()),
+                },
+                Err(error) => self.obj().set_icon_provider_status(&format!(
+                    "{} {}",
+                    gettext("The site icon provider is unavailable."),
+                    error
+                )),
+            }
+            self.obj().set_provider_loading(false);
+            self.obj().validate_input();
         }
 
         #[template_callback]
@@ -212,7 +253,8 @@ impl CreateAppDialog {
         self.refresh_recommendation();
         let valid = parse_web_url(&self.imp().url_entry.text()).is_ok()
             && !self.imp().title_entry.text().trim().is_empty()
-            && !self.loading();
+            && !self.loading()
+            && !self.provider_loading();
         self.imp().button.set_sensitive(valid);
         valid
     }
@@ -250,5 +292,12 @@ impl CreateAppDialog {
 
     fn toast(&self, message: &str) {
         self.imp().toast_overlay.add_toast(adw::Toast::new(message));
+    }
+
+    fn set_icon_provider_status(&self, message: &str) {
+        self.imp().icon_provider_status.set_label(message);
+        self.imp()
+            .icon_provider_status
+            .set_visible(!message.is_empty());
     }
 }

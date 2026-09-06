@@ -92,20 +92,25 @@ template $BastleWindow: Adw.ApplicationWindow {
             enable-transitions: true;
 
             Adw.ViewStackPage {
-              name: "grid";
+              name: "list";
 
               child: ScrolledWindow {
                 hscrollbar-policy: never;
 
-                GridView apps_grid {
-                  name: "apps-grid";
-                  max-columns: 10;
-                  min-columns: 1;
-                  single-click-activate: true;
+                Adw.Clamp {
+                  maximum-size: 860;
+                  tightening-threshold: 560;
                   margin-top: 12;
                   margin-bottom: 18;
                   margin-start: 12;
                   margin-end: 12;
+
+                  ListView apps_list {
+                    name: "apps-list";
+                    show-separators: true;
+                    vexpand: true;
+                    single-click-activate: true;
+                  }
                 }
               };
             }

@@ -12,7 +12,7 @@ use scraper::{Html, Selector};
 use url::Url;
 
 const HTML_LIMIT: usize = 2 * 1024 * 1024;
-const IMAGE_LIMIT: usize = 10 * 1024 * 1024;
+pub(crate) const IMAGE_LIMIT: usize = 10 * 1024 * 1024;
 const ICON_SIZE: u32 = 256;
 const ICON_CONTENT_SIZE: u32 = 224;
 const MAX_ICON_REQUESTS: usize = 4;
@@ -30,7 +30,7 @@ struct IconCandidate {
     source_area: u64,
 }
 
-fn http_client() -> Result<&'static HttpClient> {
+pub(crate) fn http_client() -> Result<&'static HttpClient> {
     static HTTP: OnceLock<Result<HttpClient, String>> = OnceLock::new();
     HTTP.get_or_init(|| {
         HttpClient::builder()
@@ -59,7 +59,10 @@ fn title_selector() -> &'static Selector {
     SELECTOR.get_or_init(|| Selector::parse("title").expect("the built-in title selector is valid"))
 }
 
-async fn read_bounded(response: &mut Response<isahc::AsyncBody>, limit: usize) -> Result<Vec<u8>> {
+pub(crate) async fn read_bounded(
+    response: &mut Response<isahc::AsyncBody>,
+    limit: usize,
+) -> Result<Vec<u8>> {
     if response
         .headers()
         .get("content-length")

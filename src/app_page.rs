@@ -12,6 +12,8 @@ use crate::{
     compatibility::{reason_description, CompatibilityCatalogV1},
     model::{AppConfigV3, Engine},
     service::AppService,
+    site_icon_provider::{IconHorseProvider, SiteIconProvider},
+    ui_model::AppFormDraft,
     util,
 };
 
@@ -50,6 +52,10 @@ mod imp {
         pub content_stack: TemplateChild<adw::ViewStack>,
         #[template_child]
         pub icon_image: TemplateChild<gtk::Image>,
+        #[template_child]
+        pub site_icon_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub icon_provider_status: TemplateChild<gtk::Label>,
         #[template_child]
         pub url_entry: TemplateChild<adw::EntryRow>,
         #[template_child]
@@ -141,19 +147,26 @@ mod imp {
             let Some(mut config) = self.config.borrow().clone() else {
                 return;
             };
-            config.title = self.title_entry.text().to_string();
-            config.start_url = self.url_entry.text().to_string();
-            config.use_theme_color = self.titlebar_color.is_active();
-            config.engine = if self.engine_row.selected() == 1 {
-                Engine::Chromium
-            } else {
-                Engine::WebKit
+            let draft = AppFormDraft {
+                title: self.title_entry.text().to_string(),
+                start_url: self.url_entry.text().to_string(),
+                use_theme_color: self.titlebar_color.is_active(),
+                engine: if self.engine_row.selected() == 1 {
+                    Engine::Chromium
+                } else {
+                    Engine::WebKit
+                },
+                user_agent: self
+                    .user_agent_expander
+                    .enables_expansion()
+                    .then(|| self.user_agent_entry.text().to_string())
+                    .filter(|value| !value.trim().is_empty()),
             };
-            config.user_agent = self
-                .user_agent_expander
-                .enables_expansion()
-                .then(|| self.user_agent_entry.text().to_string())
-                .filter(|value| !value.trim().is_empty());
+            config.title = draft.title;
+            config.start_url = draft.start_url;
+            config.use_theme_color = draft.use_theme_color;
+            config.engine = draft.engine;
+            config.user_agent = draft.user_agent;
             if let Err(error) = config.normalize_and_validate() {
                 self.obj().notify_error(&error.to_string());
                 return;
@@ -200,6 +213,42 @@ mod imp {
                 }
                 Err(error) => self.obj().notify_error(&error.to_string()),
             }
+        }
+
+        #[template_callback]
+        async fn on_site_icon_clicked(&self, _button: gtk::Button) {
+            let Ok(url) = crate::model::parse_web_url(&self.url_entry.text()) else {
+                self.obj()
+                    .set_icon_provider_status(&gettext("Enter a valid website URL first."));
+                return;
+            };
+            let Some(host) = url.host_str().map(ToOwned::to_owned) else {
+                self.obj()
+                    .set_icon_provider_status(&gettext("The website URL has no hostname."));
+                return;
+            };
+            self.site_icon_button.set_sensitive(false);
+            self.obj()
+                .set_icon_provider_status(&gettext("Getting the website icon…"));
+            let result = IconHorseProvider.fetch(&host).await;
+            match result {
+                Ok(icon) => match util::load_texture(icon.clone()).await {
+                    Ok(texture) => {
+                        self.pending_icon.replace(Some(icon));
+                        self.icon_image.set_paintable(Some(&texture));
+                        self.details_icon.set_paintable(Some(&texture));
+                        self.obj()
+                            .set_icon_provider_status(&gettext("Icon from Icon Horse"));
+                        self.obj().mark_dirty();
+                    }
+                    Err(error) => self.obj().set_icon_provider_status(&error.to_string()),
+                },
+                Err(error) => self.obj().set_icon_provider_status(&format!(
+                    "{} {error}",
+                    gettext("The site icon provider is unavailable.")
+                )),
+            }
+            self.site_icon_button.set_sensitive(true);
         }
 
         #[template_callback]
@@ -288,6 +337,7 @@ impl AppPage {
     fn show_config(&self, config: &AppConfigV3) {
         let imp = self.imp();
         imp.populating.set(true);
+        self.set_icon_provider_status("");
         self.set_title(&config.title);
         imp.details_title.set_label(&config.title);
         let domain = url::Url::parse(&config.start_url)
@@ -370,6 +420,7 @@ impl AppPage {
             self.show_config(config);
         }
         self.imp().pending_icon.replace(None);
+        self.set_icon_provider_status("");
         self.finish_edit();
     }
 
@@ -386,6 +437,13 @@ impl AppPage {
 
     fn notify_error(&self, message: &str) {
         let _ = self.activate_action("win.notify", Some(&message.to_variant()));
+    }
+
+    fn set_icon_provider_status(&self, message: &str) {
+        self.imp().icon_provider_status.set_label(message);
+        self.imp()
+            .icon_provider_status
+            .set_visible(!message.is_empty());
     }
 
     #[cfg(feature = "ui-tests")]

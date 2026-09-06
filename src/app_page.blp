@@ -116,39 +116,39 @@ template $BastleAppPage: Adw.NavigationPage {
                 line-spacing: 10;
 
                 Button {
-                  icon-name: "document-edit-symbolic";
+                  label: _("Edit");
                   tooltip-text: _("Edit");
                   clicked => $on_edit_clicked() swapped;
 
-                  styles ["circular"]
+                  styles ["pill"]
                 }
 
                 Button permissions_button {
-                  icon-name: "system-lock-screen-symbolic";
+                  label: _("Permissions");
                   tooltip-text: _("Permissions");
 
-                  styles ["circular"]
+                  styles ["pill"]
                 }
 
                 Button privacy_button {
-                  icon-name: "preferences-system-privacy-symbolic";
+                  label: _("Privacy & Power");
                   tooltip-text: _("Privacy & Power");
 
-                  styles ["circular"]
+                  styles ["pill"]
                 }
 
                 Button repair_button {
-                  icon-name: "view-refresh-symbolic";
+                  label: _("Repair Launcher");
                   tooltip-text: _("Repair Launcher");
 
-                  styles ["circular"]
+                  styles ["pill"]
                 }
 
                 Button delete_button {
-                  icon-name: "user-trash-symbolic";
+                  label: _("Delete");
                   tooltip-text: _("Delete Application");
 
-                  styles ["circular", "destructive-action"]
+                  styles ["pill", "destructive-action"]
                 }
               }
             };
@@ -179,17 +179,38 @@ template $BastleAppPage: Adw.NavigationPage {
 
                 Adw.ActionRow {
                   title: _("Icon");
-                  subtitle: _("Automatically normalized to 256×256");
+                  subtitle: _("Website favicon, Icon Horse, or a local file");
 
-                  Button {
-                    icon-name: "image-symbolic";
+                  Box {
+                    orientation: horizontal;
+                    spacing: 6;
                     valign: center;
-                    clicked => $on_icon_clicked() swapped;
 
-                    Image icon_image {
-                      icon-name: "io.github.cheviiot.bastle";
+                    Button site_icon_button {
+                      label: _("Get Site Icon");
+                      valign: center;
+                      clicked => $on_site_icon_clicked() swapped;
+                    }
+
+                    Button {
+                      icon-name: "image-symbolic";
+                      valign: center;
+                      tooltip-text: _("Choose Icon File");
+                      clicked => $on_icon_clicked() swapped;
+
+                      Image icon_image {
+                        icon-name: "io.github.cheviiot.bastle";
+                      }
                     }
                   }
+                }
+
+                Label icon_provider_status {
+                  visible: false;
+                  wrap: true;
+                  xalign: 0;
+
+                  styles ["dim-label", "caption"]
                 }
               }
 

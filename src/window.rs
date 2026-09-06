@@ -2,14 +2,13 @@
 
 use std::{
     cell::{Cell, RefCell},
-    cmp::Ordering,
     str::FromStr,
 };
 
 use adw::{prelude::*, subclass::prelude::*};
 use ashpd::WindowIdentifier;
 use gettextrs::gettext;
-use gtk::{gio, glib};
+use gtk::{gdk, gio, glib};
 
 use crate::{
     addons_dialog,
@@ -23,53 +22,9 @@ use crate::{
     permissions_dialog,
     portal::{self, PortalFeature},
     privacy_dialog,
-    repository::RepositoryWarning,
     service::AppService,
+    ui_model::{LibraryItem, LibrarySortMode, LibraryState},
 };
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-enum LibrarySort {
-    #[default]
-    TitleAscending,
-    TitleDescending,
-    Newest,
-    Oldest,
-}
-
-impl LibrarySort {
-    fn from_key(value: &str) -> Self {
-        match value {
-            "title-desc" => Self::TitleDescending,
-            "newest" => Self::Newest,
-            "oldest" => Self::Oldest,
-            _ => Self::TitleAscending,
-        }
-    }
-
-    fn key(self) -> &'static str {
-        match self {
-            Self::TitleAscending => "title-asc",
-            Self::TitleDescending => "title-desc",
-            Self::Newest => "newest",
-            Self::Oldest => "oldest",
-        }
-    }
-
-    fn compare(self, left: &AppConfigV3, right: &AppConfigV3) -> Ordering {
-        let title = || {
-            left.title
-                .to_lowercase()
-                .cmp(&right.title.to_lowercase())
-                .then_with(|| left.id.as_str().cmp(right.id.as_str()))
-        };
-        match self {
-            Self::TitleAscending => title(),
-            Self::TitleDescending => title().reverse(),
-            Self::Newest => right.sort_order.cmp(&left.sort_order).then_with(title),
-            Self::Oldest => left.sort_order.cmp(&right.sort_order).then_with(title),
-        }
-    }
-}
 
 mod imp {
     use super::*;
@@ -77,17 +32,14 @@ mod imp {
     #[derive(Debug, Default, gtk::CompositeTemplate)]
     #[template(resource = "/io/github/cheviiot/bastle/window.ui")]
     pub struct BastleWindow {
-        pub apps: RefCell<Vec<AppConfigV3>>,
-        pub warnings: RefCell<Vec<RepositoryWarning>>,
+        pub state: RefCell<LibraryState>,
         pub store: RefCell<Option<gio::ListStore>>,
         pub engine_availability: RefCell<Option<EngineAvailability>>,
-        pub search_text: RefCell<String>,
-        pub(super) sort_mode: Cell<LibrarySort>,
         pub syncing_search: Cell<bool>,
         #[template_child]
         pub navigation_view: TemplateChild<adw::NavigationView>,
         #[template_child]
-        pub apps_grid: TemplateChild<gtk::GridView>,
+        pub apps_list: TemplateChild<gtk::ListView>,
         #[template_child]
         pub view_stack: TemplateChild<adw::ViewStack>,
         #[template_child]
@@ -122,9 +74,10 @@ mod imp {
         fn constructed(&self) {
             self.parent_constructed();
             let window = self.obj();
-            window.setup_grid();
+            window.setup_list();
             window.setup_search();
             window.setup_gactions();
+            window.setup_shortcuts();
             window.load_window_size();
             window.refresh_engine_availability();
             window.refresh();
@@ -170,30 +123,88 @@ impl BastleWindow {
             .build()
     }
 
-    fn setup_grid(&self) {
+    fn setup_list(&self) {
         let store = gio::ListStore::new::<glib::BoxedAnyObject>();
         let selection = gtk::NoSelection::new(Some(store.clone()));
-        self.imp().apps_grid.set_model(Some(&selection));
+        self.imp().apps_list.set_model(Some(&selection));
         let factory = gtk::SignalListItemFactory::new();
         factory.connect_setup(|_, object| {
             if let Some(item) = object.downcast_ref::<gtk::ListItem>() {
                 item.set_child(Some(&AppRow::new()));
             }
         });
-        factory.connect_bind(|_, object| {
-            let Some(item) = object.downcast_ref::<gtk::ListItem>() else {
-                return;
-            };
-            let Some(row) = item.child().and_downcast::<AppRow>() else {
-                return;
-            };
-            let Some(value) = item.item().and_downcast::<glib::BoxedAnyObject>() else {
-                return;
-            };
-            row.set_config(value.borrow::<AppConfigV3>().clone());
-        });
-        self.imp().apps_grid.set_factory(Some(&factory));
+        factory.connect_bind(glib::clone!(
+            #[weak(rename_to = window)]
+            self,
+            move |_, object| {
+                let Some(item) = object.downcast_ref::<gtk::ListItem>() else {
+                    return;
+                };
+                let Some(row) = item.child().and_downcast::<AppRow>() else {
+                    return;
+                };
+                let Some(value) = item.item().and_downcast::<glib::BoxedAnyObject>() else {
+                    return;
+                };
+                row.set_config(
+                    value.borrow::<AppConfigV3>().clone(),
+                    window.engine_availability(),
+                );
+            }
+        ));
+        self.imp().apps_list.set_factory(Some(&factory));
+        self.imp().apps_list.connect_activate(glib::clone!(
+            #[weak(rename_to = window)]
+            self,
+            move |_, position| {
+                let Some(value) = window
+                    .imp()
+                    .store
+                    .borrow()
+                    .as_ref()
+                    .and_then(|store| store.item(position))
+                    .and_downcast::<glib::BoxedAnyObject>()
+                else {
+                    return;
+                };
+                window.show_details(&value.borrow::<AppConfigV3>().id);
+            }
+        ));
         self.imp().store.replace(Some(store));
+    }
+
+    fn setup_shortcuts(&self) {
+        let controller = gtk::ShortcutController::new();
+        controller.set_scope(gtk::ShortcutScope::Managed);
+        controller.add_shortcut(gtk::Shortcut::new(
+            Some(gtk::KeyvalTrigger::new(
+                gdk::Key::f,
+                gdk::ModifierType::CONTROL_MASK,
+            )),
+            Some(gtk::NamedAction::new("win.focus-search")),
+        ));
+        controller.add_shortcut(gtk::Shortcut::new(
+            Some(gtk::KeyvalTrigger::new(
+                gdk::Key::n,
+                gdk::ModifierType::CONTROL_MASK,
+            )),
+            Some(gtk::NamedAction::new("win.add")),
+        ));
+        controller.add_shortcut(gtk::Shortcut::new(
+            Some(gtk::KeyvalTrigger::new(
+                gdk::Key::Escape,
+                gdk::ModifierType::empty(),
+            )),
+            Some(gtk::NamedAction::new("win.back")),
+        ));
+        controller.add_shortcut(gtk::Shortcut::new(
+            Some(gtk::KeyvalTrigger::new(
+                gdk::Key::Left,
+                gdk::ModifierType::ALT_MASK,
+            )),
+            Some(gtk::NamedAction::new("win.back")),
+        ));
+        self.add_controller(controller);
     }
 
     fn setup_search(&self) {
@@ -212,12 +223,27 @@ impl BastleWindow {
     }
 
     fn setup_gactions(&self) {
-        let saved_sort = LibrarySort::from_key(&settings().string("library-sort-mode"));
-        self.imp().sort_mode.set(saved_sort);
+        let saved_sort = LibrarySortMode::from_key(&settings().string("library-sort-mode"));
+        self.imp().state.borrow_mut().sort_mode = saved_sort;
         self.add_action_entries([
             gio::ActionEntry::builder("add")
                 .activate(|window: &Self, _, _| {
                     CreateAppDialog::new(window.engine_availability()).present(Some(window));
+                })
+                .build(),
+            gio::ActionEntry::builder("focus-search")
+                .activate(|window: &Self, _, _| {
+                    if window.imp().search_entry.is_visible() {
+                        window.imp().search_entry.grab_focus();
+                    } else {
+                        window.imp().compact_search_bar.set_search_mode(true);
+                        window.imp().compact_search_entry.grab_focus();
+                    }
+                })
+                .build(),
+            gio::ActionEntry::builder("back")
+                .activate(|window: &Self, _, _| {
+                    let _ = window.imp().navigation_view.pop();
                 })
                 .build(),
             gio::ActionEntry::builder("show-details")
@@ -246,11 +272,11 @@ impl BastleWindow {
                     let Some(value) = value.and_then(|value| value.get::<String>()) else {
                         return;
                     };
-                    let mode = LibrarySort::from_key(&value);
+                    let mode = LibrarySortMode::from_key(&value);
                     action.set_state(&mode.key().to_variant());
-                    window.imp().sort_mode.set(mode);
+                    window.imp().state.borrow_mut().sort_mode = mode;
                     let _ = settings().set_string("library-sort-mode", mode.key());
-                    window.rebuild_grid();
+                    window.rebuild_list();
                 })
                 .build(),
             gio::ActionEntry::builder("delete")
@@ -307,41 +333,39 @@ impl BastleWindow {
             return;
         }
         let value = value.to_owned();
-        self.imp().search_text.replace(value.clone());
+        self.imp().state.borrow_mut().query = value.clone();
         if from_compact {
             self.imp().search_entry.set_text(&value);
         } else {
             self.imp().compact_search_entry.set_text(&value);
         }
         self.imp().syncing_search.set(false);
-        self.rebuild_grid();
+        self.rebuild_list();
     }
 
-    fn rebuild_grid(&self) {
+    fn rebuild_list(&self) {
         let Some(store) = self.imp().store.borrow().clone() else {
             return;
         };
         store.remove_all();
-        let query = self.imp().search_text.borrow().trim().to_lowercase();
-        let mut visible = self
-            .imp()
-            .apps
-            .borrow()
+        let state = self.imp().state.borrow();
+        let query = state.query.trim().to_lowercase();
+        let mut visible = state
+            .items
             .iter()
-            .filter(|app| matches_search(app, &query))
+            .filter(|item| matches_search(&item.config, &query))
             .cloned()
             .collect::<Vec<_>>();
-        let mode = self.imp().sort_mode.get();
-        visible.sort_by(|left, right| mode.compare(left, right));
-        for app in visible {
-            store.append(&glib::BoxedAnyObject::new(app));
+        visible.sort_by(|left, right| state.sort_mode.compare(&left.config, &right.config));
+        for item in visible {
+            store.append(&glib::BoxedAnyObject::new(item.config));
         }
-        let page = if self.imp().apps.borrow().is_empty() {
+        let page = if state.items.is_empty() {
             "empty"
         } else if store.n_items() == 0 {
             "no-results"
         } else {
-            "grid"
+            "list"
         };
         self.imp().view_stack.set_visible_child_name(page);
     }
@@ -371,10 +395,9 @@ impl BastleWindow {
     }
 
     fn show_repository_warnings(&self) {
-        let body = self
-            .imp()
+        let state = self.imp().state.borrow();
+        let body = state
             .warnings
-            .borrow()
             .iter()
             .map(|warning| format!("{}\n{}", warning.path.display(), warning.message))
             .collect::<Vec<_>>()
@@ -475,12 +498,18 @@ impl BastleWindow {
     pub(crate) fn refresh(&self) {
         match AppService::portal().list() {
             Ok(report) => {
-                self.imp().apps.replace(report.apps);
-                self.imp().warnings.replace(report.warnings);
+                let mut state = self.imp().state.borrow_mut();
+                state.items = report
+                    .apps
+                    .into_iter()
+                    .map(LibraryItem::from_config)
+                    .collect();
+                state.warnings = report.warnings;
                 self.imp()
                     .diagnostics_banner
-                    .set_revealed(!self.imp().warnings.borrow().is_empty());
-                self.rebuild_grid();
+                    .set_revealed(!state.warnings.is_empty());
+                drop(state);
+                self.rebuild_list();
             }
             Err(error) => self.toast(&error.to_string()),
         }
@@ -502,8 +531,8 @@ pub(crate) fn run_ui_smoke_test<P: IsA<gtk::Application>>(application: &P) -> an
 
     let window = BastleWindow::new(application);
     window.set_default_size(360, 640);
-    window.imp().apps.replace(Vec::new());
-    window.rebuild_grid();
+    window.imp().state.borrow_mut().items = Vec::new();
+    window.rebuild_list();
     ensure!(
         window.imp().view_stack.visible_child_name().as_deref() == Some("empty"),
         "empty library state was not shown"
@@ -511,8 +540,11 @@ pub(crate) fn run_ui_smoke_test<P: IsA<gtk::Application>>(application: &P) -> an
 
     let first = AppConfigV3::new("Alpha", "https://alpha.example", 0)?;
     let second = AppConfigV3::new("Beta", "https://beta.example", 1)?;
-    window.imp().apps.replace(vec![first, second]);
-    window.rebuild_grid();
+    window.imp().state.borrow_mut().items = vec![
+        LibraryItem::from_config(first),
+        LibraryItem::from_config(second),
+    ];
+    window.rebuild_list();
     ensure!(
         window
             .imp()
@@ -520,7 +552,7 @@ pub(crate) fn run_ui_smoke_test<P: IsA<gtk::Application>>(application: &P) -> an
             .borrow()
             .as_ref()
             .is_some_and(|store| store.n_items() == 2),
-        "filled library did not populate the grid"
+        "filled library did not populate the list"
     );
 
     window.set_search_text("beta", false);
@@ -586,18 +618,21 @@ mod tests {
         let alpha = app("Alpha", "https://alpha.example", 1);
         let zulu = app("Zulu", "https://zulu.example", 2);
         assert_eq!(
-            LibrarySort::TitleAscending.compare(&alpha, &zulu),
-            Ordering::Less
+            LibrarySortMode::TitleAscending.compare(&alpha, &zulu),
+            std::cmp::Ordering::Less
         );
         assert_eq!(
-            LibrarySort::TitleDescending.compare(&alpha, &zulu),
-            Ordering::Greater
+            LibrarySortMode::TitleDescending.compare(&alpha, &zulu),
+            std::cmp::Ordering::Greater
         );
         assert_eq!(
-            LibrarySort::Newest.compare(&alpha, &zulu),
-            Ordering::Greater
+            LibrarySortMode::Newest.compare(&alpha, &zulu),
+            std::cmp::Ordering::Greater
         );
-        assert_eq!(LibrarySort::Oldest.compare(&alpha, &zulu), Ordering::Less);
+        assert_eq!(
+            LibrarySortMode::Oldest.compare(&alpha, &zulu),
+            std::cmp::Ordering::Less
+        );
     }
 
     #[test]
