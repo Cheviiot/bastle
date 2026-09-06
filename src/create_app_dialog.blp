@@ -76,6 +76,14 @@ template $BastleCreateAppDialog: Adw.Dialog {
             visible: false;
             title: _("Chromium Recommended");
             icon-name: "dialog-information-symbolic";
+
+            Button {
+              action-name: "win.addons";
+              label: _("Add-ons");
+              valign: center;
+
+              styles ["flat"]
+            }
           }
         }
 

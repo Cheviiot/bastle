@@ -52,6 +52,17 @@
   </categories>
   <launchable type="desktop-id">io.github.cheviiot.bastle.desktop</launchable>
   <releases>
+    <release version="0.6.0" date="2026-09-06">
+      <description>
+        <ul>
+          <li>Redesign the library as an adaptive card grid with search, sorting, and application details</li>
+          <li>Keep WebKitGTK as the default and make Chromium an optional, manually installed add-on</li>
+          <li>Add a trusted local Chromium toolbar built with secure WebContentsView isolation</li>
+          <li>Add explicit add-on diagnostics, restart guidance, and one-time WebKit fallback</li>
+        </ul>
+      </description>
+      <url>https://github.com/Cheviiot/bastle/releases/tag/v0.6.0</url>
+    </release>
     <release version="0.5.2" date="2026-09-05">
       <description>
         <ul>

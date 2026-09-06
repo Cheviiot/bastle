@@ -4,6 +4,7 @@ use std::{
     cell::{Cell, RefCell},
     collections::BTreeSet,
     str::FromStr,
+    time::Duration,
 };
 
 use adw::{prelude::*, subclass::prelude::*};
@@ -38,6 +39,26 @@ const DEFAULT_ZOOM_LEVEL: f64 = 1.0;
 const MIN_ZOOM_LEVEL: f64 = 0.5;
 const MAX_ZOOM_LEVEL: f64 = 3.0;
 const ZOOM_STEP: f64 = 0.1;
+const TOOLBAR_HIDE_DELAY: Duration = Duration::from_millis(1500);
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+struct ToolbarState {
+    loading: bool,
+    pointer_inside: bool,
+    focus_inside: bool,
+    menu_open: bool,
+    dialog_open: bool,
+}
+
+impl ToolbarState {
+    fn can_hide(self) -> bool {
+        !self.loading
+            && !self.pointer_inside
+            && !self.focus_inside
+            && !self.menu_open
+            && !self.dialog_open
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum PopupTarget {
@@ -321,6 +342,16 @@ mod imp {
         #[template_child]
         pub webview_container: TemplateChild<adw::Bin>,
         #[template_child]
+        pub toolbar_view: TemplateChild<adw::ToolbarView>,
+        #[template_child]
+        pub header_bar: TemplateChild<adw::HeaderBar>,
+        #[template_child]
+        pub runtime_title: TemplateChild<gtk::Label>,
+        #[template_child]
+        pub runtime_menu_button: TemplateChild<gtk::MenuButton>,
+        #[template_child]
+        pub hot_zone: TemplateChild<gtk::Box>,
+        #[template_child]
         pub progress_bar: TemplateChild<gtk::ProgressBar>,
         #[template_child]
         pub back_button: TemplateChild<gtk::Button>,
@@ -340,6 +371,8 @@ mod imp {
         pub startup_error: RefCell<Option<String>>,
         pub stop_requested: Cell<bool>,
         pub compatibility_prompt_shown: Cell<bool>,
+        pub(super) toolbar_state: Cell<ToolbarState>,
+        pub(super) toolbar_hide_source: RefCell<Option<glib::SourceId>>,
     }
 
     #[glib::object_subclass]
@@ -363,6 +396,7 @@ mod imp {
             self.parent_constructed();
             self.obj().setup_gestures();
             self.obj().setup_gactions();
+            self.obj().setup_runtime_toolbar();
         }
     }
     impl WidgetImpl for AppWindow {}
@@ -452,7 +486,9 @@ mod imp {
 
             let download_manager = self.obj().download_manager();
             download_manager.set_session(&network_session);
+            let window = self.obj().clone();
             network_session.connect_download_started(move |_, download| {
+                window.reveal_runtime_toolbar();
                 download_manager.track(download);
             });
 
@@ -550,6 +586,16 @@ mod imp {
                     let progress = view.estimated_load_progress();
                     window.imp().progress_bar.set_fraction(progress);
                     window.imp().progress_bar.set_visible(progress < 1.0);
+                    window.set_toolbar_loading(progress < 1.0);
+                }
+            ));
+            view.connect_title_notify(clone!(
+                #[weak(rename_to = window)]
+                self.obj(),
+                move |view| {
+                    if let Some(title) = view.title() {
+                        window.imp().runtime_title.set_label(&title);
+                    }
                 }
             ));
             view.connect_load_failed(clone!(
@@ -558,6 +604,8 @@ mod imp {
                 #[upgrade_or]
                 false,
                 move |_, _, failing_uri, error| {
+                    window.set_toolbar_loading(false);
+                    window.reveal_runtime_toolbar();
                     window.offer_chromium_after_load_failure(failing_uri, error);
                     false
                 }
@@ -627,6 +675,7 @@ impl AppWindow {
         self.imp().config.replace(Some(config.clone()));
         self.set_widget_name(&format!("b{}", config.id));
         self.set_title(Some(&config.title));
+        self.imp().runtime_title.set_label(&config.title);
         self.set_default_size(config.window.width, config.window.height);
         if config.window.maximized {
             self.maximize();
@@ -776,7 +825,10 @@ impl AppWindow {
                 .activate(|window: &Self, _, _| window.toggle_fullscreen())
                 .build(),
             gio::ActionEntry::builder("downloads")
-                .activate(|window: &Self, _, _| window.download_manager().show())
+                .activate(|window: &Self, _, _| {
+                    window.reveal_runtime_toolbar();
+                    window.download_manager().show();
+                })
                 .build(),
             gio::ActionEntry::builder("stop-background")
                 .activate(|window: &Self, _, _| window.stop_background())
@@ -843,6 +895,7 @@ impl AppWindow {
         let window = self.clone();
         let decision = decision.clone();
         let download = response_requires_download(view, &decision);
+        self.set_toolbar_dialog_open(true);
         glib::spawn_future_local(async move {
             let body = format!(
                 "{}\n\n{}: {}",
@@ -861,7 +914,9 @@ impl AppWindow {
             dialog.set_response_appearance("allow", adw::ResponseAppearance::Suggested);
             dialog.set_default_response(Some("once"));
             dialog.set_close_response("block");
-            match dialog.choose_future(Some(&window)).await.as_str() {
+            let response = dialog.choose_future(Some(&window)).await;
+            window.set_toolbar_dialog_open(false);
+            match response.as_str() {
                 "once" => accept_policy_decision(&decision, download),
                 "allow" => match window.persist_navigation_origin(origin) {
                     Ok(()) => accept_policy_decision(&decision, download),
@@ -931,6 +986,7 @@ impl AppWindow {
 
         let window = self.clone();
         let request = request.clone();
+        self.set_toolbar_dialog_open(true);
         glib::spawn_future_local(async move {
             let body = format!("{}\n\n{}: {}", description, gettext("Website"), origin);
             let dialog = adw::AlertDialog::new(Some(&gettext("Website Permission")), Some(&body));
@@ -945,7 +1001,9 @@ impl AppWindow {
             dialog.set_default_response(Some("allow-session"));
             dialog.set_close_response("cancel");
 
-            match dialog.choose_future(Some(&window)).await.as_str() {
+            let response = dialog.choose_future(Some(&window)).await;
+            window.set_toolbar_dialog_open(false);
+            match response.as_str() {
                 "allow-session" => {
                     let mut session = window.imp().session_permissions.borrow_mut();
                     for kind in &kinds {
@@ -1143,6 +1201,7 @@ impl AppWindow {
         if self.imp().background_start_pending.replace(false) {
             self.present();
         }
+        self.reveal_runtime_toolbar();
         self.toast(message);
     }
 
@@ -1158,6 +1217,7 @@ impl AppWindow {
             return;
         };
         self.imp().compatibility_prompt_shown.set(true);
+        self.set_toolbar_dialog_open(true);
 
         let window = self.clone();
         let failing_uri = failing_uri.to_owned();
@@ -1183,7 +1243,9 @@ impl AppWindow {
             dialog.set_response_appearance("chromium", adw::ResponseAppearance::Suggested);
             dialog.set_default_response(Some("cancel"));
             dialog.set_close_response("cancel");
-            if dialog.choose_future(Some(&window)).await != "chromium" {
+            let response = dialog.choose_future(Some(&window)).await;
+            window.set_toolbar_dialog_open(false);
+            if response != "chromium" {
                 return;
             }
 
@@ -1260,6 +1322,130 @@ impl AppWindow {
         self.add_controller(gesture);
     }
 
+    fn setup_runtime_toolbar(&self) {
+        let hot_zone_motion = gtk::EventControllerMotion::new();
+        hot_zone_motion.connect_enter(clone!(
+            #[weak(rename_to = window)]
+            self,
+            move |_, _, _| window.reveal_runtime_toolbar()
+        ));
+        self.imp().hot_zone.add_controller(hot_zone_motion);
+
+        let hot_zone_touch = gtk::GestureClick::new();
+        hot_zone_touch.connect_pressed(clone!(
+            #[weak(rename_to = window)]
+            self,
+            move |_, _, _, _| window.reveal_runtime_toolbar()
+        ));
+        self.imp().hot_zone.add_controller(hot_zone_touch);
+
+        let header_motion = gtk::EventControllerMotion::new();
+        header_motion.connect_enter(clone!(
+            #[weak(rename_to = window)]
+            self,
+            move |_, _, _| window.set_toolbar_pointer_inside(true)
+        ));
+        header_motion.connect_leave(clone!(
+            #[weak(rename_to = window)]
+            self,
+            move |_| window.set_toolbar_pointer_inside(false)
+        ));
+        self.imp().header_bar.add_controller(header_motion);
+
+        let header_focus = gtk::EventControllerFocus::new();
+        header_focus.connect_contains_focus_notify(clone!(
+            #[weak(rename_to = window)]
+            self,
+            move |controller| window.set_toolbar_focus_inside(controller.contains_focus())
+        ));
+        self.imp().header_bar.add_controller(header_focus);
+
+        self.imp().runtime_menu_button.connect_active_notify(clone!(
+            #[weak(rename_to = window)]
+            self,
+            move |button| window.set_toolbar_menu_open(button.is_active())
+        ));
+
+        let keys = gtk::EventControllerKey::new();
+        keys.set_propagation_phase(gtk::PropagationPhase::Capture);
+        keys.connect_key_pressed(clone!(
+            #[weak(rename_to = window)]
+            self,
+            #[upgrade_or]
+            glib::Propagation::Proceed,
+            move |_, key, _, _| {
+                if matches!(key, gdk::Key::Alt_L | gdk::Key::Alt_R | gdk::Key::F10) {
+                    window.reveal_runtime_toolbar();
+                }
+                glib::Propagation::Proceed
+            }
+        ));
+        self.add_controller(keys);
+    }
+
+    fn reveal_runtime_toolbar(&self) {
+        self.cancel_toolbar_hide();
+        self.imp().toolbar_view.set_reveal_top_bars(true);
+    }
+
+    fn schedule_runtime_toolbar_hide(&self) {
+        self.cancel_toolbar_hide();
+        if !self.imp().toolbar_state.get().can_hide() {
+            return;
+        }
+        let source = glib::timeout_add_local_once(
+            TOOLBAR_HIDE_DELAY,
+            clone!(
+                #[weak(rename_to = window)]
+                self,
+                move || {
+                    window.imp().toolbar_hide_source.borrow_mut().take();
+                    if window.imp().toolbar_state.get().can_hide() {
+                        window.imp().toolbar_view.set_reveal_top_bars(false);
+                    }
+                }
+            ),
+        );
+        self.imp().toolbar_hide_source.replace(Some(source));
+    }
+
+    fn cancel_toolbar_hide(&self) {
+        if let Some(source) = self.imp().toolbar_hide_source.borrow_mut().take() {
+            source.remove();
+        }
+    }
+
+    fn update_toolbar_state(&self, update: impl FnOnce(&mut ToolbarState)) {
+        let mut state = self.imp().toolbar_state.get();
+        update(&mut state);
+        self.imp().toolbar_state.set(state);
+        if state.can_hide() {
+            self.schedule_runtime_toolbar_hide();
+        } else {
+            self.reveal_runtime_toolbar();
+        }
+    }
+
+    fn set_toolbar_loading(&self, loading: bool) {
+        self.update_toolbar_state(|state| state.loading = loading);
+    }
+
+    fn set_toolbar_pointer_inside(&self, inside: bool) {
+        self.update_toolbar_state(|state| state.pointer_inside = inside);
+    }
+
+    fn set_toolbar_focus_inside(&self, inside: bool) {
+        self.update_toolbar_state(|state| state.focus_inside = inside);
+    }
+
+    fn set_toolbar_menu_open(&self, open: bool) {
+        self.update_toolbar_state(|state| state.menu_open = open);
+    }
+
+    fn set_toolbar_dialog_open(&self, open: bool) {
+        self.update_toolbar_state(|state| state.dialog_open = open);
+    }
+
     pub(crate) fn toast(&self, message: &str) {
         self.imp().toast_overlay.add_toast(adw::Toast::new(message));
     }
@@ -1310,8 +1496,20 @@ pub(crate) fn run_background_ui_smoke_test<P: IsA<gtk::Application>>(
         window.imp().background_hold.borrow().is_none(),
         "stopping background mode retained the application hold"
     );
+    // Release the profile lock and remove the WebView before taking the
+    // repository's exclusive cleanup lock. The test runs in-process, so the
+    // GTK object may otherwise keep the runtime alive for one main-loop turn.
+    window
+        .imp()
+        .webview_container
+        .set_child(None::<&gtk::Widget>);
+    window.imp().webview.take();
+    window.imp().runtime_lock.take();
     window.destroy();
     drop(window);
+    while glib::MainContext::default().pending() {
+        glib::MainContext::default().iteration(false);
+    }
 
     let delete_lock = repository.acquire_delete_profile_lock(&config.id)?;
     repository.delete_with_profile_lock(&config.id, delete_lock)?;
@@ -1353,5 +1551,34 @@ mod tests {
         assert_eq!(adjusted_zoom_level(1.1, -ZOOM_STEP), 1.0);
         assert_eq!(adjusted_zoom_level(MIN_ZOOM_LEVEL, -ZOOM_STEP), 0.5);
         assert_eq!(adjusted_zoom_level(MAX_ZOOM_LEVEL, ZOOM_STEP), 3.0);
+    }
+
+    #[test]
+    fn toolbar_hides_only_when_interaction_and_loading_are_idle() {
+        assert!(ToolbarState::default().can_hide());
+        for state in [
+            ToolbarState {
+                loading: true,
+                ..Default::default()
+            },
+            ToolbarState {
+                pointer_inside: true,
+                ..Default::default()
+            },
+            ToolbarState {
+                focus_inside: true,
+                ..Default::default()
+            },
+            ToolbarState {
+                menu_open: true,
+                ..Default::default()
+            },
+            ToolbarState {
+                dialog_open: true,
+                ..Default::default()
+            },
+        ] {
+            assert!(!state.can_hide());
+        }
     }
 }

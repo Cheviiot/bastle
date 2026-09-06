@@ -8,7 +8,10 @@ use futures::channel::oneshot;
 
 use crate::{
     background::{BackgroundBackend, PortalBackground},
-    chromium::{ChromiumBackend, ChromiumCapabilities, ChromiumClient},
+    chromium::{
+        ChromiumBackend, ChromiumCapabilities, ChromiumClient, EngineAvailability,
+        RUNTIME_SHELL_FEATURE,
+    },
     launcher::{LauncherBackend, PortalLauncher, UninstallOutcome},
     model::{AppConfigV3, AppId, WindowState},
     policy::{AppPolicyV2, Origin, PermissionDecision, PermissionKind},
@@ -103,10 +106,29 @@ impl<L: LauncherBackend, B: BackgroundBackend, C: ChromiumBackend> AppService<L,
         Ok(capabilities)
     }
 
+    pub fn chromium_availability(&self) -> EngineAvailability {
+        if !self.chromium.installed() {
+            return EngineAvailability::Missing;
+        }
+        match self.chromium.capabilities() {
+            Ok(capabilities) if capabilities.features.contains(RUNTIME_SHELL_FEATURE) => {
+                EngineAvailability::Available(capabilities)
+            }
+            Ok(_) => EngineAvailability::Incompatible(format!(
+                "the Chromium add-on does not support required feature {RUNTIME_SHELL_FEATURE}"
+            )),
+            Err(error) if error.to_string().contains("incompatible") => {
+                EngineAvailability::Incompatible(error.to_string())
+            }
+            Err(error) => EngineAvailability::Broken(format!("{error:#}")),
+        }
+    }
+
     pub fn open_chromium(&self, app: &AppConfigV3, start_in_background: bool) -> Result<()> {
         let capabilities = self.chromium_capabilities()?;
         capabilities.require("open-app")?;
         capabilities.require("policy-v2")?;
+        capabilities.require(RUNTIME_SHELL_FEATURE)?;
         if start_in_background {
             capabilities.require("background")?;
         }
@@ -615,27 +637,63 @@ mod tests {
         }
     }
 
-    #[derive(Debug, Clone, Default)]
+    #[derive(Debug, Clone)]
     struct FakeChromium {
         available: Rc<Cell<bool>>,
+        protocol_version: Rc<Cell<u32>>,
+        runtime_shell: Rc<Cell<bool>>,
+        broken: Rc<Cell<bool>>,
         opened: Rc<RefCell<Vec<(AppId, bool)>>>,
         deleted: Rc<RefCell<Vec<AppId>>>,
         repository: Rc<RefCell<Option<AppRepository>>>,
         deleted_while_local_present: Rc<Cell<bool>>,
     }
 
+    impl Default for FakeChromium {
+        fn default() -> Self {
+            Self {
+                available: Rc::new(Cell::new(false)),
+                protocol_version: Rc::new(Cell::new(crate::chromium::PROTOCOL_VERSION)),
+                runtime_shell: Rc::new(Cell::new(true)),
+                broken: Rc::new(Cell::new(false)),
+                opened: Rc::default(),
+                deleted: Rc::default(),
+                repository: Rc::default(),
+                deleted_while_local_present: Rc::default(),
+            }
+        }
+    }
+
     impl ChromiumBackend for FakeChromium {
+        fn installed(&self) -> bool {
+            self.available.get()
+        }
+
         fn capabilities(&self) -> Result<ChromiumCapabilities> {
             if !self.available.get() {
                 bail!("Chromium engine unavailable");
             }
+            if self.broken.get() {
+                bail!("Chromium add-on failed its health check");
+            }
+            let protocol_version = self.protocol_version.get();
+            if protocol_version != crate::chromium::PROTOCOL_VERSION {
+                bail!(
+                    "incompatible Chromium add-on protocol {protocol_version}; Bastle requires {}",
+                    crate::chromium::PROTOCOL_VERSION
+                );
+            }
+            let mut features = BTreeSet::from([
+                "open-app".to_owned(),
+                "policy-v2".to_owned(),
+                "profile-delete".to_owned(),
+            ]);
+            if self.runtime_shell.get() {
+                features.insert(crate::chromium::RUNTIME_SHELL_FEATURE.to_owned());
+            }
             Ok(ChromiumCapabilities {
-                protocol_version: crate::chromium::PROTOCOL_VERSION,
-                features: BTreeSet::from([
-                    "open-app".to_owned(),
-                    "policy-v2".to_owned(),
-                    "profile-delete".to_owned(),
-                ]),
+                protocol_version,
+                features,
             })
         }
 
@@ -740,6 +798,42 @@ mod tests {
         assert!(service.open_chromium(&app, false).is_err());
         assert!(chromium.opened.borrow().is_empty());
         assert_eq!(service.load(&app.id).unwrap().engine, Engine::Chromium);
+    }
+
+    #[test]
+    fn chromium_availability_reports_all_health_states() {
+        let (_temp, service, _launcher, chromium) = service_with_chromium();
+        assert_eq!(service.chromium_availability(), EngineAvailability::Missing);
+
+        chromium.available.set(true);
+        assert!(matches!(
+            service.chromium_availability(),
+            EngineAvailability::Available(_)
+        ));
+
+        chromium.runtime_shell.set(false);
+        assert!(matches!(
+            service.chromium_availability(),
+            EngineAvailability::Incompatible(_)
+        ));
+
+        chromium.runtime_shell.set(true);
+        chromium
+            .protocol_version
+            .set(crate::chromium::PROTOCOL_VERSION + 1);
+        assert!(matches!(
+            service.chromium_availability(),
+            EngineAvailability::Incompatible(_)
+        ));
+
+        chromium
+            .protocol_version
+            .set(crate::chromium::PROTOCOL_VERSION);
+        chromium.broken.set(true);
+        assert!(matches!(
+            service.chromium_availability(),
+            EngineAvailability::Broken(_)
+        ));
     }
 
     #[test]

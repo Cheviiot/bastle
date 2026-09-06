@@ -1,0 +1,64 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+:root {
+  color-scheme: light dark;
+  font: menu;
+}
+
+* { box-sizing: border-box; }
+html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: transparent; }
+body { padding-top: 6px; }
+
+#hot-zone { position: fixed; inset: 0 0 auto; height: 6px; }
+#toolbar {
+  position: relative;
+  height: 46px;
+  margin: 0 6px;
+  padding: 5px 7px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  color: CanvasText;
+  background: color-mix(in srgb, Canvas 94%, transparent);
+  border: 1px solid color-mix(in srgb, CanvasText 16%, transparent);
+  border-radius: 0 0 12px 12px;
+  box-shadow: 0 3px 12px color-mix(in srgb, black 22%, transparent);
+}
+
+.navigation { display: flex; gap: 4px; }
+button {
+  min-width: 32px;
+  min-height: 32px;
+  border: 0;
+  border-radius: 999px;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  font-size: 18px;
+}
+button:hover, button:focus-visible { background: color-mix(in srgb, CanvasText 12%, transparent); outline: none; }
+button:disabled { opacity: .38; }
+#title { overflow: hidden; text-align: center; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+#menu-button { font-size: 22px; }
+#menu {
+  position: fixed;
+  top: 48px;
+  right: 8px;
+  width: 220px;
+  padding: 6px;
+  display: grid;
+  z-index: 2;
+  border: 1px solid color-mix(in srgb, CanvasText 16%, transparent);
+  border-radius: 12px;
+  color: CanvasText;
+  background: Canvas;
+  box-shadow: 0 6px 20px color-mix(in srgb, black 28%, transparent);
+}
+#menu[hidden] { display: none; }
+#menu button { padding: 6px 10px; text-align: left; border-radius: 7px; font-size: 14px; }
+#progress { position: absolute; inset: auto 0 0; height: 2px; transform-origin: left; transform: scaleX(0); background: AccentColor; }
+
+@media (prefers-reduced-motion: no-preference) {
+  #toolbar { transition: opacity 120ms ease, transform 120ms ease; }
+  #progress { transition: transform 120ms linear; }
+}

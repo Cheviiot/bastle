@@ -8,6 +8,7 @@ use gettextrs::gettext;
 use gtk::glib;
 
 use crate::{
+    chromium::EngineAvailability,
     compatibility::{reason_description, CompatibilityCatalogV1},
     config,
     model::{parse_web_url, AppConfigV3, Engine},
@@ -22,6 +23,7 @@ mod imp {
     #[template(resource = "/io/github/cheviiot/bastle/create_app_dialog.ui")]
     #[properties(wrapper_type = super::CreateAppDialog)]
     pub struct CreateAppDialog {
+        pub engine_availability: RefCell<Option<EngineAvailability>>,
         pub pending_icon: RefCell<Option<Vec<u8>>>,
         #[template_child]
         pub url_entry: TemplateChild<adw::EntryRow>,
@@ -142,7 +144,13 @@ mod imp {
                     self.url_entry.text().as_str(),
                     sort_order,
                 )?;
-                app.engine = if self.engine_row.selected() == 1 {
+                app.engine = if self
+                    .engine_availability
+                    .borrow()
+                    .as_ref()
+                    .is_some_and(EngineAvailability::is_available)
+                    && self.engine_row.selected() == 1
+                {
                     Engine::Chromium
                 } else {
                     Engine::WebKit
@@ -181,9 +189,13 @@ glib::wrapper! {
 }
 
 impl CreateAppDialog {
-    pub fn new() -> Self {
+    pub fn new(availability: EngineAvailability) -> Self {
         let dialog: Self = glib::Object::builder().build();
         dialog.imp().icon_image.set_icon_name(Some(config::APP_ID));
+        dialog
+            .imp()
+            .engine_row
+            .set_visible(availability.is_available());
         let chromium_label = gettext("Chromium (add-on)");
         dialog
             .imp()
@@ -192,6 +204,7 @@ impl CreateAppDialog {
                 "WebKitGTK",
                 chromium_label.as_str(),
             ])));
+        dialog.imp().engine_availability.replace(Some(availability));
         dialog
     }
 
@@ -224,16 +237,18 @@ impl CreateAppDialog {
             self.imp()
                 .recommendation_row
                 .set_subtitle(&reason_description(&reason_code));
+            self.imp().recommendation_row.set_activatable(
+                !self
+                    .imp()
+                    .engine_availability
+                    .borrow()
+                    .as_ref()
+                    .is_some_and(EngineAvailability::is_available),
+            );
         }
     }
 
     fn toast(&self, message: &str) {
         self.imp().toast_overlay.add_toast(adw::Toast::new(message));
-    }
-}
-
-impl Default for CreateAppDialog {
-    fn default() -> Self {
-        Self::new()
     }
 }

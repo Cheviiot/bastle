@@ -153,6 +153,7 @@ mod imp {
                     .and_then(|()| crate::download_manager::run_ui_smoke_test(&*self.obj()))
                     .and_then(|()| crate::backup_dialog::run_ui_smoke_test(&*self.obj()))
                     .and_then(|()| crate::privacy_dialog::run_ui_smoke_test(&*self.obj()))
+                    .and_then(|()| crate::window::run_ui_smoke_test(&*self.obj()))
                     .and_then(|()| crate::app_window::run_background_ui_smoke_test(&*self.obj()));
                 return match result {
                     Ok(()) => glib::ExitCode::SUCCESS,
@@ -497,6 +498,9 @@ impl BastleApplication {
             Some(&original_project),
             &[zaedus.as_str(), cameron.as_str()],
         );
+        let ux_inspiration = gettext("UX inspiration");
+        let cartridges = gettext("Cartridges — interface inspiration");
+        dialog.add_acknowledgement_section(Some(&ux_inspiration), &[cartridges.as_str()]);
         dialog.present(self.active_window().as_ref());
     }
 

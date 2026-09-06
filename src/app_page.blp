@@ -4,133 +4,246 @@ using Gtk 4.0;
 using Adw 1;
 
 template $BastleAppPage: Adw.NavigationPage {
+  tag: "details";
+
   Adw.ToolbarView {
     [top]
     Stack headerbar_stack {
-      Adw.HeaderBar normal_headerbar {
-        show-title: false;
+      StackPage {
+        name: "details";
 
-        [end]
-        MenuButton {
-          icon-name: "view-more-symbolic";
-          tooltip-text: _("Menu");
-          menu-model: page_menu;
-        }
+        child: Adw.HeaderBar normal_headerbar {
+          show-title: false;
+        };
       }
 
-      Adw.HeaderBar edit_headerbar {
-        show-title: false;
+      StackPage {
+        name: "edit";
 
-        [start]
-        Button {
-          label: _("Cancel");
-          clicked => $on_cancel_clicked() swapped;
-        }
+        child: Adw.HeaderBar edit_headerbar {
+          show-title: false;
 
-        [end]
-        Button save_button {
-          label: _("Save");
+          [start]
+          Button {
+            label: _("Cancel");
+            clicked => $on_cancel_clicked() swapped;
+          }
 
-          styles [
-            "suggested-action"
-          ]
+          [end]
+          Button save_button {
+            label: _("Save");
+            sensitive: false;
+            clicked => $on_save_clicked() swapped;
 
-          clicked => $on_save_clicked() swapped;
-        }
+            styles ["suggested-action"]
+          }
+        };
       }
     }
 
-    ScrolledWindow {
+    content: ScrolledWindow {
       hscrollbar-policy: never;
 
       Adw.Clamp {
-        maximum-size: 600;
-        tightening-threshold: 500;
-        margin-start: 20;
-        margin-end: 20;
-        width-request: 300;
+        maximum-size: 720;
+        tightening-threshold: 560;
+        margin-top: 18;
+        margin-bottom: 36;
+        margin-start: 18;
+        margin-end: 18;
 
-        Box {
-          orientation: vertical;
-          spacing: 20;
-          hexpand: true;
-          halign: fill;
+        Adw.ViewStack content_stack {
+          vhomogeneous: false;
 
-          Adw.PreferencesGroup {
-            title: _("General");
-            description: _("Basic options");
+          Adw.ViewStackPage {
+            name: "details";
 
-            Adw.EntryRow url_entry {
-              title: _("URL");
-              show-apply-button: true;
-              apply => $on_url_apply() swapped;
-            }
+            child: Box {
+              orientation: vertical;
+              spacing: 22;
 
-            Adw.EntryRow title_entry {
-              title: _("Title");
-              max-length: 512;
-              show-apply-button: true;
-              apply => $update_unsaved_details_cb() swapped;
-            }
+              Box {
+                orientation: vertical;
+                spacing: 10;
+                halign: center;
 
-            Adw.ActionRow {
-              title: _("Icon");
-              subtitle: _("Automatically normalized to 256×256");
+                Image details_icon {
+                  icon-name: "io.github.cheviiot.bastle";
+                  pixel-size: 128;
+                  margin-top: 6;
+                  margin-bottom: 6;
+                }
 
-              Button {
-                icon-name: "image-symbolic";
-                valign: center;
-                Image icon_image {}
+                Label details_title {
+                  wrap: true;
+                  justify: center;
+                  max-width-chars: 32;
 
-                clicked => $on_icon_clicked() swapped;
+                  styles ["title-1"]
+                }
+
+                Label details_domain {
+                  ellipsize: middle;
+
+                  styles ["dim-label", "heading"]
+                }
+
+                Label engine_status {
+                  visible: false;
+
+                  styles ["caption", "dim-label"]
+                }
               }
-            }
+
+              Adw.Banner engine_banner {
+                revealed: false;
+                title: _("This application needs the optional Chromium add-on.");
+                button-label: _("Add-ons");
+                button-clicked => $on_addons_clicked() swapped;
+              }
+
+              Button launch_button {
+                label: _("Launch");
+                halign: center;
+
+                styles ["pill", "suggested-action"]
+              }
+
+              Adw.WrapBox actions_box {
+                halign: center;
+                justify: fill;
+                child-spacing: 10;
+                line-spacing: 10;
+
+                Button {
+                  icon-name: "document-edit-symbolic";
+                  tooltip-text: _("Edit");
+                  clicked => $on_edit_clicked() swapped;
+
+                  styles ["circular"]
+                }
+
+                Button permissions_button {
+                  icon-name: "system-lock-screen-symbolic";
+                  tooltip-text: _("Permissions");
+
+                  styles ["circular"]
+                }
+
+                Button privacy_button {
+                  icon-name: "preferences-system-privacy-symbolic";
+                  tooltip-text: _("Privacy & Power");
+
+                  styles ["circular"]
+                }
+
+                Button repair_button {
+                  icon-name: "view-refresh-symbolic";
+                  tooltip-text: _("Repair Launcher");
+
+                  styles ["circular"]
+                }
+
+                Button delete_button {
+                  icon-name: "user-trash-symbolic";
+                  tooltip-text: _("Delete Application");
+
+                  styles ["circular", "destructive-action"]
+                }
+              }
+            };
           }
 
-          Adw.PreferencesGroup {
-            title: _("User Interface");
-            description: _("Customize the application window");
-            
-            Adw.SwitchRow titlebar_color {
-              title: _("Titlebar Color");
-              subtitle: _("Use a valid theme color supplied by the website");
-              activated => $update_unsaved_details_cb() swapped;
-            }
-          }
-          Adw.PreferencesGroup {
-            title: _("Browser Behavior");
-            description: _("Choose an isolated browser engine for this application");
+          Adw.ViewStackPage {
+            name: "edit";
 
-            Adw.ComboRow engine_row {
-              title: _("Browser Engine");
-              subtitle: _("Chromium is provided by an add-on; profiles and cookies are never transferred between engines");
-            }
+            child: Box {
+              orientation: vertical;
+              spacing: 20;
 
-            Adw.ActionRow recommendation_row {
-              visible: false;
-              title: _("Chromium Recommended");
-              icon-name: "dialog-information-symbolic";
-            }
+              Adw.PreferencesGroup {
+                title: _("Application");
+                description: _("Identity and start address");
 
-            Adw.ExpanderRow user_agent_expander {
-              show-enable-switch: true;
-              expanded: bind user_agent_expander.enable-expansion;
-              title: _("Custom User Agent");
+                Adw.EntryRow url_entry {
+                  title: _("URL");
+                  show-apply-button: true;
+                  apply => $on_url_apply() swapped;
+                }
 
-              Adw.EntryRow user_agent_entry {
-                title: _("User Agent");
-                show-apply-button: true;
-                apply => $update_unsaved_details_cb() swapped;
+                Adw.EntryRow title_entry {
+                  title: _("Title");
+                  max-length: 512;
+                  changed => $update_unsaved_details_cb() swapped;
+                }
+
+                Adw.ActionRow {
+                  title: _("Icon");
+                  subtitle: _("Automatically normalized to 256×256");
+
+                  Button {
+                    icon-name: "image-symbolic";
+                    valign: center;
+                    clicked => $on_icon_clicked() swapped;
+
+                    Image icon_image {
+                      icon-name: "io.github.cheviiot.bastle";
+                    }
+                  }
+                }
               }
-            }
+
+              Adw.PreferencesGroup {
+                title: _("Window");
+
+                Adw.SwitchRow titlebar_color {
+                  title: _("Website Titlebar Color");
+                  subtitle: _("Use a valid theme color supplied by the website");
+                  activated => $update_unsaved_details_cb() swapped;
+                }
+              }
+
+              Adw.PreferencesGroup engine_group {
+                title: _("Browser Engine");
+                description: _("Profiles and cookies are never transferred between engines");
+
+                Adw.ComboRow engine_row {
+                  title: _("Engine");
+                }
+
+                Adw.ActionRow recommendation_row {
+                  visible: false;
+                  title: _("Chromium Recommended");
+                  icon-name: "dialog-information-symbolic";
+
+                  Button {
+                    action-name: "win.addons";
+                    label: _("Add-ons");
+                    valign: center;
+
+                    styles ["flat"]
+                  }
+                }
+              }
+
+              Adw.PreferencesGroup {
+                title: _("Advanced");
+
+                Adw.ExpanderRow user_agent_expander {
+                  show-enable-switch: true;
+                  expanded: bind user_agent_expander.enable-expansion;
+                  title: _("Custom User Agent");
+
+                  Adw.EntryRow user_agent_entry {
+                    title: _("User Agent");
+                    changed => $update_unsaved_details_cb() swapped;
+                  }
+                }
+              }
+            };
           }
         }
       }
-    }
+    };
   }
 }
-
-// This is a template child that gets populated when the page is built
-// Until there is a good way of accessing the menu's items (so that I can set the action target),
-// I'm just going to manually build it
-menu page_menu {}

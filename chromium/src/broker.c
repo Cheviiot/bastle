@@ -568,7 +568,7 @@ handle_method_call(GDBusConnection *connection, const gchar *sender,
         const gchar *features[] = {
             "open-app", "policy-v2", "profile-delete", "permissions",
             "navigation-allowlist", "proxy", "background",
-            "download-dialog", "oauth-popups", NULL
+            "download-dialog", "oauth-popups", "runtime-shell-v1", NULL
         };
         g_dbus_method_invocation_return_value(
             invocation,
